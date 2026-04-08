@@ -1,0 +1,122 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreTransactionRequest;
+use App\Models\Category;
+use App\Models\Mongo\NotificationFeed;
+use App\Models\ParentChildRelation;
+use App\Models\Transaction;
+use App\Models\User;
+use App\Models\UserNotification;
+use App\Models\Wallet;
+use App\Services\MongoAuditService;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+
+class TransactionController extends Controller
+{
+    public function __construct(private readonly MongoAuditService $mongoAuditService) {}
+
+    public function store(StoreTransactionRequest $request)
+    {
+        $user = $request->user();
+        $wallet = Wallet::firstOrCreate(['user_id' => (string) $user->id], ['saldo_sekarang' => 0]);
+        $amount = (float) $request->input('jumlah');
+        $jenis = $request->input('jenis');
+        $categoryId = $request->input('id_kategori');
+        if ($categoryId && ! Category::where('_id', (string) $categoryId)->exists()) {
+            throw ValidationException::withMessages(['id_kategori' => ['Kategori tidak valid.']]);
+        }
+        if ($jenis === 'pengeluaran' && (float) $wallet->saldo_sekarang < $amount) {
+            throw ValidationException::withMessages(['jumlah' => ['Saldo utama tidak mencukupi.']]);
+        }
+
+        $transaction = Transaction::create([
+            'user_id' => (string) $user->id,
+            'category_id' => $categoryId,
+            'jenis' => $jenis,
+            'status' => 'berhasil',
+            'jumlah' => $amount,
+            'tanggal' => $request->input('tanggal'),
+            'keterangan' => $request->input('keterangan'),
+        ]);
+
+        $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + ($jenis === 'pemasukan' ? $amount : ($amount * -1));
+        $wallet->save();
+        UserNotification::create(['user_id' => (string) $user->id, 'title' => 'Transaksi berhasil', 'message' => 'Transaksi '.$jenis.' sebesar '.number_format($amount, 0, ',', '.').' berhasil dicatat.']);
+        NotificationFeed::create(['user_id' => (string) $user->id, 'title' => 'Transaksi berhasil', 'message' => 'Transaksi '.$jenis.' sebesar '.number_format($amount, 0, ',', '.').' berhasil dicatat.', 'read_at' => null, 'meta' => ['transaction_id' => (string) $transaction->id]]);
+        $this->mongoAuditService->log($request, $user->id, 'transaction.created', [
+            'transaction_id' => $transaction->id,
+            'amount' => (float) $transaction->jumlah,
+            'jenis' => $transaction->jenis,
+        ]);
+
+        return response()->json([
+            'message' => 'Transaksi berhasil dicatat dan saldo diperbarui.',
+            'transactionId' => $transaction->id,
+        ], 201);
+    }
+
+    public function deposit(Request $request)
+    {
+        $parent = $request->user();
+        if ($parent->role !== 'parent') {
+            return response()->json(['message' => 'Hanya akun parent yang dapat melakukan deposit.'], 403);
+        }
+
+        $validated = $request->validate([
+            'child_id' => ['required', 'string'],
+            'amount' => ['required', 'numeric', 'min:1'],
+            'keterangan' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $hasRelation = ParentChildRelation::query()
+            ->where('parent_id', (string) $parent->id)
+            ->where('child_id', (string) $validated['child_id'])
+            ->where('is_active', true)
+            ->exists();
+        if (! $hasRelation) {
+            return response()->json(['message' => 'Akun anak tidak ditemukan atau tidak aktif.'], 404);
+        }
+
+        $child = User::where('_id', (string) $validated['child_id'])->where('role', 'child')->firstOrFail();
+        $wallet = Wallet::firstOrCreate(['user_id' => (string) $child->id], ['saldo_sekarang' => 0]);
+        $amount = (float) $validated['amount'];
+        $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + $amount;
+        $wallet->save();
+
+        $depositCategory = Category::query()->where('nama_kategori', 'Tabungan')->first();
+        $transaction = Transaction::create([
+            'user_id' => (string) $child->id,
+            'category_id' => $depositCategory ? (string) $depositCategory->id : null,
+            'jenis' => 'pemasukan',
+            'status' => 'berhasil',
+            'jumlah' => $amount,
+            'tanggal' => now()->toDateString(),
+            'keterangan' => $validated['keterangan'] ?: 'Deposit dari orang tua',
+        ]);
+
+        UserNotification::create([
+            'user_id' => (string) $child->id,
+            'title' => 'Deposit diterima',
+            'message' => 'Saldo bertambah sebesar '.number_format($amount, 0, ',', '.').' dari orang tua.',
+        ]);
+        NotificationFeed::create([
+            'user_id' => (string) $child->id,
+            'title' => 'Deposit diterima',
+            'message' => 'Saldo bertambah sebesar '.number_format($amount, 0, ',', '.').' dari orang tua.',
+            'read_at' => null,
+            'meta' => ['transaction_id' => (string) $transaction->id, 'parent_id' => (string) $parent->id],
+        ]);
+
+        $this->mongoAuditService->log($request, (string) $parent->id, 'deposit.created', [
+            'child_id' => (string) $child->id,
+            'amount' => $amount,
+            'transaction_id' => (string) $transaction->id,
+        ]);
+
+        return response()->json(['message' => 'Deposit berhasil.'], 201);
+    }
+}
