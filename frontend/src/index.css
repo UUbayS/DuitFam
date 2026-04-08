@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+/* ======================================= */
+/* 1. KODE DEFAULT VITE (DIHILANGKAN UNTUK LAYOUT BOOTSTRAP) */
+/* ======================================= */
+/* Hilangkan blok :root dan a:hover agar tidak bentrok dengan Bootstrap */
+
+
+/* ======================================= */
+/* 2. CSS RESET UNTUK FULL SCREEN & RESPONSIVITAS */
+/* ======================================= */
+
+/* Mengatasi Box Model untuk konsistensi */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* RESET UTAMA: Memastikan TINGGI dan LEBAR 100% */
+html, body {
+  /* Hapus margin dan padding default */
+  margin: 0;
+  padding: 0;
+  
+  /* Atur tinggi dan lebar ke 100% dari viewport */
+  height: 100%;
+  width: 100%; 
+  min-height: 100vh;
+  min-width: 100vw;
+  
+  /* Hapus display: flex dari body yang mengganggu */
+  display: block; 
+  
+  /* PENTING: Mencegah scroll horizontal (lahan kosong di samping) */
+  overflow-x: hidden; 
+}
+
+/* Memastikan elemen root React (#root) dan wrapper App juga 100% */
+#root, .App {
+  height: 100%;
+  width: 100%;
+}
+
+/* ======================================= */
+/* 3. STYLING TAMBAHAN (Jika diperlukan) */
+/* ======================================= */
+/* Definisikan class background yang dipakai di Login/Register */
+.bg-gradient-full {
+  min-height: 100vh;
+  /* Atur gradasi yang Anda sukai, contoh dari LoginPage: */
+  background: linear-gradient(to top, #99e4ee 30%, #ffffff 100%);
+}
+
+/* Font umum */
+body {
+    /* Inter diletakkan di urutan pertama */
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Pastikan Heading juga memakai Inter */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+}
+
+.back-button-wrapper:hover {
+  background-color: #f8f9fa !important; /* Warna abu muda saat hover */
+  transform: translateX(-5px); /* Geser sedikit ke kiri saat hover */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
