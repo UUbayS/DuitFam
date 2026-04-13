@@ -17,11 +17,11 @@ import AnalysisBlue from '../assets/IconAnalisisBiru.svg';
 // Target Menabung
 import TargetWhite from '../assets/IconTarget.svg';
 import TargetBlue from '../assets/IconTargetBiru.svg';
-
-// Pengaturan
-import SettingsWhite from '../assets/IconPengaturan.svg';
-import SettingsBlue from '../assets/IconPengaturanBiru.svg';
-
+    
+    // Pengaturan
+    import SettingsWhite from '../assets/IconPengaturan.svg';
+    import SettingsBlue from '../assets/IconPengaturanBiru.svg';
+    
 import AnggotaWhite from '../assets/IconAnggota.svg';
 import AnggotaBlue from '../assets/IconAnggotaBiru.svg';
 

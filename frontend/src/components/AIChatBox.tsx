@@ -11,7 +11,6 @@ import type {
     MonthlySummary,
     TransactionHistoryItem,
 } from "../types/report.types";
-import type { SpendingAlert } from "../services/alert.service";
 
 interface Message {
     id: string;
@@ -222,7 +221,7 @@ const AIChatBox: React.FC = () => {
 
         if (suggestions && suggestions.length > 0) {
             greeting += `💡 Saya menemukan ${suggestions.length} saran untuk Anda:\n`;
-            suggestions.forEach((s, i) => {
+            suggestions.forEach((s) => {
                 greeting += `${s.icon} ${s.title}\n`;
             });
             greeting += `\nKlik saran di bawah atau tanya saya apa saja!`;
@@ -233,7 +232,7 @@ const AIChatBox: React.FC = () => {
         return greeting;
     };
 
-    const processUserQuestion = async (
+    const _processUserQuestion = async (
         question: string,
     ): Promise<{ content: string; suggestions?: SpendingSuggestion[] }> => {
         const lowerQuestion = question.toLowerCase();

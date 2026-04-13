@@ -33,23 +33,23 @@ const AnalisisPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
 
-    const loadData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const isParent = user?.role === 'parent';
-            const [analysisRes, historical] = await Promise.all([
-                isParent ? fetchFamilyAnalysisReport(period.apiParam) : fetchAnalysisReport(period.apiParam),
-                isParent ? fetchFamilyHistoricalData() : fetchHistoricalData({ unit: unit === 'bulan' ? 'bulanan' : unit })
-            ]);
-            setReport(analysisRes);
-            setHistoricalData(historical);
-            setError(null);
-        } catch (err: any) {
-            setError("Gagal memuat data analisis.");
-        } finally {
-            setLoading(false);
-        }
-    }, [period.apiParam, unit, user?.role]);
+        const loadData = useCallback(async () => {
+            setLoading(true);
+            try {
+                const isParent = user?.role === 'parent';
+                const [analysisRes, historical] = await Promise.all([
+                    isParent ? fetchFamilyAnalysisReport(period.apiParam) : fetchAnalysisReport(period.apiParam),
+                    isParent ? fetchFamilyHistoricalData() : fetchHistoricalData({ unit: unit === 'bulan' ? 'bulanan' : unit })
+                ]);
+                setReport(analysisRes);
+                setHistoricalData(historical);
+                setError(null);
+            } catch (err: any) {
+                setError("Gagal memuat data analisis.");
+            } finally {
+                setLoading(false);
+            }
+        }, [period.apiParam, unit, user?.role]);
 
     useEffect(() => {
         loadData();

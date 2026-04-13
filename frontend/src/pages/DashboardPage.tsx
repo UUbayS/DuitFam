@@ -25,13 +25,13 @@ const formatRupiah = (amount: number) => {
     return formatted.replace("Rp", "Rp ");
 };
 
-const DashboardPage = () => {
-    const { user } = useAuth();
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [showSaldo, setShowSaldo] = useState(true);
-    const [showTransactionModal, setShowTransactionModal] = useState(false);
-
+    const DashboardPage = () => {
+        const { user } = useAuth();
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState<string | null>(null);
+        const [showSaldo, setShowSaldo] = useState(true);
+        const [showTransactionModal, setShowTransactionModal] = useState(false);
+    
     const [summary, setSummary] = useState<ReportTypes.MonthlySummary | null>(
         null,
     );
