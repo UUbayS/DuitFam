@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { createWithdrawalRequest, fetchWithdrawalRequests, processWithdrawalRequest } from '../services/approval.service';
 import { fetchChildrenService } from '../services/user.service';
 import type { WithdrawalRequestItem } from '../types/approval.types';
-import IconPersetujuanBiru from '../assets/IconApprovalBiru.svg'; // Assuming this exists or using generic if not
+    import IconPersetujuanBiru from '../assets/IconApprovalBiru.svg'; // Assuming this exists or using generic if not
 
 const formatRupiah = (amount: number) => {
     const formatted = new Intl.NumberFormat('id-ID', {

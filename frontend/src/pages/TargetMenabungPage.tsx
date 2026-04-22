@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+    import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Button, ProgressBar, Spinner, Alert } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-import { Bullseye, EyeFill, EyeSlashFill, Plus } from 'react-bootstrap-icons';
+    import { Bullseye, EyeFill, EyeSlashFill, Plus } from 'react-bootstrap-icons';
 import { fetchActiveTargets, contributeToTarget } from '../services/target.service';
 import { fetchMonthlySummary } from '../services/report.service';
 import type * as TargetTypes from '../types/target.types';
@@ -21,15 +21,15 @@ const formatRupiah = (amount: number) => {
     return formatted.replace('Rp', 'Rp ');
 };
 
-const TargetMenabungPage = () => {
-    const { user } = useAuth();
-    const [targets, setTargets] = useState<TargetTypes.TargetMenabung[]>([]);
-    const [summary, setSummary] = useState<ReportTypes.MonthlySummary | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [showSaldo, setShowSaldo] = useState(true);
-    const [showTransactionModal, setShowTransactionModal] = useState(false);
-    const [contributeLoading, setContributeLoading] = useState<Record<string, boolean>>({});
+    const TargetMenabungPage = () => {
+        const { user } = useAuth();
+        const [targets, setTargets] = useState<TargetTypes.TargetMenabung[]>([]);
+        const [summary, setSummary] = useState<ReportTypes.MonthlySummary | null>(null);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState<string | null>(null);
+        const [showSaldo, setShowSaldo] = useState(true);
+        const [showTransactionModal, setShowTransactionModal] = useState(false);
+        const [contributeLoading, setContributeLoading] = useState<Record<string, boolean>>({});
 
     const loadData = useCallback(async () => {
         setLoading(true);

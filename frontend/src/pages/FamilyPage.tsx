@@ -3,7 +3,7 @@ import { Row, Col, Card, Form, Button, Alert, Spinner, Modal } from 'react-boots
 import MainLayout from '../components/MainLayout';
 import { Plus, EyeFill, EyeSlashFill } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
-import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService } from '../services/user.service';
+    import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService } from '../services/user.service';
 import { fetchFamilyMonthlySummary, fetchFamilyHistoricalData } from '../services/report.service';
 import { depositToChild } from '../services/transaction.service';
 import TransactionModal from '../components/TransactionModal';
@@ -22,13 +22,13 @@ const formatRupiah = (amount: number) => {
     return formatted.replace('Rp', 'Rp ');
 };
 
-const FamilyPage = () => {
-    const { user } = useAuth();
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [showSaldo, setShowSaldo] = useState(true);
-    const [showTransactionModal, setShowTransactionModal] = useState(false);
-
+    const FamilyPage = () => {
+        const { user } = useAuth();
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState<string | null>(null);
+        const [showSaldo, setShowSaldo] = useState(true);
+        const [showTransactionModal, setShowTransactionModal] = useState(false);
+    
     const [summary, setSummary] = useState<ReportTypes.MonthlySummary | null>(null);
     const [historicalData, setHistoricalData] = useState<ReportTypes.AnalysisReport['chartData']>([]);
     const [children, setChildren] = useState<Array<{ id: string; username: string; email: string; is_active: boolean; saldo: number }>>([]);
