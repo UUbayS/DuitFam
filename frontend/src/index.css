@@ -147,3 +147,52 @@ aside {
     background: #a0aec0;
   }
 }
+
+/* ======================================= */
+/* 4. AI CHAT POSITIONING */
+/* ======================================= */
+
+.ai-chat-launcher {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  z-index: 1100;
+  transition: all 0.3s ease;
+}
+
+.ai-chat-window {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 420px;
+  height: 650px;
+  z-index: 2000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Desktop: Move to the left of History Sidebar */
+@media (min-width: 992px) {
+  .ai-chat-launcher {
+    right: calc(var(--history-width) + 24px);
+  }
+  .ai-chat-window {
+    right: calc(var(--history-width) + 24px);
+  }
+}
+
+/* Mobile: Full Screen Chat */
+@media (max-width: 768px) {
+  .ai-chat-window {
+    bottom: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0 !important;
+  }
+}

@@ -56,6 +56,10 @@ Route::middleware("auth.token")->group(function () {
         "toggleChild",
     ]);
     Route::get("/users/children", [UserController::class, "children"]);
+    Route::delete("/users/children/{id}", [
+        UserController::class,
+        "deleteChild",
+    ]);
     Route::get("/users/children/balances", [
         UserController::class,
         "childrenBalances",
