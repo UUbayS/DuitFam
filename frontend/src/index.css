@@ -47,11 +47,12 @@ html, body {
 /* ======================================= */
 
 :root {
-  --sidebar-width: 240px;
+  --sidebar-width: 260px;
   --history-width: 340px;
   --primary-color: #007bff;
-  --bg-light: #f6f4ff;
+  --bg-main: #f0f7ff; 
   --bg-history: #cfeeff;
+  --white: #ffffff;
 }
 
 /* Definisikan class background yang dipakai di Login/Register */
@@ -77,6 +78,28 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
 }
 
+.content-container {
+    background-color: var(--white);
+    border-top-left-radius: 60px;
+    border-bottom-left-radius: 60px;
+    height: 100%;
+    width: 100%;
+    position: relative;
+    z-index: 5;
+    transition: all 0.3s ease;
+    box-shadow: -10px 0 30px rgba(0,0,0,0.05);
+}
+
+.main-wrapper {
+    background-color: var(--primary-color); /* Biru yang sama dengan sidebar */
+    position: relative;
+}
+
+/* Glassmorphism subtle effect for sidebars */
+aside {
+    transition: all 0.3s ease;
+}
+
 /* Responsive Helpers */
 @media (max-width: 991.98px) {
   .desktop-only {
@@ -84,12 +107,19 @@ h1, h2, h3, h4, h5, h6 {
   }
   .content-container {
     border-radius: 0 !important;
+    box-shadow: none;
   }
 }
 
 @media (min-width: 992px) {
   .mobile-only {
     display: none !important;
+  }
+  
+  /* Layout Desktop: Content sebagai kartu melengkung */
+  .content-container {
+    height: 100%;
+    width: 100%;
   }
 }
 
