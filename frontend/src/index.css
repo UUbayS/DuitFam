@@ -43,30 +43,77 @@ html, body {
 }
 
 /* ======================================= */
-/* 3. STYLING TAMBAHAN (Jika diperlukan) */
+/* 3. STYLING TAMBAHAN & RESPONSIVITAS */
 /* ======================================= */
+
+:root {
+  --sidebar-width: 240px;
+  --history-width: 340px;
+  --primary-color: #007bff;
+  --bg-light: #f6f4ff;
+  --bg-history: #cfeeff;
+}
+
 /* Definisikan class background yang dipakai di Login/Register */
 .bg-gradient-full {
   min-height: 100vh;
-  /* Atur gradasi yang Anda sukai, contoh dari LoginPage: */
   background: linear-gradient(to top, #99e4ee 30%, #ffffff 100%);
 }
 
 /* Font umum */
 body {
-    /* Inter diletakkan di urutan pertama */
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Pastikan Heading juga memakai Inter */
 h1, h2, h3, h4, h5, h6 {
     font-family: 'Inter', sans-serif;
 }
 
 .back-button-wrapper:hover {
-  background-color: #f8f9fa !important; /* Warna abu muda saat hover */
-  transform: translateX(-5px); /* Geser sedikit ke kiri saat hover */
+  background-color: #f8f9fa !important;
+  transform: translateX(-5px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
+
+/* Responsive Helpers */
+@media (max-width: 991.98px) {
+  .desktop-only {
+    display: none !important;
+  }
+  .content-container {
+    border-radius: 0 !important;
+  }
+}
+
+@media (min-width: 992px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom Scrollbar for Desktop */
+@media (min-width: 992px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+  }
 }

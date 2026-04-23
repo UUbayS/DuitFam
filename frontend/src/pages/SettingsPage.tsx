@@ -108,13 +108,13 @@ const SettingsPage = () => {
     // management functions moved to FamilyPage
 
     return (
-        <MainLayout hideAddButton={true}>
-            <h2 className="mb-4 d-flex align-items-center text-primary fw-bold" style={{ fontSize: '35px' }}>
+        <MainLayout hideAddButton={false}>
+            <h2 className="mb-4 d-flex align-items-center text-primary fw-bold" style={{ fontSize: 'calc(1.5rem + 1.5vw)' }}>
                 <img 
                     src={IconPengaturanBiru} 
                     alt="Ikon Pengaturan" 
                     className="me-2" 
-                    style={{ width: '32px', height: '32px', display: 'block', marginTop: '-1px' }} 
+                    style={{ width: window.innerWidth > 768 ? 32 : 24, height: window.innerWidth > 768 ? 32 : 24, display: 'block' }} 
                 /> 
                 <span style={{ display: 'inline-block', lineHeight: '1.2' }}>Pengaturan</span>
             </h2>

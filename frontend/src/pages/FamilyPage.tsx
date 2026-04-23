@@ -116,7 +116,7 @@ const formatRupiah = (amount: number) => {
         <MainLayout 
             onTransactionAdded={loadData} 
             openTransactionModal={() => setShowTransactionModal(true)}
-            hideAddButton={true}
+            hideAddButton={false}
         >
             <div className="d-flex align-items-center gap-2 mb-4">
                 <img src={IconBerandaBiru} alt="Ikon Keluarga" style={{ width: 32, height: 32 }} />

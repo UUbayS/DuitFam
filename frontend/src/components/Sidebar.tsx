@@ -28,7 +28,11 @@ import AnggotaBlue from '../assets/IconAnggotaBiru.svg';
 import PersetujuanWhite from '../assets/IconPersetujuan.svg';
 import PersetujuanBlue from '../assets/IconPersetujuanBiru.svg';
 
-const Sidebar = () => {
+interface SidebarProps {
+  onItemClick?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onItemClick }) => {
   const location = useLocation();
   const { user, handleLogout } = useAuth();
   
@@ -50,11 +54,8 @@ const Sidebar = () => {
   return (
     <div 
       style={{ 
-        height: '100vh', 
+        height: '100%', 
         backgroundColor: '#007bff', 
-        position: 'sticky', 
-        top: 0,             
-        left: 0,            
         padding: '20px 0 20px 0', 
         overflowY: 'auto', 
       }}
@@ -65,7 +66,7 @@ const Sidebar = () => {
         <img 
           src={LogoPutih} 
           alt="SipDana Logo" 
-          style={{ width: '250px' }} 
+          style={{ width: '100%', maxWidth: '250px' }} 
           className="px-4" 
         />
       </div>
@@ -95,6 +96,7 @@ const Sidebar = () => {
             as={Link} 
             to={item.to} 
             key={item.to}
+            onClick={onItemClick}
             className={`d-flex align-items-center mb-2 p-3 rounded text-white ${isActive(item.to) ? 'bg-white fw-bold' : 'text-white'}`}
             style={{ 
                 backgroundColor: isActive(item.to) ? 'white' : 'transparent',

@@ -347,7 +347,7 @@ const AIChatBox: React.FC = () => {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    zIndex: 1000,
+                    zIndex: 1100,
                     transition: "all 0.3s ease",
                 }}
                 onMouseEnter={(e) => {
@@ -371,16 +371,16 @@ const AIChatBox: React.FC = () => {
         <div
             style={{
                 position: "fixed",
-                bottom: "24px",
-                right: "24px",
-                width: "420px",
-                height: "650px",
+                bottom: window.innerWidth > 768 ? "24px" : "0px",
+                right: window.innerWidth > 768 ? "24px" : "0px",
+                width: window.innerWidth > 768 ? "420px" : "100%",
+                height: window.innerWidth > 768 ? "650px" : "100%",
                 backgroundColor: "white",
-                borderRadius: "16px",
+                borderRadius: window.innerWidth > 768 ? "16px" : "0",
                 boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)",
                 display: "flex",
                 flexDirection: "column",
-                zIndex: 1000,
+                zIndex: 2000,
                 overflow: "hidden",
             }}
         >
