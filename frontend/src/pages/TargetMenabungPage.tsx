@@ -1,8 +1,8 @@
     import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Button, ProgressBar, Spinner, Alert } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-    import { Bullseye, EyeFill, EyeSlashFill, Plus } from 'react-bootstrap-icons';
-import { fetchActiveTargets, contributeToTarget } from '../services/target.service';
+    import { Bullseye, EyeFill, EyeSlashFill, Plus, Trash, DashCircle } from 'react-bootstrap-icons';
+import { fetchActiveTargets, contributeToTarget, withdrawFromTarget, cancelTarget } from '../services/target.service';
 import { fetchMonthlySummary } from '../services/report.service';
 import type * as TargetTypes from '../types/target.types';
 import type * as ReportTypes from '../types/report.types';
@@ -68,6 +68,37 @@ const formatRupiah = (amount: number) => {
             loadData();
         } catch (err: any) {
             alert(err.response?.data?.message || 'Gagal menabung.');
+        } finally {
+            setContributeLoading(prev => ({ ...prev, [targetId]: false }));
+        }
+    };
+
+    const handleWithdraw = async (targetId: string) => {
+        const amountStr = window.prompt('Masukkan jumlah yang ingin diambil dari kantong:');
+        if (!amountStr) return;
+        const amount = Number(amountStr.replace(/\D/g, ''));
+        if (!amount || amount <= 0) return;
+
+        setContributeLoading(prev => ({ ...prev, [targetId]: true }));
+        try {
+            await withdrawFromTarget({ id_target: targetId, jumlah: amount });
+            loadData();
+        } catch (err: any) {
+            alert(err.response?.data?.message || 'Gagal mengambil uang.');
+        } finally {
+            setContributeLoading(prev => ({ ...prev, [targetId]: false }));
+        }
+    };
+
+    const handleDelete = async (targetId: string, name: string) => {
+        if (!window.confirm(`Apakah Anda yakin ingin menghapus kantong "${name}"?`)) return;
+
+        setContributeLoading(prev => ({ ...prev, [targetId]: true }));
+        try {
+            await cancelTarget(targetId);
+            loadData();
+        } catch (err: any) {
+            alert(err.response?.data?.message || 'Gagal menghapus kantong.');
         } finally {
             setContributeLoading(prev => ({ ...prev, [targetId]: false }));
         }
@@ -174,15 +205,37 @@ const formatRupiah = (amount: number) => {
                                                 </div>
                                             </div>
 
-                                            <Button 
-                                                variant="primary" 
-                                                onClick={() => handleContribute(target.id_target)}
-                                                className="w-100 py-2 fw-bold"
-                                                style={{ borderRadius: 12, fontSize: 14 }}
-                                                disabled={contributeLoading[target.id_target]}
-                                            >
-                                                {contributeLoading[target.id_target] ? <Spinner size="sm" /> : '+ Nabung'}
-                                            </Button>
+                                            <div className="d-flex gap-2">
+                                                <Button 
+                                                    variant="primary" 
+                                                    onClick={() => handleContribute(target.id_target)}
+                                                    className="flex-grow-1 py-2 fw-bold"
+                                                    style={{ borderRadius: 12, fontSize: 14 }}
+                                                    disabled={contributeLoading[target.id_target]}
+                                                >
+                                                    {contributeLoading[target.id_target] ? <Spinner size="sm" /> : '+ Nabung'}
+                                                </Button>
+                                                <Button 
+                                                    variant="outline-primary" 
+                                                    onClick={() => handleWithdraw(target.id_target)}
+                                                    className="py-2 px-3 fw-bold"
+                                                    style={{ borderRadius: 12, fontSize: 14 }}
+                                                    disabled={contributeLoading[target.id_target]}
+                                                    title="Ambil Uang"
+                                                >
+                                                    <DashCircle size={20} />
+                                                </Button>
+                                                <Button 
+                                                    variant="outline-danger" 
+                                                    onClick={() => handleDelete(target.id_target, target.nama_target)}
+                                                    className="py-2 px-3 fw-bold"
+                                                    style={{ borderRadius: 12, fontSize: 14, border: 'none', backgroundColor: 'rgba(220, 53, 69, 0.1)', color: '#dc3545' }}
+                                                    disabled={contributeLoading[target.id_target]}
+                                                    title="Hapus Kantong"
+                                                >
+                                                    <Trash size={18} />
+                                                </Button>
+                                            </div>
                                         </Card.Body>
                                     </Card>
                                 </Col>
@@ -213,17 +266,9 @@ const formatRupiah = (amount: number) => {
                 </Col>
             </Row>
 
-            <div className="mt-4">
-                <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 25, backgroundColor: '#fff' }}>
-                    <Card.Body className="p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                        <div>
-                            <div className="fw-bold text-dark" style={{ fontSize: 20 }}>Analisis Mingguan</div>
-                            <div className="text-muted small">Kamu sudah menabung <span className="text-primary fw-bold">Rp 150.000</span> minggu ini!</div>
-                        </div>
-                        <div className="text-success fw-bold" style={{ fontSize: 24 }}>+12% 📈</div>
-                    </Card.Body>
-                </Card>
 
+
+            <div className="mt-4">
                 <Button 
                     variant="primary"
                     className="w-100 py-3 fw-bold shadow"

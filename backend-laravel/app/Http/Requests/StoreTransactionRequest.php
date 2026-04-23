@@ -22,11 +22,12 @@ class StoreTransactionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'jenis' => ['required', 'in:pemasukan,pengeluaran'],
+            'jenis' => ['required', 'in:pemasukan,pengeluaran,menabung,refund'],
             'jumlah' => ['required', 'numeric', 'min:1'],
             'tanggal' => ['required', 'date'],
             'keterangan' => ['nullable', 'string', 'max:1000'],
             'id_kategori' => ['nullable', 'string'],
+            'source_id' => ['nullable', 'string'],
         ];
     }
 }

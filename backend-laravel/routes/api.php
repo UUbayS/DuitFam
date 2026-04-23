@@ -42,6 +42,7 @@ Route::middleware("auth.token")->group(function () {
     Route::put("/targets/{id}", [TargetController::class, "update"]);
     Route::delete("/targets/{id}", [TargetController::class, "destroy"]);
     Route::post("/targets/contribute", [TargetController::class, "contribute"]);
+    Route::post("/targets/withdraw", [TargetController::class, "withdraw"]);
 
     Route::put("/users/profile", [UserController::class, "updateProfile"]);
     Route::put("/users/password", [UserController::class, "updatePassword"]);

@@ -18,5 +18,6 @@ class Transaction extends Model
         'jumlah',
         'tanggal',
         'keterangan',
+        'source_id',
     ];
 }

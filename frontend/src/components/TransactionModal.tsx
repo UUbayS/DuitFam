@@ -12,7 +12,9 @@ import {
 } from 'react-bootstrap-icons';
 import { fetchCategories } from '../services/utility.service';
 import { createTransaction } from '../services/transaction.service';
+import { fetchActiveTargets } from '../services/target.service';
 import type { TransactionInput, Category, TransactionType } from '../types/transaction.types'; 
+import type { TargetMenabung } from '../types/target.types';
 import type { AxiosError } from 'axios'; 
 
 
@@ -32,6 +34,7 @@ const initialFormState: Omit<TransactionInput, 'jumlah'> & { jumlah: string } = 
     tanggal: new Date().toISOString().split('T')[0], 
     keterangan: '',
     id_kategori: '',
+    source_id: '',
 };
 
 const getErrorMessage = (err: unknown): string => {
@@ -46,6 +49,7 @@ const getErrorMessage = (err: unknown): string => {
 const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, onSuccess }) => {
     const [formData, setFormData] = useState(initialFormState);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [targets, setTargets] = useState<TargetMenabung[]>([]);
     const [loading, setLoading] = useState(false);
     const [catLoading, setCatLoading] = useState(true);
     const [message, setMessage] = useState<{ type: 'success' | 'danger', text: string } | null>(null);
@@ -57,11 +61,15 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
         backgroundColor: '#f8fafc',
     };
 
-    const loadCategories = useCallback(async () => {
+    const loadCategoriesAndTargets = useCallback(async () => {
         setCatLoading(true);
         try {
-            const cats = await fetchCategories();
+            const [cats, activeTargets] = await Promise.all([
+                fetchCategories(),
+                fetchActiveTargets()
+            ]);
             setCategories(cats);
+            setTargets(activeTargets);
             if (cats.length > 0) {
                 setFormData(prev => ({ 
                     ...prev, 
@@ -77,11 +85,11 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
 
     useEffect(() => {
         if (show) {
-             loadCategories();
+             loadCategoriesAndTargets();
              setFormData(initialFormState);
              setMessage(null);
         }
-    }, [show, loadCategories]); 
+    }, [show, loadCategoriesAndTargets]); 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -208,6 +216,27 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
                                 />
                             </div>
                         </Form.Group>
+
+                        <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold text-dark mb-2">
+                                <Icons.Wallet2 className="text-primary me-2" /> Sumber Dana
+                            </Form.Label>
+                            <Form.Select 
+                                name="source_id" 
+                                value={formData.source_id} 
+                                onChange={handleChange}
+                                className="py-2 px-3 border-secondary border-opacity-25"
+                                style={{ borderRadius: '10px' }}
+                            >
+                                <option value="">Saldo Utama</option>
+                                {targets.map(t => (
+                                    <option key={t.id_target} value={t.id_target}>
+                                        Kantong: {t.nama_target} ({t.jumlah_terkumpul.toLocaleString('id-ID')})
+                                    </option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+
 
                         <Form.Group className="mb-4">
                             <Form.Label className="fw-bold text-dark mb-3">
