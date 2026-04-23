@@ -180,6 +180,10 @@ const ApprovalPage = () => {
                             </Card>
                         </Col>
                     ))}
+                    {data.length === 0 && (
+                        <Col className="text-center p-5">
+                            <div className="text-muted">Tidak ada data permintaan persetujuan.</div>
+                        </Col>
                     )}
                 </Row>
             )}

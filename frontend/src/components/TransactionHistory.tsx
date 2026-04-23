@@ -66,12 +66,12 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
     });
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 20 }}>
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px 20px 24px 20px', backgroundColor: 'var(--bg-history)' }}>
             
-        <Card className="mb-3 border-0 mx-1" style={{ borderRadius: 20, overflow: 'hidden', flexShrink: 0, boxShadow: '0 10px 24px rgba(0,0,0,0.10)' }}>
+        <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: 24, overflow: 'hidden', flexShrink: 0, backgroundColor: '#ffffff' }}>
             <Card.Body className="p-4">
                 <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h5 className="mb-0 fw-bold text-dark" style={{ fontSize: 18 }}>
+                    <h5 className="mb-0 fw-bold text-dark" style={{ fontSize: 17 }}>
                         {period.display}
                     </h5>
                     <Button variant="link" className="p-0 text-secondary shadow-none" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
@@ -105,7 +105,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                     </>
                 )}
 
-                <div className="d-flex mt-3" style={{ backgroundColor: '#007bff', borderRadius: 12, overflow: 'hidden' }}>
+                <div className="d-flex mt-3 bg-primary bg-opacity-10 p-1" style={{ borderRadius: 12, overflow: 'hidden' }}>
                     {['mingguan', 'bulan', 'tahunan'].map((u) => {
                         const active = unit === u;
                         return (
@@ -114,13 +114,14 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                                 variant="link"
                                 size="sm"
                                 onClick={() => changeUnit(u as any)}
-                                className="w-100 border-0"
+                                className={`flex-fill border-0 ${active ? 'bg-primary text-white shadow-sm' : 'text-primary'}`}
                                 style={{
                                     textDecoration: 'none',
-                                    color: '#fff',
-                                    fontWeight: 800,
+                                    fontWeight: 'bold',
+                                    fontSize: '11px',
                                     padding: '8px 0',
-                                    backgroundColor: active ? '#0b5ed7' : 'transparent',
+                                    borderRadius: 10,
+                                    transition: '0.3s'
                                 }}
                             >
                                 {u === 'mingguan' ? 'Minggu' : u === 'bulan' ? 'Bulan' : 'Tahun'}
@@ -135,56 +136,56 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
             size="sm"
             value={filter}
             onChange={(e) => setFilter(e.target.value as any)}
-            style={{ borderRadius: 12, flexShrink: 0 }}
+            className="border-0 shadow-sm mb-4"
+            style={{ borderRadius: 12, fontSize: '13px', backgroundColor: '#fff', padding: '12px' }}
         >
-            <option value="all">Filter Transaksi</option>
+            <option value="all">Semua Transaksi</option>
             <option value="pemasukan">Pemasukan</option>
             <option value="pengeluaran">Pengeluaran</option>
             <option value="pending">Pending</option>
             <option value="ditolak">Ditolak</option>
         </Form.Select>
 
-        <div className="mt-3 mb-2 fw-bold text-center" style={{ flexShrink: 0, fontSize: 20 }}>Riwayat Transaksi</div>
+        <div className="mb-3 fw-bold text-dark" style={{ flexShrink: 0, fontSize: 18, textAlign: 'center' }}>Riwayat Transaksi</div>
                     
-        <div style={{ flexGrow: 1, overflowY: 'auto', paddingRight: '5px' }} className="px-1">
+        <div style={{ flexGrow: 1, overflowY: 'auto' }} className="no-scrollbar px-1">
             {error ? (
-                <div className="text-danger small mb-2">{error}</div>
+                <div className="text-danger small mb-2 text-center">{error}</div>
             ) : null}
             {hasNoData ? (
                 <div className="text-center p-4 text-muted">
                     <p className="mb-0">Belum ada transaksi.</p>
                 </div>
             ) : (
-                filteredTransactions.slice(0, 10).map((tx) => (
-                    <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0 mx-1" style={{ borderRadius: '15px' }}>
+                filteredTransactions.map((tx) => (
+                    <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0" style={{ borderRadius: '18px' }}>
                         <Card.Body className="p-3">
                             <div className="d-flex flex-column">
-                                
                                 <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
-                                    <div className="fw-bold text-dark text-truncate" style={{ fontSize: '15px' }} title={tx.keterangan}>
-                                        {tx.keterangan.replace('Kontribusi Target ID:', 'Tabungan Target #')}
+                                    <div className="fw-bold text-dark text-truncate" style={{ fontSize: '14px' }} title={tx.keterangan}>
+                                        {tx.keterangan.replace('Kontribusi Target ID:', 'Tabungan #')}
                                     </div>
                                     {tx.status && tx.status !== 'berhasil' ? (
-                                        <Badge bg={tx.status === 'pending' ? 'warning' : 'danger'}>
+                                        <Badge bg={tx.status === 'pending' ? 'warning' : 'danger'} style={{ fontSize: '10px', borderRadius: 6 }}>
                                             {tx.status === 'pending' ? 'Pending' : 'Ditolak'}
                                         </Badge>
                                     ) : null}
                                 </div>
 
                                 <div className="d-flex justify-content-between align-items-center">
-                                    <small className="text-muted" style={{ fontSize: '12px' }}>
+                                    <small className="text-muted" style={{ fontSize: '11px' }}>
                                         {new Date(tx.tanggal).toLocaleDateString('id-ID', { 
                                             day: '2-digit', 
-                                            month: 'long', 
-                                            year: 'numeric' 
+                                            month: 'short',
+                                            year: 'numeric'
                                         })}
                                     </small>
 
                                     <div 
                                         className="fw-bold" 
                                         style={{ 
-                                            color: tx.jenis === 'pemasukan' ? '#4caf50' : '#f44336', 
-                                            fontSize: '15px',
+                                            color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545', 
+                                            fontSize: '14px',
                                             whiteSpace: 'nowrap'
                                         }}
                                     >
@@ -199,14 +200,14 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
             )}
         </div>
             
-            {!hideAddButton && (
-                <div className="pt-3 pb-2 bg-transparent" style={{ flexShrink: 0 }}>
-                    <Button variant="primary" className="w-100 py-3 fw-bold shadow" style={{ borderRadius: 999, border: 'none' }} onClick={openTransactionModal}>
-                        + Tambah Transaksi
-                    </Button>
-                </div>
-            )}
-        </div>
+        {!hideAddButton && (
+            <div className="pt-4 bg-transparent" style={{ flexShrink: 0, marginTop: 'auto' }}>
+                <Button variant="primary" className="w-100 py-3 fw-bold shadow" style={{ borderRadius: 999, border: 'none', backgroundColor: '#007bff' }} onClick={openTransactionModal}>
+                    + Tambah Transaksi
+                </Button>
+            </div>
+        )}
+    </div>
     );
 };
 

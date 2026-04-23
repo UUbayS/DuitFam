@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Card, Col, Row, Spinner } from "react-bootstrap";
-import { EyeFill, EyeSlashFill } from "react-bootstrap-icons";
+import { EyeFill, EyeSlashFill, GridFill, Coin } from "react-bootstrap-icons";
 import MainLayout from "../components/MainLayout";
 import DashboardAlertBanner from "../components/DashboardAlertBanner";
 import { useAuth } from "../context/AuthContext";
@@ -94,11 +94,7 @@ const formatRupiah = (amount: number) => {
             hideAddButton={false}
         >
             <div className="d-flex align-items-center gap-2 mb-4">
-                <img
-                    src={IconBerandaBiru}
-                    alt="Ikon Beranda"
-                    style={{ width: window.innerWidth > 768 ? 32 : 24, height: window.innerWidth > 768 ? 32 : 24 }}
-                />
+                <GridFill className="text-primary" size={window.innerWidth > 768 ? 32 : 24} />
                 <h2
                     className="text-primary fw-bold mb-0 responsive-h2"
                     style={{ fontSize: 'calc(1.5rem + 1.5vw)' }}
@@ -124,45 +120,27 @@ const formatRupiah = (amount: number) => {
                         <Card.Body className="p-4">
                             <div className="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <div
-                                        className="fw-bold text-dark"
-                                        style={{ fontSize: 18 }}
-                                    >
-                                        Tabungan
+                                    <div className="d-flex align-items-center justify-content-between mb-3">
+                                        <div className="fw-bold text-dark" style={{ fontSize: 18 }}>Tabungan</div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSaldo(!showSaldo)}
+                                            style={{ border: 0, background: "transparent", color: "#9aa0a6" }}
+                                        >
+                                            {showSaldo ? <EyeFill size={20} /> : <EyeSlashFill size={20} />}
+                                        </button>
                                     </div>
-                                    <div className="text-muted small">
-                                        Saldo saat ini
+                                    <div className="text-muted small">Saldo saat ini</div>
+                                    <div className="mt-1 text-primary fw-bolder" style={{ fontSize: 'calc(1.4rem + 1vw)', color: '#1389f9' }}>
+                                        {showSaldo ? formatRupiah(parentSummary?.saldoAkhir || 0) : "Rp ••••••"}
                                     </div>
-                                    <div
-                                        className="mt-2 text-primary fw-bolder"
-                                        style={{
-                                            fontSize: 'calc(1.4rem + 1vw)',
-                                        }}
-                                    >
-                                        {showSaldo
-                                            ? formatRupiah(
-                                                  parentSummary?.saldoAkhir ||
-                                                      0,
-                                              )
-                                            : "Rp ••••••"}
+                                    <div className="text-success fw-bold small mt-1">
+                                        +5.89% dari bulan lalu
                                     </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowSaldo(!showSaldo)}
-                                    style={{
-                                        border: 0,
-                                        background: "transparent",
-                                        padding: 8,
-                                        color: "#9aa0a6",
-                                    }}
-                                >
-                                    {showSaldo ? (
-                                        <EyeFill size={20} />
-                                    ) : (
-                                        <EyeSlashFill size={20} />
-                                    )}
-                                </button>
+                                <div className="bg-primary bg-opacity-10 p-3 rounded-circle text-primary d-flex align-items-center justify-content-center" style={{ width: 64, height: 64 }}>
+                                    <Coin size={32} />
+                                </div>
                             </div>
                         </Card.Body>
                     </Card>
@@ -175,44 +153,27 @@ const formatRupiah = (amount: number) => {
                         <Card.Body className="p-4">
                             <div className="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <div
-                                        className="fw-bold text-dark"
-                                        style={{ fontSize: 18 }}
-                                    >
-                                        Saldo Total Keluarga
+                                    <div className="d-flex align-items-center justify-content-between mb-3">
+                                        <div className="fw-bold text-dark" style={{ fontSize: 18 }}>Saldo Total Keluarga</div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSaldo(!showSaldo)}
+                                            style={{ border: 0, background: "transparent", color: "#9aa0a6" }}
+                                        >
+                                            {showSaldo ? <EyeFill size={20} /> : <EyeSlashFill size={20} />}
+                                        </button>
                                     </div>
-                                    <div className="text-muted small">
-                                        Saldo saat ini
+                                    <div className="text-muted small">Saldo saat ini</div>
+                                    <div className="mt-1 text-primary fw-bolder" style={{ fontSize: 'calc(1.4rem + 1vw)', color: '#1389f9' }}>
+                                        {showSaldo ? formatRupiah(summary?.saldoAkhir || 0) : "Rp ••••••"}
                                     </div>
-                                    <div
-                                        className="mt-2 text-primary fw-bolder"
-                                        style={{
-                                            fontSize: 'calc(1.4rem + 1vw)',
-                                        }}
-                                    >
-                                        {showSaldo
-                                            ? formatRupiah(
-                                                  summary?.saldoAkhir || 0,
-                                              )
-                                            : "Rp ••••••"}
+                                    <div className="text-success fw-bold small mt-1">
+                                        +5.89% dari bulan lalu
                                     </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowSaldo(!showSaldo)}
-                                    style={{
-                                        border: 0,
-                                        background: "transparent",
-                                        padding: 8,
-                                        color: "#9aa0a6",
-                                    }}
-                                >
-                                    {showSaldo ? (
-                                        <EyeFill size={20} />
-                                    ) : (
-                                        <EyeSlashFill size={20} />
-                                    )}
-                                </button>
+                                <div className="bg-primary bg-opacity-10 p-3 rounded-circle text-primary d-flex align-items-center justify-content-center" style={{ width: 64, height: 64 }}>
+                                    <Coin size={32} />
+                                </div>
                             </div>
                         </Card.Body>
                     </Card>
