@@ -18,7 +18,7 @@ echo "1. 🚨 Warning: Expenses exceed income (High Severity)"
 echo "2. ⚠️ Warning: Almost exceeded budget (>90%)"
 echo "3. 📊 Warning: Category spending too high (>30%)"
 echo "4. ✅ Success: Healthy finances (<70%)"
-echo "5. Test AI Chat endpoint"
+echo "5. 🤖 Test Hybrid AI Chat (Cloud -> Local -> Rule)"
 echo ""
 read -p "Enter choice (1-5): " CHOICE
 
@@ -174,7 +174,8 @@ case $CHOICE in
 
     5)
         echo ""
-        echo "🤖 Testing AI Chat endpoint..."
+        echo "🤖 Testing Triple-Tier Hybrid AI Chat..."
+        echo "Scenario: Cloud -> Local -> Rule-based"
         echo ""
 
         RESPONSE=$(curl -s -X POST "$API_URL/ai/chat" \

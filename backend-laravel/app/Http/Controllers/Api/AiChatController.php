@@ -30,25 +30,14 @@ class AiChatController extends Controller
 
             $userId = (string) $request->user()->id;
             $financialData = $this->getFinancialContext($userId);
+            $history = $request->input("conversationHistory", []);
 
-            // Try LLM first (will likely return null for 0.5b)
-            $response = null;
-            try {
-                $response = $this->groqService->generateFinancialAdvice(
-                    $financialData,
-                    $request->message,
-                );
-            } catch (\Exception $e) {
-                Log::warning("LLM failed, using fallback");
-            }
-
-            // Fallback to smart rule-based response
-            if (!$response) {
-                $response = $this->generateSmartResponse(
-                    $financialData,
-                    $request->message,
-                );
-            }
+            // Now handled by Triple-Tier Service (Cloud -> Local -> Rule-based)
+            $response = $this->groqService->generateFinancialAdvice(
+                $financialData,
+                $request->message,
+                $history
+            );
 
             return response()->json([
                 "response" => $response,

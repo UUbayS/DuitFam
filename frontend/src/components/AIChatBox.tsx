@@ -232,132 +232,6 @@ const AIChatBox: React.FC = () => {
         return greeting;
     };
 
-    const _processUserQuestion = async (
-        question: string,
-    ): Promise<{ content: string; suggestions?: SpendingSuggestion[] }> => {
-        const lowerQuestion = question.toLowerCase();
-        const suggestions: SpendingSuggestion[] = [];
-
-        // Question pattern matching
-        if (
-            lowerQuestion.includes("pengeluaran") ||
-            lowerQuestion.includes("spending") ||
-            lowerQuestion.includes("habis")
-        ) {
-            if (financialData.analysis?.spendingByCategory) {
-                const byCategory = financialData.analysis.spendingByCategory;
-                let response = `📊 **Breakdown Pengeluaran per Kategori:**\n\n`;
-
-                byCategory.forEach((cat) => {
-                    response += `• ${cat.namaKategori}: ${formatCurrency(cat.jumlah)} (${cat.persentase.toFixed(1)}%)\n`;
-
-                    if (cat.persentase > 25) {
-                        suggestions.push({
-                            icon: "⚠️",
-                            title: `${cat.namaKategori} Terlalu Tinggi`,
-                            description: `Kurangi pengeluaran ${cat.namaKategori} maksimal ${formatCurrency(financialData.summary!.totalPemasukan * 0.25)} (25% dari pemasukan).`,
-                            amount: cat.jumlah,
-                            color: "#dc3545",
-                        });
-                    }
-                });
-
-                if (financialData.analysis.topPengeluaran) {
-                    const top = financialData.analysis.topPengeluaran;
-                    response += `\n🔝 Pengeluaran terbesar: ${top.namaKategori} (${formatCurrency(top.jumlah)})`;
-                }
-
-                return { content: response, suggestions };
-            }
-        }
-
-        if (
-            lowerQuestion.includes("pemasukan") ||
-            lowerQuestion.includes("income") ||
-            lowerQuestion.includes("gaji")
-        ) {
-            if (financialData.summary) {
-                let response = `💰 **Pemasukan Bulan Ini:**\n\n`;
-                response += `• Total: ${formatCurrency(financialData.summary.totalPemasukan)}\n`;
-                response += `• Setelah pengeluaran: ${formatCurrency(financialData.summary.neto)}\n\n`;
-
-                if (financialData.analysis?.topPemasukan) {
-                    response += `📈 Sumber pemasukan terbesar: ${financialData.analysis.topPemasukan.namaKategori}`;
-                }
-
-                return { content: response };
-            }
-        }
-
-        if (
-            lowerQuestion.includes("tabung") ||
-            lowerQuestion.includes("save") ||
-            lowerQuestion.includes("saving")
-        ) {
-            const savingsSuggestion: SpendingSuggestion = {
-                icon: "🏦",
-                title: "Saran Menabung",
-                description: `Dari pemasukan ${formatCurrency(financialData.summary?.totalPemasukan || 0)}, idealnya tabung 20% = ${formatCurrency((financialData.summary?.totalPemasukan || 0) * 0.2)}. Saldo Anda saat ini: ${formatCurrency(financialData.summary?.saldoAkhir || 0)}.`,
-                color: "#28a745",
-            };
-
-            return {
-                content: `🏦 **Saran Menabung:**\n\nAturan 50/30/20 merekomendasikan 20% dari pemasukan untuk ditabung.\n\n• Pemasukan: ${formatCurrency(financialData.summary?.totalPemasukan || 0)}\n• Target Tabungan (20%): ${formatCurrency((financialData.summary?.totalPemasukan || 0) * 0.2)}\n• Saldo Saat Ini: ${formatCurrency(financialData.summary?.saldoAkhir || 0)}\n\n${(financialData.summary?.neto || 0) > 0 ? "✅ Anda masih bisa menabung bulan ini!" : "⚠️ Pengeluaran melebihi pemasukan, fokus kurangi pengeluaran dulu."}`,
-                suggestions: [savingsSuggestion],
-            };
-        }
-
-        if (
-            lowerQuestion.includes("bisa belanja") ||
-            lowerQuestion.includes("budget") ||
-            lowerQuestion.includes("anggaran") ||
-            lowerQuestion.includes("sarankan")
-        ) {
-            const available = financialData.summary
-                ? financialData.summary.totalPemasukan -
-                  financialData.summary.totalPengeluaran
-                : 0;
-
-            if (available > 0) {
-                suggestions.push({
-                    icon: "💵",
-                    title: "Budget Tersedia",
-                    description: `Anda masih punya ${formatCurrency(available)} untuk dialokasikan. Prioritaskan kebutuhan penting atau tabung semua!`,
-                    amount: available,
-                    color: "#28a745",
-                });
-            } else {
-                suggestions.push({
-                    icon: "🚫",
-                    title: "Budget Habis",
-                    description: `Pengeluaran sudah melebihi pemasukan ${formatCurrency(Math.abs(available))}. Jangan belanja dulu, fokus hemat!`,
-                    amount: Math.abs(available),
-                    color: "#dc3545",
-                });
-            }
-
-            return {
-                content: `💡 **Budget yang Tersisa:**\n\n${available > 0 ? `✅ Anda masih punya ${formatCurrency(available)} untuk sisa bulan ini.` : `⚠️ Budget sudah habis. Sisa: ${formatCurrency(available)}`}\n\nSaran saya:\n• Prioritaskan kebutuhan pokok (makanan, transportasi)\n• Tunda keinginan yang bisa ditunda\n• Sisakan minimal 10-20% untuk tabungan`,
-                suggestions,
-            };
-        }
-
-        if (
-            lowerQuestion.includes("tips") ||
-            lowerQuestion.includes("saran") ||
-            lowerQuestion.includes("bagaimana")
-        ) {
-            return {
-                content: `💡 **Tips Pengelolaan Keuangan:**\n\n1️⃣ Gunakan Aturan 50/30/20:\n   • 50% Kebutuhan (needs)\n   • 30% Keinginan (wants)\n   • 20% Tabungan (savings)\n\n2️⃣ Catat semua pengeluaran, sekecil apapun\n\n3️⃣ Evaluasi langganan yang tidak terpakai\n\n4️⃣ Masak sendiri lebih sering dari makan di luar\n\n5️⃣ Buat target menabung yang realistis\n\n${financialData.summary ? `\n📊 **Kondisi Anda:**\n• Rasio pengeluaran: ${((financialData.summary.totalPengeluaran / financialData.summary.totalPemasukan) * 100).toFixed(1)}%\n• ${financialData.summary.neto > 0 ? "✅ Kondisi sehat, lanjutkan!" : "⚠️ Perlu penghematan segera"}` : ""}`,
-            };
-        }
-
-        // Default: provide general analysis
-        return {
-            content: `Maaf, saya belum bisa menjawab pertanyaan spesifik itu. Tapi saya bisa membantu Anda dengan:\n\n• 📊 Analisis pengeluaran per kategori\n• 💰 Informasi pemasukan & saldo\n• 🏦 Saran menabung\n• 💡 Budget yang tersedia\n• 💡 Tips pengelolaan keuangan\n\nCoba tanya: "Bagaimana pengeluaran saya?" atau "Berapa budget saya?"`,
-        };
-    };
-
     const handleSendMessage = async () => {
         if (!input.trim()) return;
 
@@ -373,7 +247,7 @@ const AIChatBox: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // Call Groq AI backend
+            // Call Hybrid AI backend
             const response = await api.post("/ai/chat", {
                 message: input.trim(),
                 conversationHistory: messages.map((msg) => ({
@@ -391,22 +265,22 @@ const AIChatBox: React.FC = () => {
 
             setMessages((prev) => [...prev, assistantMessage]);
 
-            // Show alerts if any
-            if (response.data.alerts && response.data.alerts.length > 0) {
-                // You could trigger alert banner here if needed
-                console.log("New alerts:", response.data.alerts);
+            // Optional: You could update financial summary if returned
+            if (response.data.context?.summary) {
+                setFinancialData(prev => ({
+                    ...prev,
+                    summary: response.data.context.summary
+                }));
             }
         } catch (error: any) {
             console.error("Error processing message:", error);
-            console.error("Error response:", error.response?.data);
-            console.error("Error status:", error.response?.status);
-
+            
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: "assistant",
                 content:
                     error.response?.data?.response ||
-                    "Maaf, terjadi kesalahan pada server. Silakan coba lagi nanti.",
+                    "Maaf, AI sedang tidak tersedia. Silakan coba lagi nanti atau periksa koneksi Anda.",
                 timestamp: new Date(),
             };
             setMessages((prev) => [...prev, errorMessage]);
