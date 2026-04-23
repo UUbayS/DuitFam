@@ -87,11 +87,11 @@ const formatRupiah = (amount: number) => {
         <MainLayout 
             onTransactionAdded={loadData} 
             openTransactionModal={() => setShowTransactionModal(true)}
-            hideAddButton={true}
+            hideAddButton={false}
         >
             <div className="d-flex align-items-center gap-2 mb-4">
-                <img src={IconTargetBiru} alt="Ikon Target" style={{ width: 32, height: 32 }} />
-                <h2 className="text-primary fw-bold mb-0" style={{ fontSize: 35 }}>
+                <img src={IconTargetBiru} alt="Ikon Target" style={{ width: window.innerWidth > 768 ? 32 : 24, height: window.innerWidth > 768 ? 32 : 24 }} />
+                <h2 className="text-primary fw-bold mb-0 responsive-h2" style={{ fontSize: 'calc(1.5rem + 1.5vw)' }}>
                     Target Menabung
                 </h2>
             </div>
@@ -141,7 +141,7 @@ const formatRupiah = (amount: number) => {
                                 <div className="badge rounded-pill bg-primary bg-opacity-10 text-primary px-3 py-2 fw-bold mb-3" style={{ fontSize: 12 }}>
                                     TARGET SIMPANAN
                                 </div>
-                                <h3 className="fw-bold text-dark mb-4" style={{ fontSize: 32 }}>{activeTarget.nama_target}</h3>
+                                <h3 className="fw-bold text-dark mb-4 text-center" style={{ fontSize: 'calc(1.4rem + 1vw)' }}>{activeTarget.nama_target}</h3>
                                 
                                 <div className="w-100 mb-4 px-4">
                                     <div className="d-flex justify-content-between mb-2 fw-bold">
@@ -156,7 +156,7 @@ const formatRupiah = (amount: number) => {
 
                                 <div className="mb-4">
                                     <div className="text-muted small fw-bold">TERKUMPUL</div>
-                                    <div className="fw-bold text-primary" style={{ fontSize: 36 }}>
+                                    <div className="fw-bold text-primary" style={{ fontSize: 'calc(1.8rem + 1.2vw)' }}>
                                         {formatRupiah(activeTarget.jumlah_terkumpul)}
                                     </div>
                                     <div className="text-muted small">dari {formatRupiah(activeTarget.target_jumlah)}</div>
@@ -187,10 +187,10 @@ const formatRupiah = (amount: number) => {
 
             <div className="mt-4">
                 <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 25, backgroundColor: '#fff' }}>
-                    <Card.Body className="p-4 d-flex justify-content-between align-items-center">
+                    <Card.Body className="p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                         <div>
-                            <div className="fw-bold text-dark" style={{ fontSize: 22 }}>Analisis Mingguan</div>
-                            <div className="text-muted">Kamu sudah menabung <span className="text-primary fw-bold">Rp 150.000</span> minggu ini!</div>
+                            <div className="fw-bold text-dark" style={{ fontSize: 20 }}>Analisis Mingguan</div>
+                            <div className="text-muted small">Kamu sudah menabung <span className="text-primary fw-bold">Rp 150.000</span> minggu ini!</div>
                         </div>
                         <div className="text-success fw-bold" style={{ fontSize: 24 }}>+12% 📈</div>
                     </Card.Body>

@@ -70,23 +70,23 @@ const AnalisisPage = () => {
     const rec = report?.recommendation;
 
     return (
-        <MainLayout onTransactionAdded={loadData} openTransactionModal={() => setShowModal(true)} hideAddButton={true}>
+        <MainLayout onTransactionAdded={loadData} openTransactionModal={() => setShowModal(true)} hideAddButton={false}>
             <div className="d-flex align-items-center gap-2 mb-4">
-                <img src={IconAnalisisBiru} alt="Ikon Analisis" style={{ width: 32, height: 32 }} />
-                <h2 className="text-primary fw-bold mb-0" style={{ fontSize: 35 }}>
+                <img src={IconAnalisisBiru} alt="Ikon Analisis" style={{ width: window.innerWidth > 768 ? 32 : 24, height: window.innerWidth > 768 ? 32 : 24 }} />
+                <h2 className="text-primary fw-bold mb-0 responsive-h2" style={{ fontSize: 'calc(1.5rem + 1.5vw)' }}>
                     Analisis
                 </h2>
             </div>
 
             <div className="d-flex mb-4 align-items-center flex-wrap gap-3 justify-content-between">
-                <div className="d-flex gap-2 bg-white p-1 rounded-pill shadow-sm border">
+                <div className="d-flex gap-2 bg-white p-1 rounded-pill shadow-sm border overflow-auto no-scrollbar" style={{ maxWidth: '100%' }}>
                     {['mingguan', 'bulan', 'tahunan'].map((u) => (
                         <Button 
                             key={u}
                             variant={unit === u ? 'primary' : 'link'} 
                             onClick={() => changeUnit(u as any)} 
-                            className={`rounded-pill px-4 fw-bold text-decoration-none ${unit === u ? '' : 'text-muted'}`}
-                            style={{ fontSize: 13 }}
+                            className={`rounded-pill px-3 px-md-4 fw-bold text-decoration-none ${unit === u ? '' : 'text-muted'}`}
+                            style={{ fontSize: 12, whiteSpace: 'nowrap' }}
                         >
                             {u === 'mingguan' ? 'Mingguan' : u === 'bulan' ? 'Bulanan' : 'Tahunan'}
                         </Button>
@@ -95,7 +95,7 @@ const AnalisisPage = () => {
 
                 <div className="d-flex align-items-center bg-white p-1 rounded-pill shadow-sm border">
                     <Button variant="link" onClick={() => navigate('prev')} className="text-primary p-1"><ArrowLeftShort size={24} /></Button>
-                    <div className="px-3 fw-bold text-dark" style={{ fontSize: 14 }}>{period.display}</div>
+                    <div className="px-2 px-md-3 fw-bold text-dark text-nowrap" style={{ fontSize: 13 }}>{period.display}</div>
                     <Button variant="link" onClick={() => navigate('next')} className="text-primary p-1"><ArrowRightShort size={24} /></Button>
                 </div>
             </div>

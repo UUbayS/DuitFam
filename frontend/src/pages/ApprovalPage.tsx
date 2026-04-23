@@ -4,6 +4,7 @@ import MainLayout from '../components/MainLayout';
 import { useAuth } from '../context/AuthContext';
 import { createWithdrawalRequest, fetchWithdrawalRequests, processWithdrawalRequest } from '../services/approval.service';
 import { fetchChildrenService } from '../services/user.service';
+import TransactionModal from '../components/TransactionModal';
 import type { WithdrawalRequestItem } from '../types/approval.types';
     import IconPersetujuanBiru from '../assets/IconApprovalBiru.svg'; // Assuming this exists or using generic if not
 
@@ -26,6 +27,7 @@ const ApprovalPage = () => {
     const [amount, setAmount] = useState<string>('');
     const [reason, setReason] = useState('');
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+    const [showTransactionModal, setShowTransactionModal] = useState(false);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -80,7 +82,11 @@ const ApprovalPage = () => {
     };
 
     return (
-        <MainLayout hideAddButton={true}>
+        <MainLayout 
+            onTransactionAdded={loadData} 
+            openTransactionModal={() => setShowTransactionModal(true)}
+            hideAddButton={false}
+        >
             <div className="d-flex align-items-center gap-2 mb-4">
                 {/* Fallback to IconAnalisisBiru style icon if IconApprovalBiru is missing */}
                 <div style={{ backgroundColor: '#0b84ff', width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>✓</div>
@@ -174,13 +180,15 @@ const ApprovalPage = () => {
                             </Card>
                         </Col>
                     ))}
-                    {data.length === 0 && (
-                        <Col className="text-center p-5">
-                            <div className="text-muted">Tidak ada data permintaan persetujuan.</div>
-                        </Col>
                     )}
                 </Row>
             )}
+
+            <TransactionModal 
+                show={showTransactionModal} 
+                handleClose={() => setShowTransactionModal(false)} 
+                onSuccess={loadData} 
+            />
         </MainLayout>
     );
 };

@@ -11,6 +11,7 @@ import {
     fetchHistoricalData,
 } from "../services/report.service";
 import MonthlyBarChart from "../components/MonthlyBarChart";
+import TransactionModal from "../components/TransactionModal";
 import IconBerandaBiru from "../assets/IconBerandaBiru.svg";
 import type * as ReportTypes from "../types/report.types";
 
@@ -90,17 +91,17 @@ const formatRupiah = (amount: number) => {
         <MainLayout
             onTransactionAdded={loadData}
             openTransactionModal={() => setShowTransactionModal(true)}
-            hideAddButton={true}
+            hideAddButton={false}
         >
             <div className="d-flex align-items-center gap-2 mb-4">
                 <img
                     src={IconBerandaBiru}
                     alt="Ikon Beranda"
-                    style={{ width: 32, height: 32 }}
+                    style={{ width: window.innerWidth > 768 ? 32 : 24, height: window.innerWidth > 768 ? 32 : 24 }}
                 />
                 <h2
-                    className="text-primary fw-bold mb-0"
-                    style={{ fontSize: 35 }}
+                    className="text-primary fw-bold mb-0 responsive-h2"
+                    style={{ fontSize: 'calc(1.5rem + 1.5vw)' }}
                 >
                     Beranda
                 </h2>
@@ -133,11 +134,9 @@ const formatRupiah = (amount: number) => {
                                         Saldo saat ini
                                     </div>
                                     <div
-                                        className="mt-2"
+                                        className="mt-2 text-primary fw-bolder"
                                         style={{
-                                            fontSize: 32,
-                                            fontWeight: 900,
-                                            color: "#1389f9",
+                                            fontSize: 'calc(1.4rem + 1vw)',
                                         }}
                                     >
                                         {showSaldo
@@ -186,11 +185,9 @@ const formatRupiah = (amount: number) => {
                                         Saldo saat ini
                                     </div>
                                     <div
-                                        className="mt-2"
+                                        className="mt-2 text-primary fw-bolder"
                                         style={{
-                                            fontSize: 32,
-                                            fontWeight: 900,
-                                            color: "#1389f9",
+                                            fontSize: 'calc(1.4rem + 1vw)',
                                         }}
                                     >
                                         {showSaldo
@@ -239,7 +236,11 @@ const formatRupiah = (amount: number) => {
                 </Card.Body>
             </Card>
 
-            {/* TransactionModal is handled by MainLayout if hideAddButton is false, but we hide it here as per mockup */}
+            <TransactionModal 
+                show={showTransactionModal} 
+                handleClose={() => setShowTransactionModal(false)} 
+                onSuccess={loadData} 
+            />
         </MainLayout>
     );
 };
