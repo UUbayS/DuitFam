@@ -10,6 +10,9 @@ use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Models\Category;
 use Carbon\Carbon;
+use App\Models\User;
+use App\Models\SavingGoal;          // <-- TAMBAH
+use App\Models\ParentChildRelation;
 
 class AiChatController extends Controller
 {
@@ -33,6 +36,7 @@ class AiChatController extends Controller
             $history = $request->input("conversationHistory", []);
 
             // Now handled by Triple-Tier Service (Cloud -> Local -> Rule-based)
+            // Alerts removed from context - AI uses raw financial data directly
             $response = $this->groqService->generateFinancialAdvice(
                 $financialData,
                 $request->message,
@@ -41,7 +45,6 @@ class AiChatController extends Controller
 
             return response()->json([
                 "response" => $response,
-                "alerts" => $this->generateAlerts($financialData),
                 "context" => [
                     "summary" => $financialData["summary"] ?? null,
                 ],
@@ -155,6 +158,48 @@ class AiChatController extends Controller
                 )
                 ->toArray();
 
+            // 1. User Context
+            $user = User::find($userId);
+            $userContext = [
+                'role' => $user?->role ?? 'unknown',
+                'username' => $user?->username ?? 'User',
+            ];
+
+            // 2. Saving Goals
+            $savingGoals = SavingGoal::where('user_id', $userId)
+                ->where('status', 'aktif')
+                ->get()
+                ->map(function ($goal) {
+                    $target = (float) $goal->target_jumlah;
+                    $collected = (float) ($goal->jumlah_terkumpul ?? 0);
+                    $progress = $target > 0 ? round(($collected / $target) * 100, 2) : 0;
+                    $deadline = Carbon::parse($goal->tanggal_target);
+                    $daysLeft = Carbon::now()->diffInDays($deadline, false);
+                    return [
+                        'nama_target' => $goal->nama_target,
+                        'target_jumlah' => $target,
+                        'jumlah_terkumpul' => $collected,
+                        'progress' => $progress,
+                        'tanggal_target' => $goal->tanggal_target,
+                        'is_overdue' => $daysLeft < 0,
+                        'is_near_deadline' => $daysLeft >= 0 && $daysLeft <= 7,
+                    ];
+                })->toArray();
+
+            // 3. Family Context
+            $familyContext = [];
+            if ($user && $user->role === 'parent') {
+                $childrenIds = ParentChildRelation::where('parent_id', $userId)
+                    ->where('is_active', true)
+                    ->pluck('child_id')->toArray();
+                $familyContext = ['children_count' => count($childrenIds)];
+            } elseif ($user && $user->role === 'child') {
+                $parentId = ParentChildRelation::where('child_id', $userId)
+                    ->where('is_active', true)
+                    ->value('parent_id');
+                $familyContext = ['parent_id' => $parentId];
+            }
+
             return [
                 "summary" => [
                     "bulan" => $currentMonth,
@@ -168,6 +213,9 @@ class AiChatController extends Controller
                 "wallet" => [
                     "saldo_sekarang" => $wallet?->saldo_sekarang ?? 0,
                 ],
+                "user" => $userContext,
+                "saving_goals" => $savingGoals,
+                "family" => $familyContext,
             ];
         } catch (\Exception $e) {
             Log::error("Error getting financial context", [
@@ -182,6 +230,9 @@ class AiChatController extends Controller
                 ],
                 "spendingByCategory" => [],
                 "recentTransactions" => [],
+                "user" => ['role' => 'unknown', 'username' => 'User'],
+                "saving_goals" => [],
+                "family" => [],
             ];
         }
     }
