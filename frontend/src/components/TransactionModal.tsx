@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Button, Form, Alert, Spinner } from 'react-bootstrap';
+import * as Icons from 'react-bootstrap-icons';
 import { 
-    CheckCircle, 
-    XCircle, 
     Calendar, 
     Tag, 
-    FileText, 
-    Wallet2, 
-    ArrowUpCircle, 
-    ArrowDownCircle 
+    Cash,
+    ChatDots,
+    CheckCircleFill,
+    ArrowUp,
+    ArrowDown
 } from 'react-bootstrap-icons';
 import { fetchCategories } from '../services/utility.service';
 import { createTransaction } from '../services/transaction.service';
@@ -99,7 +99,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
     };
 
     const handleTypeChange = (type: TransactionType) => {
-        setFormData(prev => ({ ...prev, jenis: type }));
+        setFormData(prev => ({ ...prev, jenis: type, id_kategori: '' }));
         setMessage(null);
     };
 
@@ -128,83 +128,183 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
         }
     };
 
-    const filteredCategories = categories.filter(cat => {
-        const name = cat.nama_kategori.toLowerCase();
-        const isIncomeCat = name.includes('gaji') || name.includes('bonus') || name.includes('investasi');
-        return formData.jenis === 'pemasukan' ? isIncomeCat : !isIncomeCat;
-    });
+    const filteredCategories = categories.filter(cat => cat.jenis === formData.jenis);
 
     return (
-        <Modal show={show} onHide={handleClose} centered backdrop="static">
-            <div className="bg-white shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', border: 'none' }}>
-                <Modal.Header closeButton className="border-0 pt-4 px-4 pb-0">
-                    <Modal.Title className="fw-bold d-flex align-items-center">
-                        <div className="bg-primary bg-opacity-10 p-2 rounded-3 me-3 text-primary">
-                            <Wallet2 size={24} />
-                        </div>
-                        Catat Transaksi
-                    </Modal.Title>
-                </Modal.Header>
+        <Modal show={show} onHide={handleClose} centered backdrop="static" className="transaction-modal">
+            <div className="bg-white" style={{ borderRadius: '15px', overflow: 'hidden', border: 'none' }}>
+                <div className="bg-primary p-3 d-flex justify-content-between align-items-center">
+                    <h5 className="modal-title text-white fw-bold mb-0">Catat Transaksi Baru</h5>
+                    <Button variant="link" className="text-white p-0" onClick={handleClose}>
+                        <ArrowUp className="d-none" /> {/* placeholder */}
+                        <span style={{ fontSize: '24px', lineHeight: '1' }}>&times;</span>
+                    </Button>
+                </div>
 
-                <Modal.Body className="px-4 pb-4 pt-3">
+                <Modal.Body className="p-4">
                     {message && (
-                        <Alert variant={message.type} className="border-0 rounded-4 mb-4">
-                            {message.type === 'success' ? <CheckCircle className="me-2" /> : <XCircle className="me-2" />}
+                        <Alert variant={message.type} className="border-0 rounded-3 mb-4 py-2">
                             <small className="fw-medium">{message.text}</small>
                         </Alert>
                     )}
 
                     <Form onSubmit={handleSubmit}>
-                        
-                        <div className="d-flex p-1 bg-light rounded-4 mb-4" style={{ borderRadius: '15px' }}>
-                            <button
-                                type="button"
-                                onClick={() => handleTypeChange('pemasukan')}
-                                className={`flex-fill border-0 py-2 rounded-4 ${formData.jenis === 'pemasukan' ? 'bg-white shadow-sm fw-bold text-success' : 'bg-transparent text-muted'}`}
-                                style={{ borderRadius: '12px', fontSize: '14px', transition: '0.3s' }}
-                            >
-                                <ArrowUpCircle className="me-2" /> Pemasukan
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleTypeChange('pengeluaran')}
-                                className={`flex-fill border-0 py-2 rounded-4 ${formData.jenis === 'pengeluaran' ? 'bg-white shadow-sm fw-bold text-danger' : 'bg-transparent text-muted'}`}
-                                style={{ borderRadius: '12px', fontSize: '14px', transition: '0.3s' }}
-                            >
-                                <ArrowDownCircle className="me-2" /> Pengeluaran
-                            </button>
-                        </div>
+                        <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold text-dark mb-2">
+                                <Calendar className="text-primary me-2" /> Tanggal Transaksi
+                            </Form.Label>
+                            <Form.Control 
+                                type="date" 
+                                name="tanggal" 
+                                value={formData.tanggal} 
+                                onChange={handleChange} 
+                                required 
+                                className="py-2 px-3 border-secondary border-opacity-25"
+                                style={{ borderRadius: '10px' }}
+                            />
+                        </Form.Group>
 
-                        <div className="row g-3">
-                            <div className="col-6">
-                                <Form.Group>
-                                    <Form.Label className="fw-semibold small text-muted mb-2"><Calendar size={14} className="me-1"/> Tanggal</Form.Label>
-                                    <Form.Control type="date" name="tanggal" value={formData.tanggal} onChange={handleChange} required style={inputStyle} />
-                                </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold text-dark mb-2">
+                                <Tag className="text-primary me-2" /> Jenis Transaksi
+                            </Form.Label>
+                            <div className="d-flex gap-4">
+                                <Form.Check
+                                    type="radio"
+                                    id="type-pemasukan"
+                                    label={<span><ArrowUp className="text-success" /> Pemasukan</span>}
+                                    name="jenis"
+                                    checked={formData.jenis === 'pemasukan'}
+                                    onChange={() => handleTypeChange('pemasukan')}
+                                    className="fw-medium"
+                                />
+                                <Form.Check
+                                    type="radio"
+                                    id="type-pengeluaran"
+                                    label={<span><ArrowDown className="text-danger" /> Pengeluaran</span>}
+                                    name="jenis"
+                                    checked={formData.jenis === 'pengeluaran'}
+                                    onChange={() => handleTypeChange('pengeluaran')}
+                                    className="fw-medium"
+                                />
                             </div>
-                            <div className="col-6">
-                                <Form.Group>
-                                    <Form.Label className="fw-semibold small text-muted mb-2"><Tag size={14} className="me-1"/> Kategori</Form.Label>
-                                    <Form.Select name="id_kategori" value={formData.id_kategori} onChange={handleChange} disabled={catLoading} required style={inputStyle}>
-                                        <option value="" disabled>Pilih...</option>
-                                        {filteredCategories.map(cat => <option key={cat.id_kategori} value={cat.id_kategori}>{cat.nama_kategori}</option>)}
-                                    </Form.Select>
-                                </Form.Group>
-                            </div>
-                        </div>
+                        </Form.Group>
 
-                        <Form.Group className="mt-3 mb-3">
-                            <Form.Label className="fw-semibold small text-muted mb-2"><Wallet2 size={14} className="me-1"/> Nominal (Rp)</Form.Label>
-                            <Form.Control type="text" name="jumlah" placeholder="0" value={formData.jumlah} onChange={handleChange} required style={inputStyle} className="fw-bold fs-5 text-primary" />
+                        <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold text-dark mb-2">
+                                <Cash className="text-primary me-2" /> Jumlah
+                            </Form.Label>
+                            <div className="input-group">
+                                <span className="input-group-text bg-light border-secondary border-opacity-25 px-3" style={{ borderRadius: '10px 0 0 10px' }}>Rp</span>
+                                <Form.Control 
+                                    type="text" 
+                                    name="jumlah" 
+                                    placeholder="0" 
+                                    value={formData.jumlah} 
+                                    onChange={handleChange} 
+                                    required 
+                                    className="py-2 border-secondary border-opacity-25"
+                                    style={{ borderRadius: '0 10px 10px 0' }}
+                                />
+                            </div>
                         </Form.Group>
 
                         <Form.Group className="mb-4">
-                            <Form.Label className="fw-semibold small text-muted mb-2"><FileText size={14} className="me-1"/> Keterangan</Form.Label>
-                            <Form.Control as="textarea" name="keterangan" placeholder="Catatan transaksi..." value={formData.keterangan} onChange={handleChange} rows={2} style={{ ...inputStyle, resize: 'none' }} />
+                            <Form.Label className="fw-bold text-dark mb-3">
+                                <Tag className="text-primary me-2" /> Pilih Kategori
+                            </Form.Label>
+                            
+                            {catLoading ? (
+                                <div className="text-center py-4">
+                                    <Spinner animation="border" size="sm" variant="primary" />
+                                    <p className="text-muted small mt-2">Memuat kategori...</p>
+                                </div>
+                            ) : (
+                                <div className="category-grid" style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: 'repeat(4, 1fr)', 
+                                    gap: '12px',
+                                    maxHeight: '280px',
+                                    overflowY: 'auto',
+                                    padding: '4px'
+                                }}>
+                                    {filteredCategories.map(cat => {
+                                        const IconComponent = (Icons as any)[cat.icon] || Icons.Tag;
+                                        const isSelected = formData.id_kategori === cat.id_kategori;
+                                        
+                                        return (
+                                            <div 
+                                                key={cat.id_kategori}
+                                                onClick={() => setFormData({ ...formData, id_kategori: cat.id_kategori })}
+                                                className={`category-item d-flex flex-column align-items-center justify-content-center p-2 text-center cursor-pointer transition-all ${isSelected ? 'selected' : ''}`}
+                                                style={{
+                                                    borderRadius: '16px',
+                                                    border: isSelected ? '2px solid var(--bs-primary)' : '1px solid #f1f5f9',
+                                                    backgroundColor: isSelected ? 'rgba(13, 110, 253, 0.05)' : '#f8fafc',
+                                                    cursor: 'pointer',
+                                                    transition: '0.2s all ease-in-out',
+                                                    minHeight: '80px'
+                                                }}
+                                            >
+                                                <div 
+                                                    className={`icon-wrapper mb-2 d-flex align-items-center justify-content-center ${isSelected ? 'text-primary' : 'text-secondary'}`}
+                                                    style={{ 
+                                                        fontSize: '24px',
+                                                        width: '40px',
+                                                        height: '40px',
+                                                        borderRadius: '12px',
+                                                        backgroundColor: isSelected ? 'rgba(13, 110, 253, 0.1)' : 'transparent'
+                                                    }}
+                                                >
+                                                    <IconComponent />
+                                                </div>
+                                                <span 
+                                                    className="cat-name fw-medium" 
+                                                    style={{ 
+                                                        fontSize: '10px', 
+                                                        lineHeight: '1.2',
+                                                        color: isSelected ? 'var(--bs-primary)' : '#64748b'
+                                                    }}
+                                                >
+                                                    {cat.nama_kategori}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </Form.Group>
 
-                        <Button variant="primary" type="submit" disabled={loading} className="w-100 py-3 border-0 shadow-sm fw-bold" style={{ borderRadius: '15px' }}>
-                            {loading ? <Spinner animation="border" size="sm" /> : 'Simpan Transaksi'}
+                        <Form.Group className="mb-4">
+                            <Form.Label className="fw-bold text-dark mb-2">
+                                <ChatDots className="text-primary me-2" /> Keterangan (Opsional)
+                            </Form.Label>
+                            <Form.Control 
+                                as="textarea" 
+                                name="keterangan" 
+                                placeholder="Contoh: Beli kopi..." 
+                                value={formData.keterangan} 
+                                onChange={handleChange} 
+                                rows={3} 
+                                className="py-2 px-3 border-secondary border-opacity-25"
+                                style={{ borderRadius: '10px', resize: 'none' }} 
+                            />
+                        </Form.Group>
+
+                        <Button 
+                            variant="primary" 
+                            type="submit" 
+                            disabled={loading} 
+                            className="w-100 py-2 border-0 fw-bold d-flex align-items-center justify-content-center" 
+                            style={{ borderRadius: '10px' }}
+                        >
+                            {loading ? (
+                                <Spinner animation="border" size="sm" />
+                            ) : (
+                                <>
+                                    <CheckCircleFill className="me-2" /> Simpan Transaksi
+                                </>
+                            )}
                         </Button>
                     </Form>
                 </Modal.Body>

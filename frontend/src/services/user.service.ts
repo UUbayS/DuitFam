@@ -16,7 +16,7 @@ export const linkChildService = async (child_email: string): Promise<{ message: 
     return response.data;
 };
 
-export const createChildService = async (data: { username: string; email: string; password: string }): Promise<{ message: string; data: { id: string; username: string; email: string; is_active: boolean } }> => {
+export const createChildService = async (data: { username: string; email: string; password: string; saldo_awal?: number }): Promise<{ message: string; data: { id: string; username: string; email: string; is_active: boolean } }> => {
     const response = await api.post('/users/children/create', data);
     return response.data;
 };
@@ -39,4 +39,9 @@ export const fetchChildrenService = async (): Promise<{ id: string; username: st
 export const fetchChildrenBalancesService = async (): Promise<{ id: string; username: string; email: string; is_active: boolean; saldo: number }[]> => {
     const response = await api.get<{ message: string; data: { id: string; username: string; email: string; is_active: boolean; saldo: number }[] }>('/users/children/balances');
     return response.data.data;
+};
+
+export const deleteChildService = async (id: string): Promise<{ message: string }> => {
+    const response = await api.delete(`/users/children/${id}`);
+    return response.data;
 };

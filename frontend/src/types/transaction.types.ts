@@ -11,4 +11,6 @@ export interface TransactionInput {
 export interface Category {
     id_kategori: string;
     nama_kategori: string;
+    jenis: TransactionType;
+    icon: string;
 }

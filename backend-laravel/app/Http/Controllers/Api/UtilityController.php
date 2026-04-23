@@ -13,6 +13,8 @@ class UtilityController extends Controller
             return [
                 'id_kategori' => (string) $c->id,
                 'nama_kategori' => $c->nama_kategori,
+                'jenis' => $c->jenis ?? 'pengeluaran',
+                'icon' => $c->icon ?? 'Tag',
             ];
         });
 

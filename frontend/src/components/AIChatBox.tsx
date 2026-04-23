@@ -332,13 +332,8 @@ const AIChatBox: React.FC = () => {
         return (
             <button
                 onClick={() => setIsOpen(true)}
+                className="ai-chat-launcher"
                 style={{
-                    position: "fixed",
-                    bottom: "24px",
-                    right: "24px",
-                    width: "60px",
-                    height: "60px",
-                    borderRadius: "50%",
                     backgroundColor: "#007bff",
                     color: "white",
                     border: "none",
@@ -347,7 +342,6 @@ const AIChatBox: React.FC = () => {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    zIndex: 1100,
                     transition: "all 0.3s ease",
                 }}
                 onMouseEnter={(e) => {
@@ -369,19 +363,11 @@ const AIChatBox: React.FC = () => {
 
     return (
         <div
+            className="ai-chat-window"
             style={{
-                position: "fixed",
-                bottom: window.innerWidth > 768 ? "24px" : "0px",
-                right: window.innerWidth > 768 ? "24px" : "0px",
-                width: window.innerWidth > 768 ? "420px" : "100%",
-                height: window.innerWidth > 768 ? "650px" : "100%",
                 backgroundColor: "white",
-                borderRadius: window.innerWidth > 768 ? "16px" : "0",
+                borderRadius: "16px",
                 boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)",
-                display: "flex",
-                flexDirection: "column",
-                zIndex: 2000,
-                overflow: "hidden",
             }}
         >
             {/* Header */}

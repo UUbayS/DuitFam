@@ -79,6 +79,7 @@ class UserController extends Controller
             'username' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email'],
             'password' => ['required', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/\d/'],
+            'saldo_awal' => ['nullable', 'numeric', 'min:0'],
         ]);
         if (User::where('username', $validated['username'])->exists()) {
             return response()->json(['message' => 'Username sudah dipakai.'], 409);
@@ -94,7 +95,10 @@ class UserController extends Controller
             'password' => Hash::make($validated['password']),
             'is_active' => true,
         ]);
-        Wallet::firstOrCreate(['user_id' => (string) $child->id], ['saldo_sekarang' => 0]);
+        Wallet::firstOrCreate(
+            ['user_id' => (string) $child->id],
+            ['saldo_sekarang' => $validated['saldo_awal'] ?? 0]
+        );
         ParentChildRelation::firstOrCreate([
             'parent_id' => (string) $request->user()->id,
             'child_id' => (string) $child->id,
@@ -224,5 +228,31 @@ class UserController extends Controller
         })->filter()->values();
 
         return response()->json(['message' => 'OK', 'data' => $data]);
+    }
+
+    public function deleteChild(Request $request, string $id)
+    {
+        if ($request->user()->role !== 'parent') {
+            return response()->json(['message' => 'Hanya akun parent yang dapat menghapus akun anak.'], 403);
+        }
+
+        $relation = ParentChildRelation::query()
+            ->where('parent_id', (string) $request->user()->id)
+            ->where('child_id', (string) $id)
+            ->first();
+        if (! $relation) {
+            return response()->json(['message' => 'Akun anak tidak ditemukan.'], 404);
+        }
+
+        $child = User::where('_id', (string) $id)->where('role', 'child')->first();
+        if ($child) {
+            // Cleanup child data
+            Wallet::where('user_id', (string) $id)->delete();
+            $child->delete();
+        }
+
+        $relation->delete();
+
+        return response()->json(['message' => 'Akun anak berhasil dihapus.']);
     }
 }

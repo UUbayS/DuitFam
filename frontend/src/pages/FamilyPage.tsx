@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Form, Button, Alert, Spinner, Modal } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-import { Plus, EyeFill, EyeSlashFill } from 'react-bootstrap-icons';
+import { Plus, EyeFill, EyeSlashFill, Trash } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
-    import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService } from '../services/user.service';
+    import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService, deleteChildService } from '../services/user.service';
 import { fetchFamilyMonthlySummary, fetchFamilyHistoricalData } from '../services/report.service';
 import { depositToChild } from '../services/transaction.service';
 import TransactionModal from '../components/TransactionModal';
 import MonthlyBarChart from '../components/MonthlyBarChart';
+import AddChildModal from '../components/AddChildModal';
 import IconBerandaBiru from '../assets/IconBerandaBiru.svg';
 import type * as ReportTypes from '../types/report.types';
 
@@ -34,13 +35,15 @@ const formatRupiah = (amount: number) => {
     const [children, setChildren] = useState<Array<{ id: string; username: string; email: string; is_active: boolean; saldo: number }>>([]);
 
     const [createChildModalOpen, setCreateChildModalOpen] = useState(false);
-    const [createChildLoading, setCreateChildLoading] = useState(false);
-    const [createChildForm, setCreateChildForm] = useState({ username: '', email: '', password: '' });
 
     const [depositModalOpen, setDepositModalOpen] = useState(false);
     const [depositChildId, setDepositChildId] = useState<string>('');
     const [depositAmount, setDepositAmount] = useState<string>('');
     const [depositLoading, setDepositLoading] = useState(false);
+    
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [childToDelete, setChildToDelete] = useState<{ id: string; username: string } | null>(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -88,17 +91,27 @@ const formatRupiah = (amount: number) => {
         }
     };
 
-    const submitCreateChild = async () => {
-        setCreateChildLoading(true);
+    const handleCreateChildSuccess = () => {
+        loadData();
+    };
+
+    const openDeleteConfirm = (childId: string, username: string) => {
+        setChildToDelete({ id: childId, username });
+        setDeleteModalOpen(true);
+    };
+
+    const handleDeleteChild = async () => {
+        if (!childToDelete) return;
+        setDeleteLoading(true);
         try {
-            await createChildService(createChildForm);
-            setCreateChildModalOpen(false);
-            setCreateChildForm({ username: '', email: '', password: '' });
+            await deleteChildService(childToDelete.id);
+            setDeleteModalOpen(false);
+            setChildToDelete(null);
             loadData();
         } catch (e: any) {
-            setError(e.response?.data?.message || 'Gagal membuat akun anak.');
+            setError(e.response?.data?.message || 'Gagal menghapus akun anak.');
         } finally {
-            setCreateChildLoading(false);
+            setDeleteLoading(false);
         }
     };
 
@@ -175,13 +188,22 @@ const formatRupiah = (amount: number) => {
                                             </div>
                                         </div>
                                     </div>
-                                    <Button
-                                        variant="primary"
-                                        onClick={() => openDeposit(c.id)}
-                                        style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                    >
-                                        <Plus size={32} />
-                                    </Button>
+                                    <div className="d-flex gap-2">
+                                        <Button
+                                            variant="outline-danger"
+                                            onClick={() => openDeleteConfirm(c.id, c.username)}
+                                            style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', backgroundColor: 'rgba(220, 53, 69, 0.1)', color: '#dc3545' }}
+                                        >
+                                            <Trash size={20} />
+                                        </Button>
+                                        <Button
+                                            variant="primary"
+                                            onClick={() => openDeposit(c.id)}
+                                            style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        >
+                                            <Plus size={32} />
+                                        </Button>
+                                    </div>
                                 </div>
                             </Card.Body>
                         </Card>
@@ -218,50 +240,11 @@ const formatRupiah = (amount: number) => {
                 </Card.Body>
             </Card>
 
-            <Modal show={createChildModalOpen} onHide={() => setCreateChildModalOpen(false)} centered>
-                <Modal.Header closeButton className="border-0 pt-4 px-4">
-                    <Modal.Title className="fw-bold">Tambahkan Akun Anak</Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="p-4">
-                    <Form>
-                        <Form.Group className="mb-3">
-                            <Form.Label className="small text-muted fw-bold">Nama Anak</Form.Label>
-                            <Form.Control 
-                                value={createChildForm.username} 
-                                onChange={(e) => setCreateChildForm((p) => ({ ...p, username: e.target.value }))} 
-                                style={{ borderRadius: 12, padding: '12px' }}
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label className="small text-muted fw-bold">Email Anak</Form.Label>
-                            <Form.Control 
-                                type="email" 
-                                value={createChildForm.email} 
-                                onChange={(e) => setCreateChildForm((p) => ({ ...p, email: e.target.value }))} 
-                                style={{ borderRadius: 12, padding: '12px' }}
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-4">
-                            <Form.Label className="small text-muted fw-bold">Password Anak</Form.Label>
-                            <Form.Control 
-                                type="password" 
-                                value={createChildForm.password} 
-                                onChange={(e) => setCreateChildForm((p) => ({ ...p, password: e.target.value }))} 
-                                style={{ borderRadius: 12, padding: '12px' }}
-                            />
-                        </Form.Group>
-                        <Button 
-                            variant="primary" 
-                            disabled={createChildLoading} 
-                            onClick={submitCreateChild}
-                            className="w-100 py-3 fw-bold"
-                            style={{ borderRadius: 15 }}
-                        >
-                            {createChildLoading ? <Spinner size="sm" /> : 'Simpan'}
-                        </Button>
-                    </Form>
-                </Modal.Body>
-            </Modal>
+            <AddChildModal 
+                show={createChildModalOpen} 
+                handleClose={() => setCreateChildModalOpen(false)} 
+                onSuccess={handleCreateChildSuccess} 
+            />
 
             <Modal show={depositModalOpen} onHide={() => setDepositModalOpen(false)} centered>
                 <Modal.Header closeButton className="border-0 pt-4 px-4">
@@ -289,6 +272,37 @@ const formatRupiah = (amount: number) => {
                     >
                         {depositLoading ? <Spinner size="sm" /> : 'Konfirmasi Deposit'}
                     </Button>
+                </Modal.Body>
+            </Modal>
+
+            <Modal show={deleteModalOpen} onHide={() => setDeleteModalOpen(false)} centered>
+                <Modal.Header closeButton className="border-0 pt-4 px-4">
+                    <Modal.Title className="fw-bold">Hapus Akun Anak</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="p-4">
+                    <p className="text-center mb-4">
+                        Apakah Anda yakin ingin menghapus akun <strong>{childToDelete?.username}</strong>? <br />
+                        Semua data transaksi dan target akan ikut terhapus secara permanen.
+                    </p>
+                    <div className="d-flex gap-3">
+                        <Button 
+                            variant="light" 
+                            className="w-100 py-2 fw-bold"
+                            style={{ borderRadius: 12 }}
+                            onClick={() => setDeleteModalOpen(false)}
+                        >
+                            Batal
+                        </Button>
+                        <Button 
+                            variant="danger" 
+                            disabled={deleteLoading} 
+                            onClick={handleDeleteChild}
+                            className="w-100 py-2 fw-bold"
+                            style={{ borderRadius: 12 }}
+                        >
+                            {deleteLoading ? <Spinner size="sm" /> : 'Ya, Hapus'}
+                        </Button>
+                    </div>
                 </Modal.Body>
             </Modal>
 

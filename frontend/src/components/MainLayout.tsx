@@ -42,26 +42,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     const toggleSidebar = () => setShowSidebar(!showSidebar);
 
     return (
-        <div className="d-flex min-vh-100" style={{ backgroundColor: '#007bff' }}>
-            {/* Sidebar Desktop */}
-            <div className="desktop-only" style={{ width: 'var(--sidebar-width)', minWidth: 'var(--sidebar-width)', zIndex: 10, height: '100vh', position: 'sticky', top: 0 }}>
+        <div className="d-flex overflow-hidden" style={{ height: '100vh', backgroundColor: 'var(--primary-color)' }}>
+            {/* Left Sidebar Desktop (Fixed) */}
+            <aside className="desktop-only" style={{ width: 'var(--sidebar-width)', minWidth: 'var(--sidebar-width)', height: '100vh' }}>
                 <Sidebar />
-            </div>
+            </aside>
 
-            {/* Main Content Area */}
-            <div
-                className="flex-grow-1 d-flex flex-column content-container"
-                style={{
-                    backgroundColor: '#f6f4ff',
-                    borderTopLeftRadius: 48,
-                    borderBottomLeftRadius: 48,
-                    overflow: 'hidden',
-                    position: 'relative',
-                    width: '100%'
-                }}
-            >
-                {/* Mobile Header */}
-                <div className="mobile-only d-flex align-items-center justify-content-between p-3" style={{ backgroundColor: '#007bff', color: 'white' }}>
+            {/* Main Wrapper (Center Scroll + Right Fixed) */}
+            <div className="flex-grow-1 d-flex flex-column overflow-hidden">
+                {/* Mobile Header (Hanya muncul di mobile) */}
+                <header className="mobile-only d-flex align-items-center justify-content-between p-3" style={{ backgroundColor: 'var(--primary-color)', color: 'white', zIndex: 100 }}>
                     <div className="d-flex align-items-center gap-3">
                         <Button variant="link" className="text-white p-0 shadow-none" onClick={toggleSidebar}>
                             <List size={28} />
@@ -76,29 +66,33 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                             <PersonFill size={18} />
                         </div>
                     </div>
-                </div>
+                </header>
 
+                {/* Inner Layout Container */}
                 <div className="d-flex flex-grow-1 overflow-hidden">
-                    {/* Content */}
-                    <div className="flex-grow-1 p-3 p-md-4 overflow-auto" style={{ paddingBottom: '80px !important' }}>
-                        {children}
-                    </div>
+                    {/* Center Content (Scrollable) */}
+                    <main className="flex-grow-1 overflow-hidden h-100">
+                        <div className="content-container overflow-auto h-100">
+                            <div className="p-3 p-md-4 p-lg-5">
+                                {children}
+                            </div>
+                        </div>
+                    </main>
 
-                    {/* Transaction History Desktop */}
-                    <div className="desktop-only h-100" style={{ width: 'var(--history-width)', minWidth: 'var(--history-width)', backgroundColor: '#cfeeff' }}>
+                    {/* Right Sidebar Desktop (Fixed) */}
+                    <aside className="desktop-only h-100" style={{ width: 'var(--history-width)', minWidth: 'var(--history-width)', backgroundColor: 'var(--bg-history)' }}>
                         <TransactionHistory
                             onTransactionAdded={handleAdded}
                             openTransactionModal={handleOpenModal}
                             hideAddButton={hideAddButton}
                         />
-                    </div>
+                    </aside>
                 </div>
             </div>
 
             {/* Sidebar Offcanvas Mobile */}
             <Offcanvas show={showSidebar} onHide={() => setShowSidebar(false)} placement="start" style={{ width: '280px', backgroundColor: '#007bff' }}>
-                <Offcanvas.Header closeButton closeVariant="white" className="pb-0">
-                </Offcanvas.Header>
+                <Offcanvas.Header closeButton closeVariant="white" className="pb-0" />
                 <Offcanvas.Body className="p-0">
                     <Sidebar onItemClick={() => setShowSidebar(false)} />
                 </Offcanvas.Body>

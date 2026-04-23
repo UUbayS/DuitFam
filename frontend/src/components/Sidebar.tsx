@@ -55,19 +55,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick }) => {
     <div 
       style={{ 
         height: '100%', 
-        backgroundColor: '#007bff', 
+        backgroundColor: 'var(--primary-color)', 
         padding: '20px 0 20px 0', 
         overflowY: 'auto', 
       }}
-      className="d-flex flex-column shadow" 
+      className="d-flex flex-column" 
     >
       
-      <div className="d-flex align-items-center justify-content-center mb-5 mt-3">
+      <div className="px-4 mb-5 mt-4">
         <img 
           src={LogoPutih} 
           alt="SipDana Logo" 
-          style={{ width: '100%', maxWidth: '250px' }} 
-          className="px-4" 
+          style={{ width: '100%', maxWidth: '180px' }} 
         />
       </div>
 
@@ -97,10 +96,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick }) => {
             to={item.to} 
             key={item.to}
             onClick={onItemClick}
-            className={`d-flex align-items-center mb-2 p-3 rounded text-white ${isActive(item.to) ? 'bg-white fw-bold' : 'text-white'}`}
+            className={`d-flex align-items-center mb-1 p-3 rounded text-white ${isActive(item.to) ? 'bg-white fw-bold shadow-sm' : 'text-white'}`}
             style={{ 
                 backgroundColor: isActive(item.to) ? 'white' : 'transparent',
-                transition: '0.3s',
+                transition: '0.2s ease-in-out',
+                borderRadius: '12px'
             }}
           >
            <img 

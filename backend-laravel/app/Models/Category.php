@@ -10,5 +10,5 @@ class Category extends Model
 
     protected $collection = 'categories';
 
-    protected $fillable = ['nama_kategori'];
+    protected $fillable = ['nama_kategori', 'jenis', 'icon'];
 }
