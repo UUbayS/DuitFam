@@ -1,10 +1,18 @@
-# 🤖 Local LLM Setup Guide (Gemma 4)
+# 🤖 DuitFam Hybrid AI Setup Guide (Llama 3.1 8B)
+
+## 🌟 Triple-Tier Hybrid Strategy
+DuitFam menggunakan sistem AI yang tangguh dengan 3 lapis pertahanan:
+1. **Lapis 1 (Cloud)**: Groq API (Llama 3.3 70B) - Performa tinggi & analisis tajam.
+2. **Lapis 2 (Local)**: Ollama (Llama 3.1 8B) - Model paling cerdas dan stabil untuk lokal.
+3. **Lapis 3 (Rule-Based)**: Fallback otomatis berbasis logika cerdas jika AI tidak tersedia.
+
+---
 
 ## 📋 Prerequisites
 
-- Linux/Mac (Windows via WSL2)
-- 8GB+ RAM (Gemma 4B needs ~6GB)
-- 10GB disk space for model
+- OS: Linux/Mac/Windows (via WSL2 or Desktop App)
+- RAM: 16GB+ (Llama 3.1 8B butuh ~5GB VRAM/RAM)
+- Disk space: ~5GB untuk model
 
 ---
 
@@ -13,61 +21,65 @@
 ### Option 1: Automatic Setup
 
 ```bash
-cd /home/max/Gawe/DuitFam/backend-laravel
+cd backend-laravel
+chmod +x setup-local-llm.sh
 ./setup-local-llm.sh
 ```
 
 This will:
-1. Install Ollama (if not installed)
-2. Download Gemma 4 model
-3. Start Ollama service
-4. Test the connection
+1. Install Ollama (jika belum ada)
+2. Download model **Llama 3.1 8B** (Most Intelligent)
+3. Memastikan Ollama service aktif
+4. Mengetes koneksi local LLM
 
 ---
 
 ### Option 2: Manual Setup
 
 #### 1. Install Ollama
+Download dan install dari: https://ollama.com/download
 
+#### 2. Download Llama 3.1 8B
 ```bash
-curl -fsSL https://ollama.com/install.sh | sh
-```
+# Model configuration
+MODEL="gemma4:e2b"
 
-Or download from: https://ollama.com/download
-
-#### 2. Download Gemma 4
-
-```bash
-ollama pull gemma:4b
+echo "📥 Downloading Llama 3.1 8b model (4.7GB)..."
+ollama pull $MODEL
 ```
 
 #### 3. Start Ollama Service
-
-```bash
-ollama serve
-```
+Pastikan aplikasi Ollama sedang berjalan di background.
 
 #### 4. Test It Works
-
 ```bash
 curl http://localhost:11434/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "gemma:4b",
-    "messages": [{"role": "user", "content": "Halo, apa kabar?"}],
+    "model": "llama3.1:8b",
+    "messages": [{"role": "user", "content": "Halo, siapa kamu?"}],
     "max_tokens": 50
   }'
 ```
 
 ---
 
-## 🔧 Configuration
+## 🔧 Configuration (.env)
 
-Already configured in `.env`:
+Pastikan variabel berikut ada di `.env` anda:
 
 ```env
+# AI Provider Priority
+AI_PROVIDER=cloud             # Opsi: cloud, local
+AI_FALLBACK_TO_LOCAL=true     # Fallback ke Ollama jika Groq gagal
+AI_FALLBACK_TO_RULE=true      # Fallback ke Rule-based jika AI gagal
+
+# Groq (Cloud)
+GROQ_API_KEY=gsk_your_key_here
+
+# Ollama (Local)
 OLLAMA_API_URL=http://localhost:11434/v1/chat/completions
-OLLAMA_MODEL=gemma:4b
+OLLAMA_MODEL=llama3.1:8b
 ```
 
 ---
@@ -75,76 +87,41 @@ OLLAMA_MODEL=gemma:4b
 ## 🧪 Verify Setup
 
 ```bash
-# Check Ollama is running
+# Cek model yang tersedia
 ollama list
 
-# Check model is downloaded
-ollama list | grep gemma
-
-# Test endpoint
-curl http://localhost:11434/api/tags
+# Jalankan test script (opsional)
+./test-alerts.sh
 ```
 
 ---
 
-## 🎯 Usage
+## 🎯 Cara Kerja Hybrid
 
-Once Ollama is running, **everything works automatically**:
-
-1. Laravel backend calls `http://localhost:11434/v1/chat/completions`
-2. Ollama processes with local Gemma 4
-3. No internet required after setup
-4. 100% private - no data leaves your machine
+1. Aplikasi akan mencoba menghubungi **Groq API** terlebih dahulu untuk kualitas terbaik.
+2. Jika internet mati atau Groq down, sistem otomatis pindah ke **Local Ollama**.
+3. Jika Ollama belum di-setup, sistem akan menggunakan **Rule-Based Engine** (Data Fact Extraction) untuk memberikan jawaban akurat berdasarkan saldo dan pengeluaran riil anda.
 
 ---
 
-## 🐛 Troubleshooting
+## 💡 Benefits of Hybrid AI
 
-### Ollama not starting?
-```bash
-# Check if port is free
-lsof -i :11434
-
-# Restart Ollama
-systemctl restart ollama
-# OR
-ollama serve
-```
-
-### Model not found?
-```bash
-# Re-download
-ollama pull gemma:4b
-```
-
-### Laravel still using Groq?
-```bash
-# Clear cache
-php artisan config:clear
-php artisan cache:clear
-```
+✅ **Privacy First** - Data keuangan sensitif diproses secara lokal saat mode offline.  
+✅ **Always Online** - Tidak pernah kehilangan layanan advisor.  
+✅ **Fast & Light** - Gemma 4 E2B sangat cepat bahkan di laptop spesifikasi rendah.  
+✅ **Smart** - Menggunakan model 70B saat tersedia untuk analisis mendalam.  
 
 ---
 
-## 💡 Benefits of Local LLM
+## 📊 Model Info: Llama 3.1 8B
 
-✅ **100% Private** - All data stays on your machine  
-✅ **No API Keys** - No rate limits or costs  
-✅ **Always Available** - Works offline  
-✅ **Fast** - No network latency  
-✅ **Unlimited** - Query as much as you want  
-
----
-
-## 📊 Model Info
-
-**Gemma 4 (4B parameters)**
-- Developed by Google
-- Optimized for local deployment
-- Good balance of speed vs quality
-- ~6GB RAM usage
-- Works on CPU (GPU optional but faster)
+- **Parameters**: 8 Billion (8B)
+- **Developer**: Meta AI
+- **Size**: ~4.7GB
+- **RAM Usage**: ~6GB total
+- **Features**: Highly stable, excellent Indonesian support, world-class reasoning
+- **Speed**: Very Smart & Reliable
 
 ---
 
-**That's it! Your AI financial assistant now runs 100% locally!** 🎉
+**Selesai! AI Advisor DuitFam anda sekarang super tangguh!** 🚀🎉
