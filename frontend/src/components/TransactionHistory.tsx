@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Badge, Spinner, Form } from 'react-bootstrap';
-import { EyeFill, EyeSlashFill } from 'react-bootstrap-icons';
+import * as Icons from 'react-bootstrap-icons';
+import { EyeFill, EyeSlashFill, Tag } from 'react-bootstrap-icons';
 import { fetchTransactionHistory, fetchMonthlySummary } from '../services/report.service';
 import type { TransactionHistoryItem, MonthlySummary } from '../types/report.types';
 import { useTimeFilter } from '../hooks/useTimeFilter'; 
@@ -158,39 +159,53 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                 </div>
             ) : (
                 filteredTransactions.map((tx) => (
-                    <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0" style={{ borderRadius: '18px' }}>
+                    <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0 transition-all hover-shadow" style={{ borderRadius: '18px', overflow: 'hidden' }}>
                         <Card.Body className="p-3">
-                            <div className="d-flex flex-column">
-                                <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
-                                    <div className="fw-bold text-dark text-truncate" style={{ fontSize: '14px' }} title={tx.keterangan}>
-                                        {tx.keterangan.replace('Kontribusi Target ID:', 'Tabungan #')}
-                                    </div>
-                                    {tx.status && tx.status !== 'berhasil' ? (
-                                        <Badge bg={tx.status === 'pending' ? 'warning' : 'danger'} style={{ fontSize: '10px', borderRadius: 6 }}>
-                                            {tx.status === 'pending' ? 'Pending' : 'Ditolak'}
-                                        </Badge>
-                                    ) : null}
+                            <div className="d-flex align-items-center gap-3">
+                                <div 
+                                    className={`d-flex align-items-center justify-content-center flex-shrink-0`}
+                                    style={{ 
+                                        width: '45px', 
+                                        height: '45px', 
+                                        borderRadius: '14px', 
+                                        backgroundColor: tx.jenis === 'pemasukan' ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)',
+                                        color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545',
+                                        fontSize: '20px'
+                                    }}
+                                >
+                                    {React.createElement((Icons as any)[tx.icon_kategori || 'Tag'] || Tag)}
                                 </div>
+                                <div className="flex-grow-1 d-flex flex-column min-width-0">
+                                    <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
+                                        <div className="fw-bold text-dark text-truncate" style={{ fontSize: '14px' }} title={tx.keterangan}>
+                                            {tx.keterangan.replace('Kontribusi Target ID:', 'Tabungan #')}
+                                        </div>
+                                        {tx.status && tx.status !== 'berhasil' ? (
+                                            <Badge bg={tx.status === 'pending' ? 'warning' : 'danger'} style={{ fontSize: '10px', borderRadius: 6 }}>
+                                                {tx.status === 'pending' ? 'Pending' : 'Ditolak'}
+                                            </Badge>
+                                        ) : null}
+                                    </div>
 
-                                <div className="d-flex justify-content-between align-items-center">
-                                    <small className="text-muted" style={{ fontSize: '11px' }}>
-                                        {new Date(tx.tanggal).toLocaleDateString('id-ID', { 
-                                            day: '2-digit', 
-                                            month: 'short',
-                                            year: 'numeric'
-                                        })}
-                                    </small>
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <small className="text-muted" style={{ fontSize: '11px' }}>
+                                            {tx.nama_kategori} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { 
+                                                day: '2-digit', 
+                                                month: 'short'
+                                            })}
+                                        </small>
 
-                                    <div 
-                                        className="fw-bold" 
-                                        style={{ 
-                                            color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545', 
-                                            fontSize: '14px',
-                                            whiteSpace: 'nowrap'
-                                        }}
-                                    >
-                                        {tx.jenis === 'pengeluaran' ? '- ' : '+ '}
-                                        {formatRupiah(tx.jumlah)}
+                                        <div 
+                                            className="fw-bold" 
+                                            style={{ 
+                                                color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545', 
+                                                fontSize: '14px',
+                                                whiteSpace: 'nowrap'
+                                            }}
+                                        >
+                                            {tx.jenis === 'pengeluaran' ? '- ' : '+ '}
+                                            {formatRupiah(tx.jumlah)}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

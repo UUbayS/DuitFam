@@ -85,10 +85,14 @@ class ReportController extends Controller
             ->whereIn('_id', $categoryIds->all())
             ->get()
             ->keyBy(fn ($c) => (string) $c->id)
-            ->map(fn ($c) => $c->nama_kategori)
+            ->map(fn ($c) => [
+                'nama' => $c->nama_kategori,
+                'icon' => $c->icon ?? 'Tag'
+            ])
             ->all();
 
         $data = $rows->map(function ($t) use ($categoryMap) {
+            $cat = $t->category_id ? ($categoryMap[(string) $t->category_id] ?? null) : null;
             return [
                 'id_transaksi' => (string) $t->id,
                 'jenis' => $t->jenis,
@@ -97,7 +101,8 @@ class ReportController extends Controller
                 'tanggal' => $t->tanggal,
                 'created_at' => $t->created_at,
                 'status' => $t->status ?? 'berhasil',
-                'nama_kategori' => $t->category_id ? ($categoryMap[(string) $t->category_id] ?? 'Lainnya') : 'Lainnya',
+                'nama_kategori' => $cat ? $cat['nama'] : 'Lainnya',
+                'icon_kategori' => $cat ? $cat['icon'] : 'Tag',
             ];
         });
 
@@ -286,10 +291,14 @@ class ReportController extends Controller
             ->whereIn('_id', $categoryIds->all())
             ->get()
             ->keyBy(fn ($c) => (string) $c->id)
-            ->map(fn ($c) => $c->nama_kategori)
+            ->map(fn ($c) => [
+                'nama' => $c->nama_kategori,
+                'icon' => $c->icon ?? 'Tag'
+            ])
             ->all();
 
         $data = $rows->map(function ($t) use ($categoryMap) {
+            $cat = $t->category_id ? ($categoryMap[(string) $t->category_id] ?? null) : null;
             return [
                 'id_transaksi' => (string) $t->id,
                 'user_id' => (string) $t->user_id,
@@ -299,7 +308,8 @@ class ReportController extends Controller
                 'tanggal' => $t->tanggal,
                 'created_at' => $t->created_at,
                 'status' => $t->status ?? 'berhasil',
-                'nama_kategori' => $t->category_id ? ($categoryMap[(string) $t->category_id] ?? 'Lainnya') : 'Lainnya',
+                'nama_kategori' => $cat ? $cat['nama'] : 'Lainnya',
+                'icon_kategori' => $cat ? $cat['icon'] : 'Tag',
             ];
         });
 
