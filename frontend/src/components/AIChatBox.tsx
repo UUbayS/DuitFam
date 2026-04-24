@@ -129,30 +129,6 @@ const AIChatBox: React.FC = () => {
                     amount: summary.totalPengeluaran,
                     color: "#dc3545",
                 });
-            } else if (spendingRatio < 0.5) {
-                suggestions.push({
-                    icon: "✅",
-                    title: "Keuangan Sangat Sehat!",
-                    description: `Anda hanya mengeluarkan ${Math.round(spendingRatio * 100)}% dari pemasukan. Bagus! Anda bisa menabung lebih banyak atau berinvestasi.`,
-                    amount: summary.neto,
-                    color: "#28a745",
-                });
-            }
-        }
-
-        if (
-            analysis?.spendingByCategory &&
-            analysis.spendingByCategory.length > 0
-        ) {
-            const topCategory = analysis.spendingByCategory[0];
-            if (topCategory.persentase > 30) {
-                suggestions.push({
-                    icon: "📊",
-                    title: `Dominasi: ${topCategory.namaKategori}`,
-                    description: `${topCategory.namaKategori} menghabiskan ${formatCurrency(topCategory.jumlah)} (${topCategory.persentase.toFixed(1)}% dari total). Coba cari alternatif yang lebih hemat.`,
-                    amount: topCategory.jumlah,
-                    color: "#ffc107",
-                });
             }
         }
 

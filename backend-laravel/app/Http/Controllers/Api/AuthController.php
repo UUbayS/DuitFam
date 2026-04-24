@@ -31,7 +31,7 @@ class AuthController extends Controller
             $user = User::create([
                 'username' => (string) $request->input('username'),
                 'email' => (string) $request->input('email'),
-                'role' => 'parent',
+                'role' => config('constants.roles.parent'),
                 'is_active' => true,
                 'password' => Hash::make((string) $request->input('password')),
             ]);
@@ -73,13 +73,17 @@ class AuthController extends Controller
             }
 
             $token = Str::random(80);
-            $user->api_token = $token;
+            $expiresAt = now()->addHours(3);
+            $user->api_token = hash('sha256', $token);
+            $user->api_token_expires_at = $expiresAt;
             $user->save();
+
             Log::info('AUTH_LOGIN_SUCCESS', ['user_id' => $user->id, 'email' => $user->email]);
 
             return response()->json([
                 'message' => 'Login berhasil.',
                 'token' => $token,
+                'expires_at' => $expiresAt->toISOString(),
                 'user' => [
                     'id_user' => (string) $user->id,
                     'username' => $user->username,
@@ -103,6 +107,7 @@ class AuthController extends Controller
         $user = $request->user();
         if ($user) {
             $user->api_token = null;
+            $user->api_token_expires_at = null;
             $user->save();
         }
 

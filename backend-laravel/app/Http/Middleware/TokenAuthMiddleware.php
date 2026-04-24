@@ -17,10 +17,15 @@ class TokenAuthMiddleware
             return response()->json(["message" => "Unauthenticated."], 401);
         }
 
-        $user = User::where("api_token", $token)->first();
+        $user = User::where("api_token", hash('sha256', $token))->first();
 
         if (!$user) {
             return response()->json(["message" => "Invalid token."], 401);
+        }
+
+        // Check token expiration
+        if (isset($user->api_token_expires_at) && $user->api_token_expires_at < now()) {
+            return response()->json(["message" => "Token expired."], 401);
         }
 
         if (isset($user->is_active) && !$user->is_active) {

@@ -14,7 +14,7 @@ class GroqService
     public function generateFinancialAdvice(array $financialData, string $question, array $history = []): string
     {
         // Disable execution time limit for long AI processing (loading large local models)
-        set_time_limit(0);
+        set_time_limit(180); // 3 minutes max for AI processing
 
         // Tier 3 (Fakta Dasar dari Rule-Engine) - Selalu disiapkan sebagai fallback & konteks
         $fallbackResponse = $this->generateRuleBasedResponse($financialData, $question);
@@ -101,31 +101,62 @@ class GroqService
         $expense = number_format($summary['totalPengeluaran'] ?? 0, 0, ',', '.');
         $net = number_format($summary['neto'] ?? 0, 0, ',', '.');
         $balance = number_format($summary['saldoAkhir'] ?? 0, 0, ',', '.');
-        
+
+        $user = $data['user'] ?? ['role' => 'unknown', 'username' => 'User'];
+
         $prompt = "Kamu adalah DuitFam AI Financial Advisor, asisten keuangan keluarga yang cerdas, ramah, dan solutif.\n\n";
-        $prompt .= "KONTEKS KEUANGAN USER SAAT INI (Bulan " . Carbon::now()->format('F Y') . "):\n";
+
+        // User Context
+        $prompt .= "**KONTEKS PENGGUNA:**\n";
+        $prompt .= "- Nama: {$user['username']}\n";
+        $prompt .= "- Peran: " . ($user['role'] === 'parent' ? 'Orang Tua' : ($user['role'] === 'child' ? 'Anak' : 'User')) . "\n\n";
+
+        $prompt .= "**KONTEKS KEUANGAN SAAT INI (Bulan " . Carbon::now()->format('F Y') . "):**\n";
         $prompt .= "- Total Pemasukan: Rp {$income}\n";
         $prompt .= "- Total Pengeluaran: Rp {$expense}\n";
         $prompt .= "- Saldo Saat Ini: Rp {$balance}\n";
         $prompt .= "- Selisih (Net): Rp {$net}\n\n";
-        
-        $prompt .= "DATA KATEGORI PENGELUARAN:\n";
+
+        $prompt .= "**DATA KATEGORI PENGELUARAN:**\n";
         foreach (array_slice($data['spendingByCategory'] ?? [], 0, 5) as $cat) {
             $amt = number_format($cat['jumlah'], 0, ',', '.');
             $prompt .= "- {$cat['namaKategori']}: Rp {$amt} ({$cat['persentase']}%)\n";
         }
-        
+
+        // Saving Goals
+        if (!empty($data['saving_goals'])) {
+            $prompt .= "\n**TARGET MENABUNG AKTIF:**\n";
+            foreach ($data['saving_goals'] as $goal) {
+                $targetAmt = number_format($goal['target_jumlah'], 0, ',', '.');
+                $collectedAmt = number_format($goal['jumlah_terkumpul'], 0, ',', '.');
+                $prompt .= "- {$goal['nama_target']}: {$goal['progress']}% (Rp {$collectedAmt} / Rp {$targetAmt})\n";
+                if ($goal['is_overdue']) {
+                    $prompt .= "  ⚠️ DEADLINE TERLEWATI!\n";
+                } elseif ($goal['is_near_deadline']) {
+                    $prompt .= "  ⏰ DEADLINE DALAM 7 HARI!\n";
+                }
+            }
+        }
+
+        // Family Context
+        if ($user['role'] === 'parent' && !empty($data['family'])) {
+            $prompt .= "\n**KELUARGA:** Anda memiliki {$data['family']['children_count']} anak terhubung.\n";
+        } elseif ($user['role'] === 'child' && !empty($data['family'])) {
+            $prompt .= "\n**KELUARGA:** Anda terhubung dengan orang tua.\n";
+        }
+
         $prompt .= "\nFAKTA DARI SISTEM (Gunakan ini jika user bertanya spesifik):\n\"{$factContext}\"\n\n";
-        
-        $prompt .= "INSTRUKSI:\n";
+
+        $prompt .= "**INSTRUKSI:**\n";
         $prompt .= "1. Jawab dalam Bahasa Indonesia yang santai tapi profesional.\n";
-        $prompt .= "2. Gunakan emoji agar chat terasa hidup.\n";
         $prompt .= "3. Jika pengeluaran > pemasukan, berikan peringatan tegas tapi sopan.\n";
         $prompt .= "4. Berikan saran praktis untuk menghemat atau menabung.\n";
         $prompt .= "5. JANGAN memberikan nasihat investasi saham/kripto yang berisiko tinggi.\n";
         $prompt .= "6. Selalu prioritaskan keamanan dana darurat.\n";
         $prompt .= "7. JAWAB LANGSUNG pada intinya. Hindari proses berpikir internal yang terlalu panjang.\n";
-        $prompt .= "8. JANGAN gunakan tag <think> atau menuliskan proses berpikirmu. Tampilkan jawaban akhir saja.";
+        $prompt .= "8. JANGAN gunakan tag <think> atau menuliskan proses berpikirmu. Tampilkan jawaban akhir saja.\n";
+        $prompt .= "9. Jika orang tua, berikan saran pengelolaan keuangan keluarga. Jika anak, berikan tips menabung yang menyenangkan.\n";
+        $prompt .= "10. Ingatkan target yang terlewati deadline dengan sopan dan berikan saran mengejar target jika deadline ≤7 hari.";
 
         return $prompt;
     }
@@ -161,11 +192,39 @@ class GroqService
         $net = $summary["neto"] ?? 0;
         $balance = $summary["saldoAkhir"] ?? 0;
         $spendingByCategory = $data["spendingByCategory"] ?? [];
+        $user = $data["user"] ?? ['role' => 'unknown', 'username' => 'User'];
+        $savingGoals = $data["saving_goals"] ?? [];
 
         $q = strtolower($question);
 
+        // Handle user role questions
+        if (str_contains($q, "saya anak") || str_contains($q, "saya orang tua") || str_contains($q, "peran saya") || str_contains($q, "role saya")) {
+            $roleText = $user['role'] === 'parent' ? 'orang tua' : ($user['role'] === 'child' ? 'anak' : 'user');
+            return "Halo {$user['username']}! Anda login sebagai **{$roleText}** di DuitFam.";
+        }
+
+        // Handle saving goals questions
+        if (str_contains($q, "target") || str_contains($q, "tabungan") || str_contains($q, "nabung") || str_contains($q, " menabung")) {
+            if (empty($savingGoals)) {
+                return "🏦 Anda belum punya target menabung aktif. Yuk buat di menu **Target Menabung**!";
+            }
+            $resp = "🏦 **Target Menabung Anda:**\n\n";
+            foreach ($savingGoals as $goal) {
+                $targetAmt = number_format($goal['target_jumlah'], 0, ',', '.');
+                $collectedAmt = number_format($goal['jumlah_terkumpul'], 0, ',', '.');
+                $resp .= "• **{$goal['nama_target']}**: {$goal['progress']}%\n";
+                $resp .= "  Rp {$collectedAmt} / Rp {$targetAmt}\n";
+                if ($goal['is_overdue']) {
+                    $resp .= "  ⚠️ **Deadline terlewati!** Segera selesaikan.\n";
+                } elseif ($goal['is_near_deadline']) {
+                    $resp .= "  ⏰ **Deadline dalam 7 hari!** Buruan kejar!\n";
+                }
+            }
+            return $resp;
+        }
+
         if (str_contains($q, "pengeluaran") || str_contains($q, "spending") || str_contains($q, "habis")) {
-            $resp = "Total pengeluaran Anda bulan ini Rp " . number_format($expense, 0, ',', '.') . ". ";
+            $resp = "📊 Total pengeluaran Anda bulan ini Rp " . number_format($expense, 0, ',', '.') . ". ";
             if ($income > 0) {
                 $ratio = round(($expense / $income) * 100);
                 $resp .= "Anda sudah menghabiskan {$ratio}% dari pemasukan.";
@@ -175,17 +234,17 @@ class GroqService
 
         if (str_contains($q, "budget") || str_contains($q, "anggaran") || str_contains($q, "bisa belanja")) {
             $avail = $income - $expense;
-            return ($avail > 0) 
-                ? "Sisa budget aman Anda adalah Rp " . number_format($avail, 0, ',', '.') 
-                : "Budget Anda sudah habis! Pengeluaran melebihi pemasukan sebesar Rp " . number_format(abs($avail), 0, ',', '.');
+            return ($avail > 0)
+                ? "💵 Sisa budget aman Anda adalah Rp " . number_format($avail, 0, ',', '.')
+                : "🚫 Budget Anda sudah habis! Pengeluaran melebihi pemasukan sebesar Rp " . number_format(abs($avail), 0, ',', '.');
         }
 
         if (str_contains($q, "saldo") || str_contains($q, "uang")) {
-            return "Saldo Anda saat ini adalah Rp " . number_format($balance, 0, ',', '.') . ".";
+            return "💰 Saldo Anda saat ini adalah Rp " . number_format($balance, 0, ',', '.') . ".";
         }
 
         // Default fact summary
-        return "Bulan ini pemasukan Rp " . number_format($income, 0, ',', '.') . " dan pengeluaran Rp " . number_format($expense, 0, ',', '.') . ".";
+        return "📊 Bulan ini pemasukan Rp " . number_format($income, 0, ',', '.') . " dan pengeluaran Rp " . number_format($expense, 0, ',', '.') . ".";
     }
 
     /**
