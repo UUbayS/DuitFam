@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Button, Form, Alert, Spinner } from 'react-bootstrap';
+import * as Icons from 'react-bootstrap-icons';
 import { 
     Calendar, 
     Tag, 
@@ -11,7 +12,9 @@ import {
 } from 'react-bootstrap-icons';
 import { fetchCategories } from '../services/utility.service';
 import { createTransaction } from '../services/transaction.service';
+import { fetchActiveTargets } from '../services/target.service';
 import type { TransactionInput, Category, TransactionType } from '../types/transaction.types'; 
+import type { TargetMenabung } from '../types/target.types';
 import type { AxiosError } from 'axios'; 
 
 
@@ -31,6 +34,7 @@ const initialFormState: Omit<TransactionInput, 'jumlah'> & { jumlah: string } = 
     tanggal: new Date().toISOString().split('T')[0], 
     keterangan: '',
     id_kategori: '',
+    source_id: '',
 };
 
 const getErrorMessage = (err: unknown): string => {
@@ -45,6 +49,7 @@ const getErrorMessage = (err: unknown): string => {
 const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, onSuccess }) => {
     const [formData, setFormData] = useState(initialFormState);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [targets, setTargets] = useState<TargetMenabung[]>([]);
     const [loading, setLoading] = useState(false);
     const [catLoading, setCatLoading] = useState(true);
     const [message, setMessage] = useState<{ type: 'success' | 'danger', text: string } | null>(null);
@@ -56,11 +61,15 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
         backgroundColor: '#f8fafc',
     };
 
-    const loadCategories = useCallback(async () => {
+    const loadCategoriesAndTargets = useCallback(async () => {
         setCatLoading(true);
         try {
-            const cats = await fetchCategories();
+            const [cats, activeTargets] = await Promise.all([
+                fetchCategories(),
+                fetchActiveTargets()
+            ]);
             setCategories(cats);
+            setTargets(activeTargets);
             if (cats.length > 0) {
                 setFormData(prev => ({ 
                     ...prev, 
@@ -76,11 +85,11 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
 
     useEffect(() => {
         if (show) {
-             loadCategories();
+             loadCategoriesAndTargets();
              setFormData(initialFormState);
              setMessage(null);
         }
-    }, [show, loadCategories]); 
+    }, [show, loadCategoriesAndTargets]); 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -98,7 +107,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
     };
 
     const handleTypeChange = (type: TransactionType) => {
-        setFormData(prev => ({ ...prev, jenis: type }));
+        setFormData(prev => ({ ...prev, jenis: type, id_kategori: '' }));
         setMessage(null);
     };
 
@@ -127,11 +136,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
         }
     };
 
-    const filteredCategories = categories.filter(cat => {
-        const name = cat.nama_kategori.toLowerCase();
-        const isIncomeCat = name.includes('gaji') || name.includes('bonus') || name.includes('investasi');
-        return formData.jenis === 'pemasukan' ? isIncomeCat : !isIncomeCat;
-    });
+    const filteredCategories = categories.filter(cat => cat.jenis === formData.jenis);
 
     return (
         <Modal show={show} onHide={handleClose} centered backdrop="static" className="transaction-modal">
@@ -214,20 +219,89 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
 
                         <Form.Group className="mb-3">
                             <Form.Label className="fw-bold text-dark mb-2">
-                                <Tag className="text-primary me-2" /> Kategori
+                                <Icons.Wallet2 className="text-primary me-2" /> Sumber Dana
                             </Form.Label>
                             <Form.Select 
-                                name="id_kategori" 
-                                value={formData.id_kategori} 
-                                onChange={handleChange} 
-                                disabled={catLoading} 
-                                required 
-                                className="py-2 px-3 border-secondary border-opacity-25 bg-light"
+                                name="source_id" 
+                                value={formData.source_id} 
+                                onChange={handleChange}
+                                className="py-2 px-3 border-secondary border-opacity-25"
                                 style={{ borderRadius: '10px' }}
                             >
-                                <option value="" disabled>-- Pilih Kategori --</option>
-                                {filteredCategories.map(cat => <option key={cat.id_kategori} value={cat.id_kategori}>{cat.nama_kategori}</option>)}
+                                <option value="">Saldo Utama</option>
+                                {targets.map(t => (
+                                    <option key={t.id_target} value={t.id_target}>
+                                        Kantong: {t.nama_target} ({t.jumlah_terkumpul.toLocaleString('id-ID')})
+                                    </option>
+                                ))}
                             </Form.Select>
+                        </Form.Group>
+
+
+                        <Form.Group className="mb-4">
+                            <Form.Label className="fw-bold text-dark mb-3">
+                                <Tag className="text-primary me-2" /> Pilih Kategori
+                            </Form.Label>
+                            
+                            {catLoading ? (
+                                <div className="text-center py-4">
+                                    <Spinner animation="border" size="sm" variant="primary" />
+                                    <p className="text-muted small mt-2">Memuat kategori...</p>
+                                </div>
+                            ) : (
+                                <div className="category-grid" style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: 'repeat(4, 1fr)', 
+                                    gap: '12px',
+                                    maxHeight: '280px',
+                                    overflowY: 'auto',
+                                    padding: '4px'
+                                }}>
+                                    {filteredCategories.map(cat => {
+                                        const IconComponent = (Icons as any)[cat.icon] || Icons.Tag;
+                                        const isSelected = formData.id_kategori === cat.id_kategori;
+                                        
+                                        return (
+                                            <div 
+                                                key={cat.id_kategori}
+                                                onClick={() => setFormData({ ...formData, id_kategori: cat.id_kategori })}
+                                                className={`category-item d-flex flex-column align-items-center justify-content-center p-2 text-center cursor-pointer transition-all ${isSelected ? 'selected' : ''}`}
+                                                style={{
+                                                    borderRadius: '16px',
+                                                    border: isSelected ? '2px solid var(--bs-primary)' : '1px solid #f1f5f9',
+                                                    backgroundColor: isSelected ? 'rgba(13, 110, 253, 0.05)' : '#f8fafc',
+                                                    cursor: 'pointer',
+                                                    transition: '0.2s all ease-in-out',
+                                                    minHeight: '80px'
+                                                }}
+                                            >
+                                                <div 
+                                                    className={`icon-wrapper mb-2 d-flex align-items-center justify-content-center ${isSelected ? 'text-primary' : 'text-secondary'}`}
+                                                    style={{ 
+                                                        fontSize: '24px',
+                                                        width: '40px',
+                                                        height: '40px',
+                                                        borderRadius: '12px',
+                                                        backgroundColor: isSelected ? 'rgba(13, 110, 253, 0.1)' : 'transparent'
+                                                    }}
+                                                >
+                                                    <IconComponent />
+                                                </div>
+                                                <span 
+                                                    className="cat-name fw-medium" 
+                                                    style={{ 
+                                                        fontSize: '10px', 
+                                                        lineHeight: '1.2',
+                                                        color: isSelected ? 'var(--bs-primary)' : '#64748b'
+                                                    }}
+                                                >
+                                                    {cat.nama_kategori}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </Form.Group>
 
                         <Form.Group className="mb-4">

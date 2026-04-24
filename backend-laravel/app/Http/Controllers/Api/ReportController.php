@@ -85,10 +85,28 @@ class ReportController extends Controller
             ->whereIn('_id', $categoryIds->all())
             ->get()
             ->keyBy(fn ($c) => (string) $c->id)
-            ->map(fn ($c) => $c->nama_kategori)
+            ->map(fn ($c) => [
+                'nama' => $c->nama_kategori,
+                'icon' => $c->icon ?? 'Tag'
+            ])
             ->all();
 
         $data = $rows->map(function ($t) use ($categoryMap) {
+            $cat = $t->category_id ? ($categoryMap[(string) $t->category_id] ?? null) : null;
+            $categoryName = $cat ? $cat['nama'] : 'Lainnya';
+            $categoryIcon = $cat ? $cat['icon'] : 'Tag';
+
+            if ($t->jenis === 'menabung') {
+                $categoryName = 'Menabung';
+                $categoryIcon = 'PiggyBank';
+            } else if ($t->jenis === 'refund') {
+                $categoryName = 'Refund';
+                $categoryIcon = 'ArrowCounterclockwise';
+            } else if ($t->source_id) {
+                $categoryName = 'Tabungan';
+                $categoryIcon = 'Wallet2';
+            }
+
             return [
                 'id_transaksi' => (string) $t->id,
                 'jenis' => $t->jenis,
@@ -97,7 +115,8 @@ class ReportController extends Controller
                 'tanggal' => $t->tanggal,
                 'created_at' => $t->created_at,
                 'status' => $t->status ?? 'berhasil',
-                'nama_kategori' => $t->category_id ? ($categoryMap[(string) $t->category_id] ?? 'Lainnya') : 'Lainnya',
+                'nama_kategori' => $categoryName,
+                'icon_kategori' => $categoryIcon,
             ];
         });
 
@@ -136,7 +155,7 @@ class ReportController extends Controller
             }
             if ($t->jenis === 'pemasukan') {
                 $grouped[$m]['pemasukan'] += (float) $t->jumlah;
-            } else {
+            } else if ($t->jenis === 'pengeluaran') {
                 $grouped[$m]['pengeluaran'] += (float) $t->jumlah;
             }
         }
@@ -253,7 +272,7 @@ class ReportController extends Controller
             }
             if ($t->jenis === 'pemasukan') {
                 $grouped[$m]['pemasukan'] += (float) $t->jumlah;
-            } else {
+            } else if ($t->jenis === 'pengeluaran') {
                 $grouped[$m]['pengeluaran'] += (float) $t->jumlah;
             }
         }
@@ -286,10 +305,28 @@ class ReportController extends Controller
             ->whereIn('_id', $categoryIds->all())
             ->get()
             ->keyBy(fn ($c) => (string) $c->id)
-            ->map(fn ($c) => $c->nama_kategori)
+            ->map(fn ($c) => [
+                'nama' => $c->nama_kategori,
+                'icon' => $c->icon ?? 'Tag'
+            ])
             ->all();
 
         $data = $rows->map(function ($t) use ($categoryMap) {
+            $cat = $t->category_id ? ($categoryMap[(string) $t->category_id] ?? null) : null;
+            $categoryName = $cat ? $cat['nama'] : 'Lainnya';
+            $categoryIcon = $cat ? $cat['icon'] : 'Tag';
+
+            if ($t->jenis === 'menabung') {
+                $categoryName = 'Menabung';
+                $categoryIcon = 'PiggyBank';
+            } else if ($t->jenis === 'refund') {
+                $categoryName = 'Refund';
+                $categoryIcon = 'ArrowCounterclockwise';
+            } else if ($t->source_id) {
+                $categoryName = 'Tabungan';
+                $categoryIcon = 'Wallet2';
+            }
+
             return [
                 'id_transaksi' => (string) $t->id,
                 'user_id' => (string) $t->user_id,
@@ -299,7 +336,8 @@ class ReportController extends Controller
                 'tanggal' => $t->tanggal,
                 'created_at' => $t->created_at,
                 'status' => $t->status ?? 'berhasil',
-                'nama_kategori' => $t->category_id ? ($categoryMap[(string) $t->category_id] ?? 'Lainnya') : 'Lainnya',
+                'nama_kategori' => $categoryName,
+                'icon_kategori' => $categoryIcon,
             ];
         });
 

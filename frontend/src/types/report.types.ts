@@ -17,6 +17,7 @@ export interface TransactionHistoryItem { // <-- TIPE DATA BARU
     tanggal: string; 
     created_at: string; 
     nama_kategori: string;
+    icon_kategori?: string;
     status?: 'berhasil' | 'pending' | 'ditolak';
 }
 

@@ -22,15 +22,39 @@ class TransactionController extends Controller
     public function store(StoreTransactionRequest $request)
     {
         $user = $request->user();
-        $wallet = Wallet::firstOrCreate(['user_id' => (string) $user->id], ['saldo_sekarang' => 0]);
         $amount = (float) $request->input('jumlah');
         $jenis = $request->input('jenis');
         $categoryId = $request->input('id_kategori');
+        $sourceId = $request->input('source_id');
+
         if ($categoryId && ! Category::where('_id', (string) $categoryId)->exists()) {
             throw ValidationException::withMessages(['id_kategori' => ['Kategori tidak valid.']]);
         }
-        if ($jenis === 'pengeluaran' && (float) $wallet->saldo_sekarang < $amount) {
-            throw ValidationException::withMessages(['jumlah' => ['Saldo utama tidak mencukupi.']]);
+
+        // Logic for Savings Goal as source
+        if ($sourceId) {
+            $goal = \App\Models\SavingGoal::where('_id', $sourceId)->where('user_id', (string) $user->id)->first();
+            if (!$goal) {
+                throw ValidationException::withMessages(['source_id' => ['Kantong tabungan tidak ditemukan.']]);
+            }
+
+            if ($jenis === 'pengeluaran' && (float)$goal->jumlah_terkumpul < $amount) {
+                throw ValidationException::withMessages(['jumlah' => ['Saldo di kantong tabungan tidak mencukupi.']]);
+            }
+
+            $goal->jumlah_terkumpul = ((float)$goal->jumlah_terkumpul) + ($jenis === 'pemasukan' ? $amount : ($amount * -1));
+            if ($goal->status === 'tercapai' && (float)$goal->jumlah_terkumpul < (float)$goal->target_jumlah) {
+                $goal->status = 'aktif';
+            }
+            $goal->save();
+        } else {
+            // Logic for Main Wallet
+            $wallet = Wallet::firstOrCreate(['user_id' => (string) $user->id], ['saldo_sekarang' => 0]);
+            if ($jenis === 'pengeluaran' && (float) $wallet->saldo_sekarang < $amount) {
+                throw ValidationException::withMessages(['jumlah' => ['Saldo utama tidak mencukupi.']]);
+            }
+            $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + ($jenis === 'pemasukan' ? $amount : ($amount * -1));
+            $wallet->save();
         }
 
         $transaction = Transaction::create([
@@ -41,10 +65,8 @@ class TransactionController extends Controller
             'jumlah' => $amount,
             'tanggal' => $request->input('tanggal'),
             'keterangan' => $request->input('keterangan'),
+            'source_id' => $sourceId,
         ]);
-
-        $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + ($jenis === 'pemasukan' ? $amount : ($amount * -1));
-        $wallet->save();
         UserNotification::create(['user_id' => (string) $user->id, 'title' => 'Transaksi berhasil', 'message' => 'Transaksi '.$jenis.' sebesar '.number_format($amount, 0, ',', '.').' berhasil dicatat.']);
         NotificationFeed::create(['user_id' => (string) $user->id, 'title' => 'Transaksi berhasil', 'message' => 'Transaksi '.$jenis.' sebesar '.number_format($amount, 0, ',', '.').' berhasil dicatat.', 'read_at' => null, 'meta' => ['transaction_id' => (string) $transaction->id]]);
         $this->mongoAuditService->log($request, $user->id, 'transaction.created', [

@@ -24,6 +24,11 @@ export const contributeToTarget = async (data: { id_target: string; jumlah: numb
     return response.data;
 };
 
+export const withdrawFromTarget = async (data: { id_target: string; jumlah: number }) => {
+    const response = await api.post('/targets/withdraw', data); 
+    return response.data;
+};
+
 export const updateTarget = async (id: string, data: Partial<TargetTypes.TargetInput> & { status?: 'aktif' | 'tercapai' | 'batal' }) => {
     const response = await api.put(`/targets/${id}`, data);
     return response.data;

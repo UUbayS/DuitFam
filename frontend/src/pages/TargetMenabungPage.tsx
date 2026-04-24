@@ -1,12 +1,13 @@
     import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Button, ProgressBar, Spinner, Alert } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-    import { Bullseye, EyeFill, EyeSlashFill, Plus } from 'react-bootstrap-icons';
-import { fetchActiveTargets, contributeToTarget } from '../services/target.service';
+    import { Bullseye, EyeFill, EyeSlashFill, Plus, Trash, DashCircle } from 'react-bootstrap-icons';
+import { fetchActiveTargets, contributeToTarget, withdrawFromTarget, cancelTarget } from '../services/target.service';
 import { fetchMonthlySummary } from '../services/report.service';
 import type * as TargetTypes from '../types/target.types';
 import type * as ReportTypes from '../types/report.types';
 import TransactionModal from '../components/TransactionModal';
+import AddSavingGoalModal from '../components/AddSavingGoalModal';
 import IconTargetBiru from '../assets/IconTargetBiru.svg';
 import OnlyLogoBiru from '../assets/OnlyLogoBiru.svg';
 import { useAuth } from '../context/AuthContext';
@@ -29,6 +30,7 @@ const formatRupiah = (amount: number) => {
         const [error, setError] = useState<string | null>(null);
         const [showSaldo, setShowSaldo] = useState(true);
         const [showTransactionModal, setShowTransactionModal] = useState(false);
+        const [showAddSavingModal, setShowAddSavingModal] = useState(false);
         const [contributeLoading, setContributeLoading] = useState<Record<string, boolean>>({});
 
     const loadData = useCallback(async () => {
@@ -71,6 +73,37 @@ const formatRupiah = (amount: number) => {
         }
     };
 
+    const handleWithdraw = async (targetId: string) => {
+        const amountStr = window.prompt('Masukkan jumlah yang ingin diambil dari kantong:');
+        if (!amountStr) return;
+        const amount = Number(amountStr.replace(/\D/g, ''));
+        if (!amount || amount <= 0) return;
+
+        setContributeLoading(prev => ({ ...prev, [targetId]: true }));
+        try {
+            await withdrawFromTarget({ id_target: targetId, jumlah: amount });
+            loadData();
+        } catch (err: any) {
+            alert(err.response?.data?.message || 'Gagal mengambil uang.');
+        } finally {
+            setContributeLoading(prev => ({ ...prev, [targetId]: false }));
+        }
+    };
+
+    const handleDelete = async (targetId: string, name: string) => {
+        if (!window.confirm(`Apakah Anda yakin ingin menghapus kantong "${name}"?`)) return;
+
+        setContributeLoading(prev => ({ ...prev, [targetId]: true }));
+        try {
+            await cancelTarget(targetId);
+            loadData();
+        } catch (err: any) {
+            alert(err.response?.data?.message || 'Gagal menghapus kantong.');
+        } finally {
+            setContributeLoading(prev => ({ ...prev, [targetId]: false }));
+        }
+    };
+
     if (loading) {
         return (
             <MainLayout hideAddButton={true}>
@@ -81,7 +114,7 @@ const formatRupiah = (amount: number) => {
         );
     }
 
-    const activeTarget = targets[0]; // For mockup, show first active target as primary
+
 
     return (
         <MainLayout 
@@ -98,7 +131,7 @@ const formatRupiah = (amount: number) => {
 
             {error ? <Alert variant="danger" style={{ borderRadius: 15 }}>{error}</Alert> : null}
 
-            <Row className="g-4">
+            <Row className="g-4 mb-4">
                 <Col lg={4}>
                     <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 25 }}>
                         <Card.Body className="p-4">
@@ -130,83 +163,124 @@ const formatRupiah = (amount: number) => {
                 </Col>
 
                 <Col lg={8}>
-                    {activeTarget ? (
-                        <Card className="border-0 shadow-sm h-100" style={{ borderRadius: 25, position: 'relative', overflow: 'hidden' }}>
-                            <Card.Body className="p-5 d-flex flex-column align-items-center text-center">
-                                <div className="bg-primary bg-opacity-10 p-4 rounded-circle mb-4">
-                                    <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: 64, height: 64, fontSize: 32 }}>
-                                        🚗
-                                    </div>
-                                </div>
-                                <div className="badge rounded-pill bg-primary bg-opacity-10 text-primary px-3 py-2 fw-bold mb-3" style={{ fontSize: 12 }}>
-                                    TARGET SIMPANAN
-                                </div>
-                                <h3 className="fw-bold text-dark mb-4 text-center" style={{ fontSize: 'calc(1.4rem + 1vw)' }}>{activeTarget.nama_target}</h3>
-                                
-                                <div className="w-100 mb-4 px-4">
-                                    <div className="d-flex justify-content-between mb-2 fw-bold">
-                                        <span className="text-muted">Progres</span>
-                                        <span className="text-primary">{Math.floor((activeTarget.jumlah_terkumpul / activeTarget.target_jumlah) * 100)}%</span>
-                                    </div>
-                                    <ProgressBar 
-                                        now={(activeTarget.jumlah_terkumpul / activeTarget.target_jumlah) * 100} 
-                                        style={{ height: 16, borderRadius: 10, backgroundColor: '#e9ecef' }}
-                                    />
-                                </div>
+                    <Row className="g-4">
+                        {targets.map((target) => {
+                            const progress = Math.floor((target.jumlah_terkumpul / target.target_jumlah) * 100);
+                            return (
+                                <Col key={target.id_target} md={6}>
+                                    <Card className="border-0 shadow-sm h-100 transition-all hover-shadow" style={{ borderRadius: 25, backgroundColor: '#ffffff' }}>
+                                        <Card.Body className="p-4">
+                                            <div className="d-flex justify-content-between align-items-start mb-3">
+                                                <div className="d-flex align-items-center gap-3">
+                                                    <div className="bg-primary bg-opacity-10 p-2 rounded-circle text-primary d-flex align-items-center justify-content-center" style={{ width: 48, height: 48 }}>
+                                                        <div className="bg-primary rounded-circle" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '18px' }}>
+                                                            🎯
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="fw-bold text-dark text-truncate" style={{ fontSize: 18, maxWidth: '120px' }}>
+                                                            {target.nama_target}
+                                                        </div>
+                                                        <div className="text-muted" style={{ fontSize: 11 }}>Target: {formatRupiah(target.target_jumlah)}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                <div className="mb-4">
-                                    <div className="text-muted small fw-bold">TERKUMPUL</div>
-                                    <div className="fw-bold text-primary" style={{ fontSize: 'calc(1.8rem + 1.2vw)' }}>
-                                        {formatRupiah(activeTarget.jumlah_terkumpul)}
-                                    </div>
-                                    <div className="text-muted small">dari {formatRupiah(activeTarget.target_jumlah)}</div>
-                                </div>
+                                            <div className="mb-4">
+                                                <div className="d-flex justify-content-between mb-1">
+                                                    <span className="text-muted small fw-bold">Progres</span>
+                                                    <span className="text-primary small fw-bold">{progress}%</span>
+                                                </div>
+                                                <ProgressBar 
+                                                    now={progress} 
+                                                    variant={progress >= 100 ? 'success' : 'primary'}
+                                                    style={{ height: 10, borderRadius: 10, backgroundColor: '#f1f5f9' }}
+                                                />
+                                            </div>
 
-                                <Button 
-                                    variant="primary" 
-                                    onClick={() => handleContribute(activeTarget.id_target)}
-                                    className="w-100 py-3 fw-bold shadow-sm"
-                                    style={{ borderRadius: 15, fontSize: 18 }}
-                                    disabled={contributeLoading[activeTarget.id_target]}
+                                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                                <div>
+                                                    <div className="text-muted" style={{ fontSize: 10 }}>TERKUMPUL</div>
+                                                    <div className="fw-bold text-dark" style={{ fontSize: 14 }}>{formatRupiah(target.jumlah_terkumpul)}</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="d-flex gap-2">
+                                                <Button 
+                                                    variant="primary" 
+                                                    onClick={() => handleContribute(target.id_target)}
+                                                    className="flex-grow-1 py-2 fw-bold"
+                                                    style={{ borderRadius: 12, fontSize: 14 }}
+                                                    disabled={contributeLoading[target.id_target]}
+                                                >
+                                                    {contributeLoading[target.id_target] ? <Spinner size="sm" /> : '+ Nabung'}
+                                                </Button>
+                                                <Button 
+                                                    variant="outline-primary" 
+                                                    onClick={() => handleWithdraw(target.id_target)}
+                                                    className="py-2 px-3 fw-bold"
+                                                    style={{ borderRadius: 12, fontSize: 14 }}
+                                                    disabled={contributeLoading[target.id_target]}
+                                                    title="Ambil Uang"
+                                                >
+                                                    <DashCircle size={20} />
+                                                </Button>
+                                                <Button 
+                                                    variant="outline-danger" 
+                                                    onClick={() => handleDelete(target.id_target, target.nama_target)}
+                                                    className="py-2 px-3 fw-bold"
+                                                    style={{ borderRadius: 12, fontSize: 14, border: 'none', backgroundColor: 'rgba(220, 53, 69, 0.1)', color: '#dc3545' }}
+                                                    disabled={contributeLoading[target.id_target]}
+                                                    title="Hapus Kantong"
+                                                >
+                                                    <Trash size={18} />
+                                                </Button>
+                                            </div>
+                                        </Card.Body>
+                                    </Card>
+                                </Col>
+                            );
+                        })}
+                        
+                        {targets.length === 0 && (
+                            <Col xs={12}>
+                                <Card 
+                                    onClick={() => setShowAddSavingModal(true)}
+                                    className="border-0 shadow-sm text-center py-5 h-100" 
+                                    style={{ 
+                                        borderRadius: 25, 
+                                        backgroundColor: '#f8fafc', 
+                                        border: '2px dashed #e2e8f0',
+                                        cursor: 'pointer'
+                                    }}
                                 >
-                                    {contributeLoading[activeTarget.id_target] ? <Spinner size="sm" /> : '+ Tambah Tabungan'}
-                                </Button>
-                            </Card.Body>
-                        </Card>
-                    ) : (
-                        <Card className="border-0 shadow-sm h-100" style={{ borderRadius: 25 }}>
-                            <Card.Body className="p-5 d-flex flex-column align-items-center justify-content-center text-center">
-                                <img src={OnlyLogoBiru} alt="SipDana" style={{ width: 120, opacity: 0.2, marginBottom: 20 }} />
-                                <h4 className="fw-bold text-muted">Belum ada target aktif</h4>
-                                <Button variant="link" onClick={() => setShowTransactionModal(true)}>Buat baru</Button>
-                            </Card.Body>
-                        </Card>
-                    )}
+                                    <Card.Body className="d-flex flex-column align-items-center justify-content-center">
+                                        <div className="text-muted mb-2" style={{ fontSize: 48 }}>🎯</div>
+                                        <h4 className="fw-bold text-muted">Belum ada target aktif</h4>
+                                        <Button variant="link" onClick={() => setShowAddSavingModal(true)}>Buat Target Baru</Button>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        )}
+                    </Row>
                 </Col>
             </Row>
 
-            <div className="mt-4">
-                <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 25, backgroundColor: '#fff' }}>
-                    <Card.Body className="p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                        <div>
-                            <div className="fw-bold text-dark" style={{ fontSize: 20 }}>Analisis Mingguan</div>
-                            <div className="text-muted small">Kamu sudah menabung <span className="text-primary fw-bold">Rp 150.000</span> minggu ini!</div>
-                        </div>
-                        <div className="text-success fw-bold" style={{ fontSize: 24 }}>+12% 📈</div>
-                    </Card.Body>
-                </Card>
 
+
+            <div className="mt-4">
                 <Button 
                     variant="primary"
                     className="w-100 py-3 fw-bold shadow"
                     style={{ borderRadius: '50px', fontSize: 20, border: 'none' }}
-                    onClick={() => setShowTransactionModal(true)}
+                    onClick={() => setShowAddSavingModal(true)}
                 >
                     <Plus size={28} className="me-2" /> Tambah Kantong Tabungan
                 </Button>
             </div>
 
             <TransactionModal show={showTransactionModal} handleClose={() => setShowTransactionModal(false)} onSuccess={loadData} />
+            <AddSavingGoalModal show={showAddSavingModal} handleClose={() => setShowAddSavingModal(false)} onSuccess={loadData} />
         </MainLayout>
     );
 };

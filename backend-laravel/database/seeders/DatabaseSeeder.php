@@ -42,8 +42,28 @@ class DatabaseSeeder extends Seeder
             Role::firstOrCreate(['name' => $roleName]);
         }
 
-        foreach (['Makanan', 'Transportasi', 'Hiburan', 'Tabungan', 'Pendidikan'] as $categoryName) {
-            Category::firstOrCreate(['nama_kategori' => $categoryName]);
+        $categories = [
+            // Pengeluaran
+            ['nama_kategori' => 'Makanan & Minuman', 'jenis' => 'pengeluaran', 'icon' => 'CupHot'],
+            ['nama_kategori' => 'Belanja', 'jenis' => 'pengeluaran', 'icon' => 'Bag'],
+            ['nama_kategori' => 'Transportasi', 'jenis' => 'pengeluaran', 'icon' => 'CarFront'],
+            ['nama_kategori' => 'Hiburan', 'jenis' => 'pengeluaran', 'icon' => 'Controller'],
+            ['nama_kategori' => 'Kesehatan', 'jenis' => 'pengeluaran', 'icon' => 'HeartPulse'],
+            ['nama_kategori' => 'Pendidikan', 'jenis' => 'pengeluaran', 'icon' => 'Book'],
+            ['nama_kategori' => 'Tagihan', 'jenis' => 'pengeluaran', 'icon' => 'Receipt'],
+            ['nama_kategori' => 'Cicilan', 'jenis' => 'pengeluaran', 'icon' => 'CreditCard'],
+            ['nama_kategori' => 'Lainnya', 'jenis' => 'pengeluaran', 'icon' => 'QuestionCircle'],
+            
+            // Pemasukan
+            ['nama_kategori' => 'Gaji', 'jenis' => 'pemasukan', 'icon' => 'Wallet2'],
+            ['nama_kategori' => 'Bonus', 'jenis' => 'pemasukan', 'icon' => 'Gift'],
+            ['nama_kategori' => 'Investasi', 'jenis' => 'pemasukan', 'icon' => 'GraphUpArrow'],
+            ['nama_kategori' => 'Hadiah', 'jenis' => 'pemasukan', 'icon' => 'EmojiSmile'],
+            ['nama_kategori' => 'Lainnya (Pemasukan)', 'jenis' => 'pemasukan', 'icon' => 'PlusCircle'],
+        ];
+
+        foreach ($categories as $cat) {
+            Category::updateOrCreate(['nama_kategori' => $cat['nama_kategori']], $cat);
         }
 
         User::firstOrCreate(

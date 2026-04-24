@@ -42,6 +42,7 @@ Route::middleware("auth.token")->group(function () {
     Route::put("/targets/{id}", [TargetController::class, "update"]);
     Route::delete("/targets/{id}", [TargetController::class, "destroy"]);
     Route::post("/targets/contribute", [TargetController::class, "contribute"]);
+    Route::post("/targets/withdraw", [TargetController::class, "withdraw"]);
 
     Route::put("/users/profile", [UserController::class, "updateProfile"]);
     Route::put("/users/password", [UserController::class, "updatePassword"]);
@@ -56,6 +57,10 @@ Route::middleware("auth.token")->group(function () {
         "toggleChild",
     ]);
     Route::get("/users/children", [UserController::class, "children"]);
+    Route::delete("/users/children/{id}", [
+        UserController::class,
+        "deleteChild",
+    ]);
     Route::get("/users/children/balances", [
         UserController::class,
         "childrenBalances",
