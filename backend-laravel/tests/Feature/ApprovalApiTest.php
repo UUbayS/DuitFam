@@ -16,7 +16,7 @@ class ApprovalApiTest extends TestCase
         $child = User::factory()->create(['role' => 'child']);
         ParentChildRelation::create(['parent_id' => $parent->id, 'child_id' => $child->id, 'is_active' => true]);
         $token = Str::random(80);
-        $child->api_token = $token;
+        $child->api_token = hash('sha256', $token);
         $child->save();
 
         $this->withHeader('Authorization', 'Bearer '.$token)->postJson('/api/transactions/withdrawals', [

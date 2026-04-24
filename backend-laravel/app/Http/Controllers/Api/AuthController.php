@@ -31,7 +31,7 @@ class AuthController extends Controller
             $user = User::create([
                 'username' => (string) $request->input('username'),
                 'email' => (string) $request->input('email'),
-                'role' => 'parent',
+                'role' => config('constants.roles.parent'),
                 'is_active' => true,
                 'password' => Hash::make((string) $request->input('password')),
             ]);
@@ -74,7 +74,7 @@ class AuthController extends Controller
 
             $token = Str::random(80);
             $expiresAt = now()->addHours(3);
-            $user->api_token = $token;
+            $user->api_token = hash('sha256', $token);
             $user->api_token_expires_at = $expiresAt;
             $user->save();
 

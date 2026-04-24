@@ -20,8 +20,8 @@ class ReportController extends Controller
             ->where('user_id', $userId)
             ->where('tanggal', 'like', $month.'%');
 
-        $income = (float) (clone $base)->where('jenis', 'pemasukan')->sum('jumlah');
-        $expense = (float) (clone $base)->where('jenis', 'pengeluaran')->sum('jumlah');
+        $income = (float) (clone $base)->where('jenis', config('constants.transaction_types.pemasukan'))->sum('jumlah');
+        $expense = (float) (clone $base)->where('jenis', config('constants.transaction_types.pengeluaran'))->sum('jumlah');
         $wallet = Wallet::firstOrCreate(['user_id' => $userId], ['saldo_sekarang' => 0]);
 
         return [
@@ -46,8 +46,8 @@ class ReportController extends Controller
             ->whereIn('user_id', $childIds->all())
             ->where('tanggal', 'like', $month.'%');
 
-        $income = (float) (clone $txBase)->where('jenis', 'pemasukan')->sum('jumlah');
-        $expense = (float) (clone $txBase)->where('jenis', 'pengeluaran')->sum('jumlah');
+        $income = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pemasukan'))->sum('jumlah');
+        $expense = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pengeluaran'))->sum('jumlah');
         $walletTotal = (float) Wallet::query()->whereIn('user_id', $childIds->all())->sum('saldo_sekarang');
 
         return [
@@ -96,10 +96,10 @@ class ReportController extends Controller
             $categoryName = $cat ? $cat['nama'] : 'Lainnya';
             $categoryIcon = $cat ? $cat['icon'] : 'Tag';
 
-            if ($t->jenis === 'menabung') {
+            if ($t->jenis === config('constants.transaction_types.menabung')) {
                 $categoryName = 'Menabung';
                 $categoryIcon = 'PiggyBank';
-            } else if ($t->jenis === 'refund') {
+            } else if ($t->jenis === config('constants.transaction_types.refund')) {
                 $categoryName = 'Refund';
                 $categoryIcon = 'ArrowCounterclockwise';
             } else if ($t->source_id) {
@@ -130,7 +130,7 @@ class ReportController extends Controller
 
                 return [
                     'id_transaksi' => 'withdrawal:'.(string) $w->id,
-                    'jenis' => 'pengeluaran',
+                    'jenis' => config('constants.transaction_types.pengeluaran'),
                     'jumlah' => (float) $w->amount,
                     'keterangan' => $w->reason ?: 'Pengajuan penarikan',
                     'tanggal' => $w->created_at ? $w->created_at->toDateString() : now()->toDateString(),
@@ -153,9 +153,9 @@ class ReportController extends Controller
             if (! isset($grouped[$m])) {
                 $grouped[$m] = ['month' => $m, 'pemasukan' => 0, 'pengeluaran' => 0];
             }
-            if ($t->jenis === 'pemasukan') {
+            if ($t->jenis === config('constants.transaction_types.pemasukan')) {
                 $grouped[$m]['pemasukan'] += (float) $t->jumlah;
-            } else if ($t->jenis === 'pengeluaran') {
+            } else if ($t->jenis === config('constants.transaction_types.pengeluaran')) {
                 $grouped[$m]['pengeluaran'] += (float) $t->jumlah;
             }
         }
@@ -171,25 +171,28 @@ class ReportController extends Controller
         $summary = $this->buildUserSummary($userId, $month);
         $expenseByCategory = Transaction::query()
             ->where('user_id', $userId)
-            ->where('jenis', 'pengeluaran')
+            ->where('jenis', config('constants.transaction_types.pengeluaran'))
             ->where('tanggal', 'like', $month.'%')
             ->get()
             ->groupBy('category_id')
             ->map(fn ($items) => (float) $items->sum('jumlah'));
 
+        $allCategoryIds = $expenseByCategory->keys()->filter()->all();
+        $categoryMap = Category::whereIn('_id', $allCategoryIds)->get()->keyBy(fn ($c) => (string) $c->id);
+
         $topExpense = null;
         if ($expenseByCategory->isNotEmpty()) {
             $topCategoryId = $expenseByCategory->sortDesc()->keys()->first();
             $topAmount = (float) $expenseByCategory->max();
-            $category = $topCategoryId ? Category::find($topCategoryId) : null;
+            $category = $topCategoryId ? ($categoryMap[(string) $topCategoryId] ?? null) : null;
             $topExpense = (object) [
                 'categoryId' => $topCategoryId ? (string) $topCategoryId : null,
                 'namaKategori' => $category?->nama_kategori ?? 'Lainnya',
                 'jumlah' => $topAmount,
             ];
         }
-        $categoryBreakdown = $expenseByCategory->sortDesc()->map(function (float $amount, $categoryId) use ($summary) {
-            $category = $categoryId ? Category::find($categoryId) : null;
+        $categoryBreakdown = $expenseByCategory->sortDesc()->map(function (float $amount, $categoryId) use ($summary, $categoryMap) {
+            $category = $categoryId ? ($categoryMap[(string) $categoryId] ?? null) : null;
 
             return [
                 'categoryId' => $categoryId ? (string) $categoryId : null,
@@ -213,9 +216,10 @@ class ReportController extends Controller
             'detailRekomendasi' => 'Dari pemasukan '.number_format($income, 0, ',', '.').', rekomendasi alokasi: kebutuhan '.number_format($need, 0, ',', '.').', keinginan '.number_format($want, 0, ',', '.').', tabungan/investasi '.number_format($save, 0, ',', '.').'.',
             'langkah_implementasi' => 'Catat semua pemasukan & pengeluaran|Kelompokkan pengeluaran menjadi kebutuhan vs keinginan|Tetapkan batas pengeluaran per kategori|Sisihkan 20% di awal bulan untuk tabungan/target|Evaluasi akhir periode dan sesuaikan batas',
         ];
-        SmartInsight::create([
+        SmartInsight::updateOrCreate([
             'user_id' => $request->user()->id,
             'month' => $request->query('month', now()->format('Y-m')),
+        ], [
             'insight' => 'Analisis 50/30/20 otomatis.',
             'recommendation' => $smartRecommendation,
             'score' => $summary['neto'] >= 0 ? 80 : 55,
@@ -240,7 +244,7 @@ class ReportController extends Controller
     public function familySummary(Request $request)
     {
         $parent = $request->user();
-        if ($parent->role !== 'parent') {
+        if ($parent->role !== config('constants.roles.parent')) {
             return response()->json(['message' => 'Hanya akun parent yang dapat melihat laporan keluarga.'], 403);
         }
 
@@ -253,7 +257,7 @@ class ReportController extends Controller
     public function familyHistorical(Request $request)
     {
         $parent = $request->user();
-        if ($parent->role !== 'parent') {
+        if ($parent->role !== config('constants.roles.parent')) {
             return response()->json(['message' => 'Hanya akun parent yang dapat melihat laporan keluarga.'], 403);
         }
 
@@ -270,9 +274,9 @@ class ReportController extends Controller
             if (! isset($grouped[$m])) {
                 $grouped[$m] = ['month' => $m, 'pemasukan' => 0, 'pengeluaran' => 0];
             }
-            if ($t->jenis === 'pemasukan') {
+            if ($t->jenis === config('constants.transaction_types.pemasukan')) {
                 $grouped[$m]['pemasukan'] += (float) $t->jumlah;
-            } else if ($t->jenis === 'pengeluaran') {
+            } else if ($t->jenis === config('constants.transaction_types.pengeluaran')) {
                 $grouped[$m]['pengeluaran'] += (float) $t->jumlah;
             }
         }
@@ -283,7 +287,7 @@ class ReportController extends Controller
     public function familyHistory(Request $request)
     {
         $parent = $request->user();
-        if ($parent->role !== 'parent') {
+        if ($parent->role !== config('constants.roles.parent')) {
             return response()->json(['message' => 'Hanya akun parent yang dapat melihat laporan keluarga.'], 403);
         }
 
@@ -316,10 +320,10 @@ class ReportController extends Controller
             $categoryName = $cat ? $cat['nama'] : 'Lainnya';
             $categoryIcon = $cat ? $cat['icon'] : 'Tag';
 
-            if ($t->jenis === 'menabung') {
+            if ($t->jenis === config('constants.transaction_types.menabung')) {
                 $categoryName = 'Menabung';
                 $categoryIcon = 'PiggyBank';
-            } else if ($t->jenis === 'refund') {
+            } else if ($t->jenis === config('constants.transaction_types.refund')) {
                 $categoryName = 'Refund';
                 $categoryIcon = 'ArrowCounterclockwise';
             } else if ($t->source_id) {
@@ -352,7 +356,7 @@ class ReportController extends Controller
                 return [
                     'id_transaksi' => 'withdrawal:'.(string) $w->id,
                     'user_id' => (string) $w->child_id,
-                    'jenis' => 'pengeluaran',
+                    'jenis' => config('constants.transaction_types.pengeluaran'),
                     'jumlah' => (float) $w->amount,
                     'keterangan' => $w->reason ?: 'Pengajuan penarikan',
                     'tanggal' => $w->created_at ? $w->created_at->toDateString() : now()->toDateString(),
@@ -370,7 +374,7 @@ class ReportController extends Controller
     public function familyAnalysis(Request $request)
     {
         $parent = $request->user();
-        if ($parent->role !== 'parent') {
+        if ($parent->role !== config('constants.roles.parent')) {
             return response()->json(['message' => 'Hanya akun parent yang dapat melihat laporan keluarga.'], 403);
         }
 
@@ -385,17 +389,20 @@ class ReportController extends Controller
 
         $expenseByCategory = Transaction::query()
             ->whereIn('user_id', $childIds->all())
-            ->where('jenis', 'pengeluaran')
+            ->where('jenis', config('constants.transaction_types.pengeluaran'))
             ->where('tanggal', 'like', $month.'%')
             ->get()
             ->groupBy('category_id')
             ->map(fn ($items) => (float) $items->sum('jumlah'));
 
+        $allCategoryIds = $expenseByCategory->keys()->filter()->all();
+        $categoryMap = Category::whereIn('_id', $allCategoryIds)->get()->keyBy(fn ($c) => (string) $c->id);
+
         $topExpense = null;
         if ($expenseByCategory->isNotEmpty()) {
             $topCategoryId = $expenseByCategory->sortDesc()->keys()->first();
             $topAmount = (float) $expenseByCategory->max();
-            $category = $topCategoryId ? Category::find($topCategoryId) : null;
+            $category = $topCategoryId ? ($categoryMap[(string) $topCategoryId] ?? null) : null;
             $topExpense = (object) [
                 'namaKategori' => $category?->nama_kategori ?? 'Lainnya',
                 'jumlah' => $topAmount,
