@@ -12,8 +12,8 @@ use App\Http\Controllers\Api\UtilityController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix("auth")->group(function () {
-    Route::post("/register", [AuthController::class, "register"]);
-    Route::post("/login", [AuthController::class, "login"]);
+    Route::post("/register", [AuthController::class, "register"])->middleware("throttle:5,1");
+    Route::post("/login", [AuthController::class, "login"])->middleware("throttle:5,1");
 });
 
 Route::middleware("auth.token")->group(function () {
@@ -61,6 +61,10 @@ Route::middleware("auth.token")->group(function () {
         UserController::class,
         "deleteChild",
     ]);
+    Route::post("/users/children/{id}/reset-password", [
+        UserController::class,
+        "resetChildPassword"
+    ])->middleware("throttle:3,1");
     Route::get("/users/children/balances", [
         UserController::class,
         "childrenBalances",
@@ -99,6 +103,6 @@ Route::middleware("auth.token")->group(function () {
     ]);
 
     // AI Chat & Alerts
-    Route::post("/ai/chat", [AiChatController::class, "chat"]);
-    Route::get("/ai/alerts", [AiChatController::class, "getAlerts"]);
+    Route::post("/ai/chat", [AiChatController::class, "chat"])->middleware("throttle:10,1");
+    Route::get("/ai/alerts", [AiChatController::class, "getAlerts"])->middleware("throttle:10,1");
 });

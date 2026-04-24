@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ResetChildPasswordRequest;
+use App\Models\Mongo\NotificationFeed;
 use App\Models\ParentChildRelation;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\MongoAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -254,5 +257,52 @@ class UserController extends Controller
         $relation->delete();
 
         return response()->json(['message' => 'Akun anak berhasil dihapus.']);
+    }
+
+    public function resetChildPassword(ResetChildPasswordRequest $request, string $id)
+    {
+        $parent = $request->user();
+
+        // 1. Cek apakah parent
+        if ($parent->role !== 'parent') {
+            return response()->json(['message' => 'Hanya akun parent yang dapat mereset password anak.'], 403);
+        }
+
+        // 2. Cek apakah child terhubung dengan parent ini
+        $relation = ParentChildRelation::query()
+            ->where('parent_id', (string) $parent->id)
+            ->where('child_id', (string) $id)
+            ->first();
+
+        if (!$relation) {
+            return response()->json(['message' => 'Akun anak tidak ditemukan.'], 404);
+        }
+
+        // 3. Ambil data child
+        $child = User::where('_id', (string) $id)->where('role', 'child')->firstOrFail();
+
+        // 4. Update password (sudah tervalidasi di Form Request)
+        $child->password = Hash::make($request->password);
+        $child->save();
+
+        // 5. Kirim notifikasi ke anak (hanya NotificationFeed)
+        NotificationFeed::create([
+            'user_id' => (string) $child->id,
+            'title' => 'Password Direset',
+            'message' => 'Password akun Anda telah direset oleh orang tua. Silakan gunakan password baru untuk login.',
+            'read_at' => null,
+            'meta' => [
+                'reset_by' => (string) $parent->id,
+                'reset_by_name' => $parent->username,
+            ],
+        ]);
+
+        // 6. Audit log
+        app(MongoAuditService::class)->log($request, $parent->id, 'child.password_reset', [
+            'child_id' => (string) $child->id,
+            'child_username' => $child->username,
+        ]);
+
+        return response()->json(['message' => 'Password anak berhasil direset.']);
     }
 }

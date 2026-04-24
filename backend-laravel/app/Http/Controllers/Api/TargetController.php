@@ -14,6 +14,7 @@ use App\Models\UserNotification;
 use App\Models\Wallet;
 use App\Services\MongoAuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class TargetController extends Controller
@@ -145,28 +146,37 @@ class TargetController extends Controller
             return response()->json(['message' => 'Tidak punya akses.'], 403);
         }
 
-        $refundAmount = (float) ($goal->jumlah_terkumpul ?? 0);
-        if ($refundAmount > 0) {
-            $wallet = Wallet::where('user_id', (string) $goal->user_id)->first();
-            if ($wallet) {
-                $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + $refundAmount;
-                $wallet->save();
+        DB::connection('mongodb')->beginTransaction();
 
-                Transaction::create([
-                    'user_id' => (string) $goal->user_id,
-                    'category_id' => null,
-                    'jenis' => 'refund',
-                    'status' => 'berhasil',
-                    'jumlah' => $refundAmount,
-                    'tanggal' => now()->toDateString(),
-                    'keterangan' => 'Refund penghapusan kantong: ' . $goal->nama_target,
-                ]);
+        try {
+            $refundAmount = (float) ($goal->jumlah_terkumpul ?? 0);
+            if ($refundAmount > 0) {
+                $wallet = Wallet::where('user_id', (string) $goal->user_id)->first();
+                if ($wallet) {
+                    $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + $refundAmount;
+                    $wallet->save();
+
+                    Transaction::create([
+                        'user_id' => (string) $goal->user_id,
+                        'category_id' => null,
+                        'jenis' => 'refund',
+                        'status' => 'berhasil',
+                        'jumlah' => $refundAmount,
+                        'tanggal' => now()->toDateString(),
+                        'keterangan' => 'Refund penghapusan kantong: ' . $goal->nama_target,
+                    ]);
+                }
             }
+
+            $goal->delete();
+
+            DB::connection('mongodb')->commit();
+
+            return response()->json(['message' => 'Target berhasil dihapus permanen dan saldo dikembalikan ke wallet utama.']);
+        } catch (\Exception $e) {
+            DB::connection('mongodb')->rollBack();
+            throw $e;
         }
-
-        $goal->delete();
-
-        return response()->json(['message' => 'Target berhasil dihapus permanen dan saldo dikembalikan ke wallet utama.']);
     }
 
     public function contribute(ContributeTargetRequest $request)
@@ -178,23 +188,33 @@ class TargetController extends Controller
         if ((float) $wallet->saldo_sekarang < $amount) {
             throw ValidationException::withMessages(['jumlah' => ['Saldo utama tidak mencukupi.']]);
         }
-        $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) - $amount;
-        $wallet->save();
-        $goal->jumlah_terkumpul = ((float) $goal->jumlah_terkumpul) + $amount;
-        if ((float) $goal->jumlah_terkumpul >= (float) $goal->target_jumlah) {
-            $goal->status = 'tercapai';
-        }
-        $goal->save();
-        GoalContribution::create(['saving_goal_id' => (string) $goal->id, 'user_id' => (string) $user->id, 'jumlah' => $amount, 'contributed_at' => now()]);
-        Transaction::create(['user_id' => (string) $user->id, 'category_id' => null, 'jenis' => 'menabung', 'status' => 'berhasil', 'jumlah' => $amount, 'tanggal' => now()->toDateString(), 'keterangan' => 'Kontribusi Target: '.$goal->nama_target, 'source_id' => (string) $goal->id]);
-        UserNotification::create(['user_id' => (string) $user->id, 'title' => 'Kontribusi target', 'message' => 'Kontribusi ke target '.$goal->nama_target.' berhasil.']);
-        NotificationFeed::create(['user_id' => (string) $user->id, 'title' => 'Kontribusi target', 'message' => 'Kontribusi ke target '.$goal->nama_target.' berhasil.', 'read_at' => null, 'meta' => ['goal_id' => (string) $goal->id]]);
-        $this->mongoAuditService->log($request, $user->id, 'goal.contributed', [
-            'goal_id' => $goal->id,
-            'amount' => $amount,
-        ]);
 
-        return response()->json(['message' => 'Kontribusi berhasil!']);
+        DB::connection('mongodb')->beginTransaction();
+
+        try {
+            $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) - $amount;
+            $wallet->save();
+            $goal->jumlah_terkumpul = ((float) $goal->jumlah_terkumpul) + $amount;
+            if ((float) $goal->jumlah_terkumpul >= (float) $goal->target_jumlah) {
+                $goal->status = 'tercapai';
+            }
+            $goal->save();
+            GoalContribution::create(['saving_goal_id' => (string) $goal->id, 'user_id' => (string) $user->id, 'jumlah' => $amount, 'contributed_at' => now()]);
+            Transaction::create(['user_id' => (string) $user->id, 'category_id' => null, 'jenis' => 'menabung', 'status' => 'berhasil', 'jumlah' => $amount, 'tanggal' => now()->toDateString(), 'keterangan' => 'Kontribusi Target: '.$goal->nama_target, 'source_id' => (string) $goal->id]);
+            UserNotification::create(['user_id' => (string) $user->id, 'title' => 'Kontribusi target', 'message' => 'Kontribusi ke target '.$goal->nama_target.' berhasil.']);
+            NotificationFeed::create(['user_id' => (string) $user->id, 'title' => 'Kontribusi target', 'message' => 'Kontribusi ke target '.$goal->nama_target.' berhasil.', 'read_at' => null, 'meta' => ['goal_id' => (string) $goal->id]]);
+            $this->mongoAuditService->log($request, $user->id, 'goal.contributed', [
+                'goal_id' => $goal->id,
+                'amount' => $amount,
+            ]);
+
+            DB::connection('mongodb')->commit();
+
+            return response()->json(['message' => 'Kontribusi berhasil!']);
+        } catch (\Exception $e) {
+            DB::connection('mongodb')->rollBack();
+            throw $e;
+        }
     }
 
     public function withdraw(Request $request)
@@ -212,33 +232,42 @@ class TargetController extends Controller
             throw ValidationException::withMessages(['jumlah' => ['Saldo di kantong tabungan tidak mencukupi.']]);
         }
 
-        $wallet = Wallet::where('user_id', (string) $user->id)->firstOrFail();
-        
-        $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + $amount;
-        $wallet->save();
+        DB::connection('mongodb')->beginTransaction();
 
-        $goal->jumlah_terkumpul = ((float) $goal->jumlah_terkumpul) - $amount;
-        if ($goal->status === 'tercapai' && (float) $goal->jumlah_terkumpul < (float) $goal->target_jumlah) {
-            $goal->status = 'aktif';
+        try {
+            $wallet = Wallet::where('user_id', (string) $user->id)->firstOrFail();
+
+            $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + $amount;
+            $wallet->save();
+
+            $goal->jumlah_terkumpul = ((float) $goal->jumlah_terkumpul) - $amount;
+            if ($goal->status === 'tercapai' && (float) $goal->jumlah_terkumpul < (float) $goal->target_jumlah) {
+                $goal->status = 'aktif';
+            }
+            $goal->save();
+
+            Transaction::create([
+                'user_id' => (string) $user->id,
+                'category_id' => null,
+                'jenis' => 'refund',
+                'status' => 'berhasil',
+                'jumlah' => $amount,
+                'tanggal' => now()->toDateString(),
+                'keterangan' => 'Ambil uang dari Kantong: '.$goal->nama_target
+            ]);
+
+            UserNotification::create([
+                'user_id' => (string) $user->id,
+                'title' => 'Ambil uang dari kantong',
+                'message' => 'Berhasil mengambil Rp '.number_format($amount, 0, ',', '.').' dari kantong '.$goal->nama_target
+            ]);
+
+            DB::connection('mongodb')->commit();
+
+            return response()->json(['message' => 'Berhasil mengambil uang dari kantong tabungan!']);
+        } catch (\Exception $e) {
+            DB::connection('mongodb')->rollBack();
+            throw $e;
         }
-        $goal->save();
-
-        Transaction::create([
-            'user_id' => (string) $user->id, 
-            'category_id' => null, 
-            'jenis' => 'refund', 
-            'status' => 'berhasil', 
-            'jumlah' => $amount, 
-            'tanggal' => now()->toDateString(), 
-            'keterangan' => 'Ambil uang dari Kantong: '.$goal->nama_target
-        ]);
-
-        UserNotification::create([
-            'user_id' => (string) $user->id, 
-            'title' => 'Ambil uang dari kantong', 
-            'message' => 'Berhasil mengambil Rp '.number_format($amount, 0, ',', '.').' dari kantong '.$goal->nama_target
-        ]);
-
-        return response()->json(['message' => 'Berhasil mengambil uang dari kantong tabungan!']);
     }
 }

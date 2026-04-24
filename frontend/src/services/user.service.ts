@@ -45,3 +45,8 @@ export const deleteChildService = async (id: string): Promise<{ message: string 
     const response = await api.delete(`/users/children/${id}`);
     return response.data;
 };
+
+export const resetChildPasswordService = async (id: string, data: { password: string; password_confirmation: string }): Promise<{ message: string }> => {
+    const response = await api.post(`/users/children/${id}/reset-password`, data);
+    return response.data;
+};
