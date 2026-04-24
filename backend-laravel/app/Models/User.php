@@ -57,4 +57,14 @@ class User extends Authenticatable
             'api_token_expires_at' => 'datetime',
         ];
     }
+
+    public function setEmailAttribute($value)
+    {
+        $this->attributes['email'] = strtolower($value);
+    }
+
+    public function setUsernameAttribute($value)
+    {
+        $this->attributes['username'] = strtolower($value);
+    }
 }
