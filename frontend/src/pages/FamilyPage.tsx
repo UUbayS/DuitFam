@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Form, Button, Alert, Spinner, Modal } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-import { Plus, EyeFill, EyeSlashFill, Trash } from 'react-bootstrap-icons';
+import { Plus, EyeFill, EyeSlashFill, Trash, ArrowClockwise } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
-    import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService, deleteChildService } from '../services/user.service';
+    import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService, deleteChildService, resetChildPasswordService } from '../services/user.service';
 import { fetchFamilyMonthlySummary, fetchFamilyHistoricalData } from '../services/report.service';
 import { depositToChild } from '../services/transaction.service';
 import TransactionModal from '../components/TransactionModal';
 import MonthlyBarChart from '../components/MonthlyBarChart';
 import AddChildModal from '../components/AddChildModal';
+import ResetPasswordModal from '../components/ResetPasswordModal';
 import IconBerandaBiru from '../assets/IconBerandaBiru.svg';
 import type * as ReportTypes from '../types/report.types';
 
@@ -44,6 +45,11 @@ const formatRupiah = (amount: number) => {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [childToDelete, setChildToDelete] = useState<{ id: string; username: string } | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+
+    const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false);
+    const [childToReset, setChildToReset] = useState<{ id: string; username: string } | null>(null);
+    const [resetLoading, setResetLoading] = useState(false);
+    const [resetError, setResetError] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -98,6 +104,35 @@ const formatRupiah = (amount: number) => {
     const openDeleteConfirm = (childId: string, username: string) => {
         setChildToDelete({ id: childId, username });
         setDeleteModalOpen(true);
+    };
+
+    const openResetPassword = (childId: string, username: string) => {
+        setChildToReset({ id: childId, username });
+        setResetPasswordModalOpen(true);
+    };
+
+    const handleResetPasswordSuccess = () => {
+        setResetPasswordModalOpen(false);
+        setChildToReset(null);
+        setResetError(null);
+    };
+
+    const handleResetPassword = async (password: string, confirmPassword: string) => {
+        if (!childToReset) return;
+        setResetLoading(true);
+        setResetError(null);
+        try {
+            await resetChildPasswordService(childToReset.id, {
+                password,
+                password_confirmation: confirmPassword,
+            });
+            handleResetPasswordSuccess();
+            loadData();
+        } catch (e: any) {
+            setResetError(e.response?.data?.message || e.message || 'Gagal reset password.');
+        } finally {
+            setResetLoading(false);
+        }
     };
 
     const handleDeleteChild = async () => {
@@ -195,6 +230,13 @@ const formatRupiah = (amount: number) => {
                                             style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', backgroundColor: 'rgba(220, 53, 69, 0.1)', color: '#dc3545' }}
                                         >
                                             <Trash size={20} />
+                                        </Button>
+                                        <Button
+                                            variant="warning"
+                                            onClick={() => openResetPassword(c.id, c.username)}
+                                            style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 193, 7, 0.1)', color: '#ffc107', border: 'none' }}
+                                        >
+                                            <ArrowClockwise size={20} />
                                         </Button>
                                         <Button
                                             variant="primary"
@@ -307,6 +349,15 @@ const formatRupiah = (amount: number) => {
             </Modal>
 
             <TransactionModal show={showTransactionModal} handleClose={() => setShowTransactionModal(false)} onSuccess={loadData} />
+
+            <ResetPasswordModal 
+                show={resetPasswordModalOpen}
+                handleClose={() => setResetPasswordModalOpen(false)}
+                childUsername={childToReset?.username || ''}
+                onConfirm={handleResetPassword}
+                loading={resetLoading}
+                error={resetError}
+            />
         </MainLayout>
     );
 };

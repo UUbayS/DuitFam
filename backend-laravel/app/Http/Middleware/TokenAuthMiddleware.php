@@ -23,6 +23,11 @@ class TokenAuthMiddleware
             return response()->json(["message" => "Invalid token."], 401);
         }
 
+        // Check token expiration
+        if (isset($user->api_token_expires_at) && $user->api_token_expires_at < now()) {
+            return response()->json(["message" => "Token expired."], 401);
+        }
+
         if (isset($user->is_active) && !$user->is_active) {
             return response()->json(["message" => "Akun dinonaktifkan."], 403);
         }

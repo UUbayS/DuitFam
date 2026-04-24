@@ -28,8 +28,9 @@ class User extends Authenticatable
         'role',
         'profile_photo',
         'is_active',
-        'api_token',
         'password',
+        'api_token',
+        'api_token_expires_at',
     ];
 
     /**
@@ -40,6 +41,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'api_token',
+        'api_token_expires_at',
     ];
 
     /**
@@ -51,6 +54,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'api_token_expires_at' => 'datetime',
         ];
     }
 }

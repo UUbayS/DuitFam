@@ -13,6 +13,7 @@ use App\Models\Wallet;
 use App\Models\WithdrawalRequest;
 use App\Services\MongoAuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ApprovalController extends Controller
@@ -97,36 +98,56 @@ class ApprovalController extends Controller
         }
 
         $action = $request->input('action');
-        $withdrawal->status = $action;
-        $withdrawal->reason = $request->input('reason', $withdrawal->reason);
-        $withdrawal->approved_by = (string) $parent->id;
-        $withdrawal->approved_at = now();
-        $withdrawal->save();
 
-        if ($action === 'approved') {
-            $wallet = Wallet::where('user_id', $withdrawal->child_id)->firstOrFail();
-            if ((float) $wallet->saldo_sekarang < (float) $withdrawal->amount) {
-                throw ValidationException::withMessages(['amount' => ['Saldo anak tidak mencukupi untuk disetujui.']]);
+        DB::connection('mongodb')->beginTransaction();
+
+        try {
+            $withdrawal->status = $action;
+            $withdrawal->reason = $request->input('reason', $withdrawal->reason);
+            $withdrawal->approved_by = (string) $parent->id;
+            $withdrawal->approved_at = now();
+            $withdrawal->save();
+
+            if ($action === 'approved') {
+                $wallet = Wallet::where('user_id', $withdrawal->child_id)->firstOrFail();
+                if ((float) $wallet->saldo_sekarang < (float) $withdrawal->amount) {
+                    throw ValidationException::withMessages(['amount' => ['Saldo anak tidak mencukupi untuk disetujui.']]);
+                }
+                $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) - (float) $withdrawal->amount;
+                $wallet->save();
+                Transaction::create([
+                    'user_id' => $withdrawal->child_id,
+                    'jenis' => 'pengeluaran',
+                    'status' => 'berhasil',
+                    'jumlah' => $withdrawal->amount,
+                    'tanggal' => now()->toDateString(),
+                    'keterangan' => 'Penarikan disetujui orang tua',
+                ]);
             }
-            $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) - (float) $withdrawal->amount;
-            $wallet->save();
-            Transaction::create([
+
+            UserNotification::create([
                 'user_id' => $withdrawal->child_id,
-                'jenis' => 'pengeluaran',
-                'status' => 'berhasil',
-                'jumlah' => $withdrawal->amount,
-                'tanggal' => now()->toDateString(),
-                'keterangan' => 'Penarikan disetujui orang tua',
+                'title' => 'Status penarikan diperbarui',
+                'message' => 'Permintaan penarikan Anda '.$withdrawal->status.'.',
             ]);
+            NotificationFeed::create([
+                'user_id' => $withdrawal->child_id,
+                'title' => 'Status penarikan diperbarui',
+                'message' => 'Permintaan penarikan Anda '.$withdrawal->status.'.',
+                'read_at' => null,
+                'meta' => ['withdrawal_id' => (string) $withdrawal->id, 'status' => $withdrawal->status],
+            ]);
+            $this->mongoAuditService->log($request, $parent->id, 'withdrawal.processed', [
+                'withdrawal_id' => $withdrawal->id,
+                'status' => $withdrawal->status,
+            ]);
+
+            DB::connection('mongodb')->commit();
+
+            return response()->json(['message' => 'Permintaan berhasil diproses.']);
+        } catch (\Exception $e) {
+            DB::connection('mongodb')->rollBack();
+            throw $e;
         }
-
-        UserNotification::create(['user_id' => $withdrawal->child_id, 'title' => 'Status penarikan diperbarui', 'message' => 'Permintaan penarikan Anda '.$withdrawal->status.'.']);
-        NotificationFeed::create(['user_id' => $withdrawal->child_id, 'title' => 'Status penarikan diperbarui', 'message' => 'Permintaan penarikan Anda '.$withdrawal->status.'.', 'read_at' => null, 'meta' => ['withdrawal_id' => (string) $withdrawal->id, 'status' => $withdrawal->status]]);
-        $this->mongoAuditService->log($request, $parent->id, 'withdrawal.processed', [
-            'withdrawal_id' => $withdrawal->id,
-            'status' => $withdrawal->status,
-        ]);
-
-        return response()->json(['message' => 'Permintaan berhasil diproses.']);
     }
 }
