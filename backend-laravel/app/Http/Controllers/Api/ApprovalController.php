@@ -11,12 +11,15 @@ use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Models\WithdrawalRequest;
 use App\Services\MongoAuditService;
+use App\Traits\HasSafeMongoTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ApprovalController extends Controller
 {
+    use HasSafeMongoTransaction;
+
     public function __construct(private readonly MongoAuditService $mongoAuditService) {}
 
     public function store(StoreWithdrawalRequest $request)
@@ -93,9 +96,7 @@ class ApprovalController extends Controller
 
         $action = $request->input('action');
 
-        DB::connection('mongodb')->beginTransaction();
-
-        try {
+        return $this->safeMongoTransaction(function () use ($request, $parent, $withdrawal, $action) {
             $withdrawal->status = $action;
             $withdrawal->reason = $request->input('reason', $withdrawal->reason);
             $withdrawal->approved_by = (string) $parent->id;
@@ -131,12 +132,7 @@ class ApprovalController extends Controller
                 'status' => $withdrawal->status,
             ]);
 
-            DB::connection('mongodb')->commit();
-
             return response()->json(['message' => 'Permintaan berhasil diproses.']);
-        } catch (\Exception $e) {
-            DB::connection('mongodb')->rollBack();
-            throw $e;
-        }
+        });
     }
 }

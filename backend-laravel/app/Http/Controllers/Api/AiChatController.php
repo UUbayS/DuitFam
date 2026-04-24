@@ -102,15 +102,15 @@ class AiChatController extends Controller
             $currentMonth = Carbon::now()->format("Y-m");
 
             $transactions = Transaction::where("user_id", $userId)
-                ->where("status", "berhasil")
+                ->where("status", config('constants.transaction_status.berhasil'))
                 ->where("tanggal", "like", $currentMonth . "%")
                 ->get();
 
             $totalPemasukan = $transactions
-                ->where("jenis", "pemasukan")
+                ->where("jenis", config('constants.transaction_types.pemasukan'))
                 ->sum("jumlah");
             $totalPengeluaran = $transactions
-                ->where("jenis", "pengeluaran")
+                ->where("jenis", config('constants.transaction_types.pengeluaran'))
                 ->sum("jumlah");
             $neto = $totalPemasukan - $totalPengeluaran;
 
@@ -118,7 +118,7 @@ class AiChatController extends Controller
 
             $spendingByCategory = [];
             $categoryTotals = $transactions
-                ->where("jenis", "pengeluaran")
+                ->where("jenis", config('constants.transaction_types.pengeluaran'))
                 ->groupBy("category_id")
                 ->map(fn($txs) => $txs->sum("jumlah"));
 
@@ -144,7 +144,7 @@ class AiChatController extends Controller
             );
 
             $recentTransactions = Transaction::where("user_id", $userId)
-                ->where("status", "berhasil")
+                ->where("status", config('constants.transaction_status.berhasil'))
                 ->orderBy("tanggal", "desc")
                 ->limit(20)
                 ->get()
@@ -170,7 +170,7 @@ class AiChatController extends Controller
 
             // 2. Saving Goals
             $savingGoals = SavingGoal::where('user_id', $userId)
-                ->where('status', 'aktif')
+                ->where('status', config('constants.goal_status.aktif'))
                 ->get()
                 ->map(function ($goal) {
                     $target = (float) $goal->target_jumlah;

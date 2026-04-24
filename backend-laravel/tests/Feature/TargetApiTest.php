@@ -13,7 +13,7 @@ class TargetApiTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'child']);
         $token = Str::random(80);
-        $user->api_token = $token;
+        $user->api_token = hash('sha256', $token);
         $user->save();
 
         $this->withHeader('Authorization', 'Bearer '.$token)->postJson('/api/targets', [

@@ -27,7 +27,7 @@ class UserController extends Controller
             $validated = $request->validate([
                 'username' => ['nullable', 'string', 'max:255'],
                 'email' => ['nullable', 'email'],
-                'profile_photo' => ['nullable', 'string', 'max:2048'],
+                'profile_photo' => ['nullable', 'string', 'max:2048', 'regex:/^(https?:\/\/|data:image\/(jpeg|png|webp|gif);base64,)/i'],
             ]);
             if (! empty($validated['username']) && User::where('username', $validated['username'])->where('_id', '!=', (string) $request->user()->id)->exists()) {
                 return $this->errorResponse('Username sudah dipakai.', [], 409);
@@ -40,7 +40,8 @@ class UserController extends Controller
 
             return $this->successResponse(null, 'Profil berhasil diperbarui.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal memperbarui profil.', ['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal memperbarui profil.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal memperbarui profil.', [], 500);
         }
     }
 
@@ -60,7 +61,8 @@ class UserController extends Controller
 
             return $this->successResponse(null, 'Password berhasil diperbarui.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal memperbarui password.', ['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal memperbarui password.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal memperbarui password.', [], 500);
         }
     }
 
@@ -87,14 +89,15 @@ class UserController extends Controller
 
             return $this->successResponse(null, 'Akun anak berhasil ditautkan.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal menautkan anak.', ['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal menautkan anak.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal menautkan anak.', [], 500);
         }
     }
 
     public function createChild(Request $request)
     {
         try {
-            if ($request->user()->role !== 'parent') {
+            if ($request->user()->role !== config('constants.roles.parent')) {
                 return $this->errorResponse('Hanya akun parent yang dapat membuat akun anak.', [], 403);
             }
 
@@ -134,14 +137,15 @@ class UserController extends Controller
                 'is_active' => (bool) ($child->is_active ?? true),
             ], 'Akun anak berhasil dibuat.', 201);
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal membuat akun anak.', ['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal membuat akun anak.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal membuat akun anak.', [], 500);
         }
     }
 
     public function updateChild(Request $request, string $id)
     {
         try {
-            if ($request->user()->role !== 'parent') {
+            if ($request->user()->role !== config('constants.roles.parent')) {
                 return $this->errorResponse('Hanya akun parent yang dapat mengubah akun anak.', [], 403);
             }
 
@@ -175,7 +179,8 @@ class UserController extends Controller
 
             return $this->successResponse(null, 'Akun anak berhasil diperbarui.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal memperbarui akun anak.', ['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal memperbarui akun anak.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal memperbarui akun anak.', [], 500);
         }
     }
 
@@ -200,7 +205,8 @@ class UserController extends Controller
 
             return $this->successResponse(null, $relation->is_active ? 'Akun anak diaktifkan.' : 'Akun anak dinonaktifkan.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengubah status akun anak.', ['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal mengubah status akun anak.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal mengubah status akun anak.', [], 500);
         }
     }
 
@@ -211,28 +217,29 @@ class UserController extends Controller
                 return $this->errorResponse('Hanya akun parent yang dapat melihat daftar anak.', [], 403);
             }
 
-            $children = ParentChildRelation::query()
+            $relations = ParentChildRelation::query()
                 ->where('parent_id', $request->user()->id)
-                ->get()
-                ->map(function ($relation) {
-                    $child = User::where('_id', $relation->child_id)->first();
-                    if (! $child) {
-                        return null;
-                    }
+                ->get();
 
-                    return [
-                        'id' => (string) $child->id,
-                        'username' => $child->username,
-                        'email' => $child->email,
-                        'is_active' => (bool) ($relation->is_active ?? false),
-                    ];
-                })
-                ->filter()
-                ->values();
+            $childIds = $relations->pluck('child_id')->map(fn($id) => (string) $id)->all();
+            $childMap = User::whereIn('_id', $childIds)->get()->keyBy(fn($u) => (string) $u->id);
+
+            $children = $relations->map(function ($relation) use ($childMap) {
+                $child = $childMap[(string) $relation->child_id] ?? null;
+                if (!$child) return null;
+
+                return [
+                    'id' => (string) $child->id,
+                    'username' => $child->username,
+                    'email' => $child->email,
+                    'is_active' => (bool) ($relation->is_active ?? false),
+                ];
+            })->filter()->values();
 
             return $this->successResponse($children, 'OK');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil daftar anak.', ['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal mengambil daftar anak.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal mengambil daftar anak.', [], 500);
         }
     }
 
@@ -244,17 +251,17 @@ class UserController extends Controller
             }
 
             $relations = ParentChildRelation::query()->where('parent_id', (string) $request->user()->id)->get();
-            $childIds = $relations->pluck('child_id')->map(fn ($id) => (string) $id)->values();
+            $childIds = $relations->pluck('child_id')->map(fn($id) => (string) $id)->values();
+            
+            $childMap = User::whereIn('_id', $childIds->all())->get()->keyBy(fn($u) => (string) $u->id);
             $walletMap = Wallet::query()
                 ->whereIn('user_id', $childIds->all())
                 ->get()
                 ->keyBy('user_id');
 
-            $data = $relations->map(function ($relation) use ($walletMap) {
-                $child = User::where('_id', (string) $relation->child_id)->first();
-                if (! $child) {
-                    return null;
-                }
+            $data = $relations->map(function ($relation) use ($childMap, $walletMap) {
+                $child = $childMap[(string) $relation->child_id] ?? null;
+                if (!$child) return null;
                 $wallet = $walletMap[(string) $child->id] ?? null;
 
                 return [
@@ -268,7 +275,8 @@ class UserController extends Controller
 
             return $this->successResponse($data, 'OK');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil saldo anak.', ['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal mengambil saldo anak.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal mengambil saldo anak.', [], 500);
         }
     }
 
@@ -303,7 +311,8 @@ class UserController extends Controller
 
             return $this->successResponse(null, 'Akun anak berhasil dihapus.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal menghapus akun anak.', ['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal menghapus akun anak.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal menghapus akun anak.', [], 500);
         }
     }
 

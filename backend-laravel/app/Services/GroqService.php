@@ -14,7 +14,7 @@ class GroqService
     public function generateFinancialAdvice(array $financialData, string $question, array $history = []): string
     {
         // Disable execution time limit for long AI processing (loading large local models)
-        set_time_limit(0);
+        set_time_limit(180); // 3 minutes max for AI processing
 
         // Tier 3 (Fakta Dasar dari Rule-Engine) - Selalu disiapkan sebagai fallback & konteks
         $fallbackResponse = $this->generateRuleBasedResponse($financialData, $question);

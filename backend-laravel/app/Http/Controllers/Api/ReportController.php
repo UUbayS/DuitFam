@@ -216,9 +216,10 @@ class ReportController extends Controller
             'detailRekomendasi' => 'Dari pemasukan '.number_format($income, 0, ',', '.').', rekomendasi alokasi: kebutuhan '.number_format($need, 0, ',', '.').', keinginan '.number_format($want, 0, ',', '.').', tabungan/investasi '.number_format($save, 0, ',', '.').'.',
             'langkah_implementasi' => 'Catat semua pemasukan & pengeluaran|Kelompokkan pengeluaran menjadi kebutuhan vs keinginan|Tetapkan batas pengeluaran per kategori|Sisihkan 20% di awal bulan untuk tabungan/target|Evaluasi akhir periode dan sesuaikan batas',
         ];
-        SmartInsight::create([
+        SmartInsight::updateOrCreate([
             'user_id' => $request->user()->id,
             'month' => $request->query('month', now()->format('Y-m')),
+        ], [
             'insight' => 'Analisis 50/30/20 otomatis.',
             'recommendation' => $smartRecommendation,
             'score' => $summary['neto'] >= 0 ? 80 : 55,

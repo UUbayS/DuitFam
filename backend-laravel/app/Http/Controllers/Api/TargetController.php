@@ -12,12 +12,15 @@ use App\Models\SavingGoal;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Services\MongoAuditService;
+use App\Traits\HasSafeMongoTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class TargetController extends Controller
 {
+    use HasSafeMongoTransaction;
+
     public function __construct(private readonly MongoAuditService $mongoAuditService) {}
 
     public function index(Request $request)
@@ -145,9 +148,7 @@ class TargetController extends Controller
             return response()->json(['message' => 'Tidak punya akses.'], 403);
         }
 
-        DB::connection('mongodb')->beginTransaction();
-
-        try {
+        return $this->safeMongoTransaction(function () use ($goal) {
             $refundAmount = (float) ($goal->jumlah_terkumpul ?? 0);
             if ($refundAmount > 0) {
                 $wallet = Wallet::where('user_id', (string) $goal->user_id)->first();
@@ -169,13 +170,8 @@ class TargetController extends Controller
 
             $goal->delete();
 
-            DB::connection('mongodb')->commit();
-
             return response()->json(['message' => 'Target berhasil dihapus permanen dan saldo dikembalikan ke wallet utama.']);
-        } catch (\Exception $e) {
-            DB::connection('mongodb')->rollBack();
-            throw $e;
-        }
+        });
     }
 
     public function contribute(ContributeTargetRequest $request)
@@ -188,9 +184,8 @@ class TargetController extends Controller
             throw ValidationException::withMessages(['jumlah' => ['Saldo utama tidak mencukupi.']]);
         }
 
-        DB::connection('mongodb')->beginTransaction();
-
-        try {
+        return $this->safeMongoTransaction(function () use ($request, $user, $goal, $amount) {
+            $wallet = Wallet::where('user_id', (string) $user->id)->firstOrFail();
             $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) - $amount;
             $wallet->save();
             $goal->jumlah_terkumpul = ((float) $goal->jumlah_terkumpul) + $amount;
@@ -206,13 +201,8 @@ class TargetController extends Controller
                 'amount' => $amount,
             ]);
 
-            DB::connection('mongodb')->commit();
-
             return response()->json(['message' => 'Kontribusi berhasil!']);
-        } catch (\Exception $e) {
-            DB::connection('mongodb')->rollBack();
-            throw $e;
-        }
+        });
     }
 
     public function withdraw(Request $request)
@@ -230,9 +220,7 @@ class TargetController extends Controller
             throw ValidationException::withMessages(['jumlah' => ['Saldo di kantong tabungan tidak mencukupi.']]);
         }
 
-        DB::connection('mongodb')->beginTransaction();
-
-        try {
+        return $this->safeMongoTransaction(function () use ($user, $goal, $amount) {
             $wallet = Wallet::where('user_id', (string) $user->id)->firstOrFail();
 
             $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + $amount;
@@ -254,12 +242,7 @@ class TargetController extends Controller
                 'keterangan' => 'Ambil uang dari Kantong: '.$goal->nama_target
             ]);
 
-            DB::connection('mongodb')->commit();
-
             return response()->json(['message' => 'Berhasil mengambil uang dari kantong tabungan!']);
-        } catch (\Exception $e) {
-            DB::connection('mongodb')->rollBack();
-            throw $e;
-        }
+        });
     }
 }
