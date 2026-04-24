@@ -44,6 +44,7 @@ class DatabaseSeeder extends Seeder
 
         $categories = [
             // Pengeluaran
+            ['nama_kategori' => 'Makanan', 'jenis' => 'pengeluaran', 'icon' => 'CupHot'],
             ['nama_kategori' => 'Makanan & Minuman', 'jenis' => 'pengeluaran', 'icon' => 'CupHot'],
             ['nama_kategori' => 'Belanja', 'jenis' => 'pengeluaran', 'icon' => 'Bag'],
             ['nama_kategori' => 'Transportasi', 'jenis' => 'pengeluaran', 'icon' => 'CarFront'],
@@ -52,6 +53,7 @@ class DatabaseSeeder extends Seeder
             ['nama_kategori' => 'Pendidikan', 'jenis' => 'pengeluaran', 'icon' => 'Book'],
             ['nama_kategori' => 'Tagihan', 'jenis' => 'pengeluaran', 'icon' => 'Receipt'],
             ['nama_kategori' => 'Cicilan', 'jenis' => 'pengeluaran', 'icon' => 'CreditCard'],
+            ['nama_kategori' => 'Tabungan', 'jenis' => 'pengeluaran', 'icon' => 'PiggyBank'],
             ['nama_kategori' => 'Lainnya', 'jenis' => 'pengeluaran', 'icon' => 'QuestionCircle'],
             
             // Pemasukan
@@ -59,6 +61,7 @@ class DatabaseSeeder extends Seeder
             ['nama_kategori' => 'Bonus', 'jenis' => 'pemasukan', 'icon' => 'Gift'],
             ['nama_kategori' => 'Investasi', 'jenis' => 'pemasukan', 'icon' => 'GraphUpArrow'],
             ['nama_kategori' => 'Hadiah', 'jenis' => 'pemasukan', 'icon' => 'EmojiSmile'],
+            ['nama_kategori' => 'Uang Saku', 'jenis' => 'pemasukan', 'icon' => 'CashCoin'],
             ['nama_kategori' => 'Lainnya (Pemasukan)', 'jenis' => 'pemasukan', 'icon' => 'PlusCircle'],
         ];
 

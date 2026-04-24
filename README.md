@@ -53,10 +53,16 @@ OLLAMA_MODEL=llama3.1:8b
 ```
 
 ### 3. Setup Database & Data
-Jalankan migrasi agar asisten AI bisa membaca data transaksi Anda:
+Jalankan migrasi dan seeder awal untuk menyiapkan database:
 ```powershell
 php artisan migrate --seed
 ```
+
+> [!TIP]
+> Jika daftar kategori transaksi tampak kosong atau salah (misalnya Gaji muncul di Pengeluaran), jalankan perintah berikut untuk memperbarui data kategori:
+> ```powershell
+> php artisan db:seed
+> ```
 
 ### 4. Setup Local AI (Ollama)
 Pastikan aplikasi Ollama sudah berjalan, lalu jalankan script otomatis yang sudah disediakan:
