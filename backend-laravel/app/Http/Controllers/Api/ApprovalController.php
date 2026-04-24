@@ -22,7 +22,7 @@ class ApprovalController extends Controller
     public function store(StoreWithdrawalRequest $request)
     {
         $child = $request->user();
-        if ($child->role !== 'child') {
+        if ($child->role !== config('constants.roles.child')) {
             return response()->json(['message' => 'Hanya akun anak dapat membuat pengajuan penarikan.'], 403);
         }
 
@@ -36,7 +36,7 @@ class ApprovalController extends Controller
             'parent_id' => $relation->parent_id,
             'amount' => $request->input('amount'),
             'reason' => $request->input('reason'),
-            'status' => 'pending',
+            'status' => config('constants.transaction_status.pending'),
         ]);
 
         NotificationFeed::create([
@@ -58,7 +58,7 @@ class ApprovalController extends Controller
     {
         $user = $request->user();
         $query = WithdrawalRequest::query();
-        if ($user->role === 'parent') {
+        if ($user->role === config('constants.roles.parent')) {
             $query->where('parent_id', $user->id);
         } else {
             $query->where('child_id', $user->id);
@@ -82,12 +82,12 @@ class ApprovalController extends Controller
     public function action(ApprovalActionRequest $request, string $id)
     {
         $parent = $request->user();
-        if ($parent->role !== 'parent') {
+        if ($parent->role !== config('constants.roles.parent')) {
             return response()->json(['message' => 'Hanya orang tua dapat menyetujui/menolak.'], 403);
         }
 
         $withdrawal = WithdrawalRequest::where('_id', $id)->where('parent_id', (string) $parent->id)->firstOrFail();
-        if ($withdrawal->status !== 'pending') {
+        if ($withdrawal->status !== config('constants.transaction_status.pending')) {
             return response()->json(['message' => 'Permintaan ini sudah diproses.'], 400);
         }
 
@@ -102,7 +102,7 @@ class ApprovalController extends Controller
             $withdrawal->approved_at = now();
             $withdrawal->save();
 
-            if ($action === 'approved') {
+            if ($action === config('constants.transaction_status.approved')) {
                 $wallet = Wallet::where('user_id', $withdrawal->child_id)->firstOrFail();
                 if ((float) $wallet->saldo_sekarang < (float) $withdrawal->amount) {
                     throw ValidationException::withMessages(['amount' => ['Saldo anak tidak mencukupi untuk disetujui.']]);
@@ -111,8 +111,8 @@ class ApprovalController extends Controller
                 $wallet->save();
                 Transaction::create([
                     'user_id' => $withdrawal->child_id,
-                    'jenis' => 'pengeluaran',
-                    'status' => 'berhasil',
+                    'jenis' => config('constants.transaction_types.pengeluaran'),
+                    'status' => config('constants.transaction_status.berhasil'),
                     'jumlah' => $withdrawal->amount,
                     'tanggal' => now()->toDateString(),
                     'keterangan' => 'Penarikan disetujui orang tua',

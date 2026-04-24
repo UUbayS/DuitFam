@@ -2,38 +2,38 @@
 
 return [
     'roles' => [
-        'parent',
-        'child',
+        'parent' => 'parent',
+        'child' => 'child',
     ],
 
     'transaction_types' => [
-        'pemasukan',
-        'pengeluaran',
-        'menabung',
-        'refund',
+        'pemasukan' => 'pemasukan',
+        'pengeluaran' => 'pengeluaran',
+        'menabung' => 'menabung',
+        'refund' => 'refund',
     ],
 
     'transaction_status' => [
-        'berhasil',
-        'pending',
-        'approved',
-        'rejected',
+        'berhasil' => 'berhasil',
+        'pending' => 'pending',
+        'approved' => 'approved',
+        'rejected' => 'rejected',
     ],
 
     'goal_status' => [
-        'aktif',
-        'tercapai',
-        'batal',
+        'aktif' => 'aktif',
+        'tercapai' => 'tercapai',
+        'batal' => 'batal',
     ],
 
     'categories' => [
-        'Tabungan',
-        'Makanan',
-        'Transportasi',
-        'Hiburan',
-        'Pendidikan',
-        'Kesehatan',
-        'Lainnya',
+        'Tabungan' => 'Tabungan',
+        'Makanan' => 'Makanan',
+        'Transportasi' => 'Transportasi',
+        'Hiburan' => 'Hiburan',
+        'Pendidikan' => 'Pendidikan',
+        'Kesehatan' => 'Kesehatan',
+        'Lainnya' => 'Lainnya',
     ],
 
     'token_expiration' => 3, // hours

@@ -26,7 +26,7 @@ class TargetController extends Controller
         $childId = $request->query('child_id');
         $targetUserIds = [(string) $user->id];
 
-        if ($user->role === 'parent') {
+        if ($user->role === config('constants.roles.parent')) {
             if ($childId) {
                 $hasRelation = ParentChildRelation::query()
                     ->where('parent_id', (string) $user->id)
@@ -79,7 +79,7 @@ class TargetController extends Controller
         $user = $request->user();
         $targetUserId = (string) $user->id;
         $childId = $request->input('child_id');
-        if ($user->role === 'parent' && $childId) {
+        if ($user->role === config('constants.roles.parent') && $childId) {
             $hasRelation = ParentChildRelation::query()
                 ->where('parent_id', (string) $user->id)
                 ->where('child_id', (string) $childId)
@@ -97,7 +97,7 @@ class TargetController extends Controller
             'target_jumlah' => $request->input('target_jumlah'),
             'tanggal_target' => $request->input('tanggal_target'),
             'jumlah_terkumpul' => 0,
-            'status' => 'aktif',
+            'status' => config('constants.goal_status.aktif'),
         ]);
 
         return response()->json(['message' => 'Target berhasil dibuat.'], 201);
@@ -108,7 +108,7 @@ class TargetController extends Controller
         $user = $request->user();
         $goal = SavingGoal::where('_id', $id)->firstOrFail();
         $isOwner = (string) $goal->user_id === (string) $user->id;
-        $canParentManage = $user->role === 'parent' && ParentChildRelation::query()
+        $canParentManage = $user->role === config('constants.roles.parent') && ParentChildRelation::query()
             ->where('parent_id', (string) $user->id)
             ->where('child_id', (string) $goal->user_id)
             ->where('is_active', true)
@@ -122,7 +122,7 @@ class TargetController extends Controller
             'nama_target' => ['sometimes', 'string', 'max:255'],
             'target_jumlah' => ['sometimes', 'numeric', 'min:1'],
             'tanggal_target' => ['sometimes', 'date'],
-            'status' => ['sometimes', 'in:aktif,tercapai,batal'],
+            'status' => ['sometimes', 'in:'.config('constants.goal_status.aktif').','.config('constants.goal_status.tercapai').','.config('constants.goal_status.batal')],
         ]);
 
         $goal->update($validated);
@@ -135,7 +135,7 @@ class TargetController extends Controller
         $user = $request->user();
         $goal = SavingGoal::where('_id', $id)->firstOrFail();
         $isOwner = (string) $goal->user_id === (string) $user->id;
-        $canParentManage = $user->role === 'parent' && ParentChildRelation::query()
+        $canParentManage = $user->role === config('constants.roles.parent') && ParentChildRelation::query()
             ->where('parent_id', (string) $user->id)
             ->where('child_id', (string) $goal->user_id)
             ->where('is_active', true)
@@ -158,8 +158,8 @@ class TargetController extends Controller
                     Transaction::create([
                         'user_id' => (string) $goal->user_id,
                         'category_id' => null,
-                        'jenis' => 'refund',
-                        'status' => 'berhasil',
+                        'jenis' => config('constants.transaction_types.refund'),
+                        'status' => config('constants.transaction_status.berhasil'),
                         'jumlah' => $refundAmount,
                         'tanggal' => now()->toDateString(),
                         'keterangan' => 'Refund penghapusan kantong: ' . $goal->nama_target,
@@ -195,11 +195,11 @@ class TargetController extends Controller
             $wallet->save();
             $goal->jumlah_terkumpul = ((float) $goal->jumlah_terkumpul) + $amount;
             if ((float) $goal->jumlah_terkumpul >= (float) $goal->target_jumlah) {
-                $goal->status = 'tercapai';
+                $goal->status = config('constants.goal_status.tercapai');
             }
             $goal->save();
             GoalContribution::create(['saving_goal_id' => (string) $goal->id, 'user_id' => (string) $user->id, 'jumlah' => $amount, 'contributed_at' => now()]);
-            Transaction::create(['user_id' => (string) $user->id, 'category_id' => null, 'jenis' => 'menabung', 'status' => 'berhasil', 'jumlah' => $amount, 'tanggal' => now()->toDateString(), 'keterangan' => 'Kontribusi Target: '.$goal->nama_target, 'source_id' => (string) $goal->id]);
+            Transaction::create(['user_id' => (string) $user->id, 'category_id' => null, 'jenis' => config('constants.transaction_types.menabung'), 'status' => config('constants.transaction_status.berhasil'), 'jumlah' => $amount, 'tanggal' => now()->toDateString(), 'keterangan' => 'Kontribusi Target: '.$goal->nama_target, 'source_id' => (string) $goal->id]);
             NotificationFeed::create(['user_id' => (string) $user->id, 'title' => 'Kontribusi target', 'message' => 'Kontribusi ke target '.$goal->nama_target.' berhasil.', 'read_at' => null, 'meta' => ['goal_id' => (string) $goal->id]]);
             $this->mongoAuditService->log($request, $user->id, 'goal.contributed', [
                 'goal_id' => $goal->id,
@@ -239,16 +239,16 @@ class TargetController extends Controller
             $wallet->save();
 
             $goal->jumlah_terkumpul = ((float) $goal->jumlah_terkumpul) - $amount;
-            if ($goal->status === 'tercapai' && (float) $goal->jumlah_terkumpul < (float) $goal->target_jumlah) {
-                $goal->status = 'aktif';
+            if ($goal->status === config('constants.goal_status.tercapai') && (float) $goal->jumlah_terkumpul < (float) $goal->target_jumlah) {
+                $goal->status = config('constants.goal_status.aktif');
             }
             $goal->save();
 
             Transaction::create([
                 'user_id' => (string) $user->id,
                 'category_id' => null,
-                'jenis' => 'refund',
-                'status' => 'berhasil',
+                'jenis' => config('constants.transaction_types.refund'),
+                'status' => config('constants.transaction_status.berhasil'),
                 'jumlah' => $amount,
                 'tanggal' => now()->toDateString(),
                 'keterangan' => 'Ambil uang dari Kantong: '.$goal->nama_target

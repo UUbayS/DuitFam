@@ -8,6 +8,10 @@ use App\Models\Mongo\NotificationFeed;
 use App\Models\ParentChildRelation;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Models\Transaction;
+use App\Models\SavingGoal;
+use App\Models\GoalContribution;
+use App\Models\WithdrawalRequest;
 use App\Services\MongoAuditService;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
@@ -22,7 +26,7 @@ class UserController extends Controller
         try {
             $validated = $request->validate([
                 'username' => ['nullable', 'string', 'max:255'],
-                'email' => ['nullable', 'email', 'ends_with:@gmail.com'],
+                'email' => ['nullable', 'email'],
                 'profile_photo' => ['nullable', 'string', 'max:2048'],
             ]);
             if (! empty($validated['username']) && User::where('username', $validated['username'])->where('_id', '!=', (string) $request->user()->id)->exists()) {
@@ -63,7 +67,7 @@ class UserController extends Controller
     public function linkChild(Request $request)
     {
         try {
-            if ($request->user()->role !== 'parent') {
+            if ($request->user()->role !== config('constants.roles.parent')) {
                 return $this->errorResponse('Hanya akun parent yang dapat menambah anak.', [], 403);
             }
 
@@ -71,7 +75,7 @@ class UserController extends Controller
                 'child_email' => ['required', 'email'],
             ]);
 
-            $child = User::where('email', $validated['child_email'])->where('role', 'child')->first();
+            $child = User::where('email', $validated['child_email'])->where('role', config('constants.roles.child'))->first();
             if (! $child) {
                 return $this->errorResponse('Akun child tidak ditemukan.', [], 404);
             }
@@ -110,7 +114,7 @@ class UserController extends Controller
             $child = User::create([
                 'username' => $validated['username'],
                 'email' => $validated['email'],
-                'role' => 'child',
+                'role' => config('constants.roles.child'),
                 'password' => Hash::make($validated['password']),
                 'is_active' => true,
             ]);
@@ -149,7 +153,7 @@ class UserController extends Controller
                 return $this->errorResponse('Akun anak tidak ditemukan.', [], 404);
             }
 
-            $child = User::where('_id', (string) $id)->where('role', 'child')->firstOrFail();
+            $child = User::where('_id', (string) $id)->where('role', config('constants.roles.child'))->firstOrFail();
             $validated = $request->validate([
                 'username' => ['sometimes', 'string', 'max:255'],
                 'email' => ['sometimes', 'email'],
@@ -178,7 +182,7 @@ class UserController extends Controller
     public function toggleChild(Request $request, string $id)
     {
         try {
-            if ($request->user()->role !== 'parent') {
+            if ($request->user()->role !== config('constants.roles.parent')) {
                 return $this->errorResponse('Hanya akun parent yang dapat menonaktifkan akun anak.', [], 403);
             }
 
@@ -203,7 +207,7 @@ class UserController extends Controller
     public function children(Request $request)
     {
         try {
-            if ($request->user()->role !== 'parent') {
+            if ($request->user()->role !== config('constants.roles.parent')) {
                 return $this->errorResponse('Hanya akun parent yang dapat melihat daftar anak.', [], 403);
             }
 
@@ -235,7 +239,7 @@ class UserController extends Controller
     public function childrenBalances(Request $request)
     {
         try {
-            if ($request->user()->role !== 'parent') {
+            if ($request->user()->role !== config('constants.roles.parent')) {
                 return $this->errorResponse('Hanya akun parent yang dapat melihat saldo anak.', [], 403);
             }
 
@@ -271,7 +275,7 @@ class UserController extends Controller
     public function deleteChild(Request $request, string $id)
     {
         try {
-            if ($request->user()->role !== 'parent') {
+            if ($request->user()->role !== config('constants.roles.parent')) {
                 return $this->errorResponse('Hanya akun parent yang dapat menghapus akun anak.', [], 403);
             }
 
@@ -283,10 +287,15 @@ class UserController extends Controller
                 return $this->errorResponse('Akun anak tidak ditemukan.', [], 404);
             }
 
-            $child = User::where('_id', (string) $id)->where('role', 'child')->first();
+            $child = User::where('_id', (string) $id)->where('role', config('constants.roles.child'))->first();
             if ($child) {
                 // Cleanup child data
                 Wallet::where('user_id', (string) $id)->delete();
+                Transaction::where('user_id', (string) $id)->delete();
+                SavingGoal::where('user_id', (string) $id)->delete();
+                GoalContribution::where('user_id', (string) $id)->delete();
+                NotificationFeed::where('user_id', (string) $id)->delete();
+                WithdrawalRequest::where('child_id', (string) $id)->delete();
                 $child->delete();
             }
 
@@ -303,7 +312,7 @@ class UserController extends Controller
         $parent = $request->user();
 
         // 1. Cek apakah parent
-        if ($parent->role !== 'parent') {
+        if ($parent->role !== config('constants.roles.parent')) {
             return response()->json(['message' => 'Hanya akun parent yang dapat mereset password anak.'], 403);
         }
 
@@ -318,7 +327,7 @@ class UserController extends Controller
         }
 
         // 3. Ambil data child
-        $child = User::where('_id', (string) $id)->where('role', 'child')->firstOrFail();
+        $child = User::where('_id', (string) $id)->where('role', config('constants.roles.child'))->firstOrFail();
 
         // 4. Update password (sudah tervalidasi di Form Request)
         $child->password = Hash::make($request->password);
