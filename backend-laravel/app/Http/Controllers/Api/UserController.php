@@ -29,6 +29,14 @@ class UserController extends Controller
                 'email' => ['nullable', 'email'],
                 'profile_photo' => ['nullable', 'string', 'max:2048', 'regex:/^(https?:\/\/|data:image\/(jpeg|png|webp|gif);base64,)/i'],
             ]);
+            
+            if (!empty($validated['username'])) {
+                $validated['username'] = strtolower($validated['username']);
+            }
+            if (!empty($validated['email'])) {
+                $validated['email'] = strtolower($validated['email']);
+            }
+            
             if (! empty($validated['username']) && User::where('username', $validated['username'])->where('_id', '!=', (string) $request->user()->id)->exists()) {
                 return $this->errorResponse('Username sudah dipakai.', [], 409);
             }
@@ -77,7 +85,8 @@ class UserController extends Controller
                 'child_email' => ['required', 'email'],
             ]);
 
-            $child = User::where('email', $validated['child_email'])->where('role', config('constants.roles.child'))->first();
+            $child_email = strtolower($validated['child_email']);
+            $child = User::where('email', $child_email)->where('role', config('constants.roles.child'))->first();
             if (! $child) {
                 return $this->errorResponse('Akun child tidak ditemukan.', [], 404);
             }
@@ -107,6 +116,10 @@ class UserController extends Controller
                 'password' => ['required', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/\d/'],
                 'saldo_awal' => ['nullable', 'numeric', 'min:0'],
             ]);
+            
+            $validated['username'] = strtolower($validated['username']);
+            $validated['email'] = strtolower($validated['email']);
+            
             if (User::where('username', $validated['username'])->exists()) {
                 return $this->errorResponse('Username sudah dipakai.', [], 409);
             }
@@ -165,6 +178,13 @@ class UserController extends Controller
                 'is_active' => ['sometimes', 'boolean'],
             ]);
 
+            if (isset($validated['username'])) {
+                $validated['username'] = strtolower($validated['username']);
+            }
+            if (isset($validated['email'])) {
+                $validated['email'] = strtolower($validated['email']);
+            }
+            
             if (isset($validated['username']) && User::where('username', $validated['username'])->where('_id', '!=', (string) $child->id)->exists()) {
                 return $this->errorResponse('Username sudah dipakai.', [], 409);
             }
