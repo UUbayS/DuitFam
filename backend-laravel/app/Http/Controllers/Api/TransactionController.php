@@ -9,7 +9,6 @@ use App\Models\Mongo\NotificationFeed;
 use App\Models\ParentChildRelation;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Models\UserNotification;
 use App\Models\Wallet;
 use App\Services\MongoAuditService;
 use Illuminate\Http\Request;
@@ -71,7 +70,6 @@ class TransactionController extends Controller
                 'keterangan' => $request->input('keterangan'),
                 'source_id' => $sourceId,
             ]);
-            UserNotification::create(['user_id' => (string) $user->id, 'title' => 'Transaksi berhasil', 'message' => 'Transaksi '.$jenis.' sebesar '.number_format($amount, 0, ',', '.').' berhasil dicatat.']);
             NotificationFeed::create(['user_id' => (string) $user->id, 'title' => 'Transaksi berhasil', 'message' => 'Transaksi '.$jenis.' sebesar '.number_format($amount, 0, ',', '.').' berhasil dicatat.', 'read_at' => null, 'meta' => ['transaction_id' => (string) $transaction->id]]);
             $this->mongoAuditService->log($request, $user->id, 'transaction.created', [
                 'transaction_id' => $transaction->id,
@@ -133,11 +131,6 @@ class TransactionController extends Controller
                 'keterangan' => $validated['keterangan'] ?: 'Deposit dari orang tua',
             ]);
 
-            UserNotification::create([
-                'user_id' => (string) $child->id,
-                'title' => 'Deposit diterima',
-                'message' => 'Saldo bertambah sebesar '.number_format($amount, 0, ',', '.').' dari orang tua.',
-            ]);
             NotificationFeed::create([
                 'user_id' => (string) $child->id,
                 'title' => 'Deposit diterima',

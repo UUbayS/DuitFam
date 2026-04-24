@@ -10,7 +10,6 @@ use App\Models\Mongo\NotificationFeed;
 use App\Models\ParentChildRelation;
 use App\Models\SavingGoal;
 use App\Models\Transaction;
-use App\Models\UserNotification;
 use App\Models\Wallet;
 use App\Services\MongoAuditService;
 use Illuminate\Http\Request;
@@ -201,7 +200,6 @@ class TargetController extends Controller
             $goal->save();
             GoalContribution::create(['saving_goal_id' => (string) $goal->id, 'user_id' => (string) $user->id, 'jumlah' => $amount, 'contributed_at' => now()]);
             Transaction::create(['user_id' => (string) $user->id, 'category_id' => null, 'jenis' => 'menabung', 'status' => 'berhasil', 'jumlah' => $amount, 'tanggal' => now()->toDateString(), 'keterangan' => 'Kontribusi Target: '.$goal->nama_target, 'source_id' => (string) $goal->id]);
-            UserNotification::create(['user_id' => (string) $user->id, 'title' => 'Kontribusi target', 'message' => 'Kontribusi ke target '.$goal->nama_target.' berhasil.']);
             NotificationFeed::create(['user_id' => (string) $user->id, 'title' => 'Kontribusi target', 'message' => 'Kontribusi ke target '.$goal->nama_target.' berhasil.', 'read_at' => null, 'meta' => ['goal_id' => (string) $goal->id]]);
             $this->mongoAuditService->log($request, $user->id, 'goal.contributed', [
                 'goal_id' => $goal->id,
@@ -254,12 +252,6 @@ class TargetController extends Controller
                 'jumlah' => $amount,
                 'tanggal' => now()->toDateString(),
                 'keterangan' => 'Ambil uang dari Kantong: '.$goal->nama_target
-            ]);
-
-            UserNotification::create([
-                'user_id' => (string) $user->id,
-                'title' => 'Ambil uang dari kantong',
-                'message' => 'Berhasil mengambil Rp '.number_format($amount, 0, ',', '.').' dari kantong '.$goal->nama_target
             ]);
 
             DB::connection('mongodb')->commit();

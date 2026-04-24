@@ -8,7 +8,6 @@ use App\Http\Requests\StoreWithdrawalRequest;
 use App\Models\Mongo\NotificationFeed;
 use App\Models\ParentChildRelation;
 use App\Models\Transaction;
-use App\Models\UserNotification;
 use App\Models\Wallet;
 use App\Models\WithdrawalRequest;
 use App\Services\MongoAuditService;
@@ -40,11 +39,6 @@ class ApprovalController extends Controller
             'status' => 'pending',
         ]);
 
-        UserNotification::create([
-            'user_id' => $relation->parent_id,
-            'title' => 'Permintaan penarikan baru',
-            'message' => 'Ada permintaan penarikan dana baru dari akun anak.',
-        ]);
         NotificationFeed::create([
             'user_id' => $relation->parent_id,
             'title' => 'Permintaan penarikan baru',
@@ -125,11 +119,6 @@ class ApprovalController extends Controller
                 ]);
             }
 
-            UserNotification::create([
-                'user_id' => $withdrawal->child_id,
-                'title' => 'Status penarikan diperbarui',
-                'message' => 'Permintaan penarikan Anda '.$withdrawal->status.'.',
-            ]);
             NotificationFeed::create([
                 'user_id' => $withdrawal->child_id,
                 'title' => 'Status penarikan diperbarui',
