@@ -18,19 +18,22 @@ class AuthController extends Controller
     {
         try {
             $payload = $request->validated();
+            $username = strtolower($payload['username']);
+            $email = strtolower($payload['email']);
+            
             Log::info('AUTH_REGISTER_ATTEMPT', [
-                'email' => $payload['email'] ?? null,
-                'username' => $payload['username'] ?? null,
+                'email' => $email,
+                'username' => $username,
                 'role' => 'parent',
             ]);
 
-            if (User::where('username', $request->input('username'))->exists() || User::where('email', $request->input('email'))->exists()) {
+            if (User::where('username', $username)->exists() || User::where('email', $email)->exists()) {
                 return response()->json(['message' => 'Email atau Username sudah terdaftar.'], 409);
             }
 
             $user = User::create([
-                'username' => (string) $request->input('username'),
-                'email' => (string) $request->input('email'),
+                'username' => $username,
+                'email' => $email,
                 'role' => config('constants.roles.parent'),
                 'is_active' => true,
                 'password' => Hash::make((string) $request->input('password')),
@@ -59,7 +62,7 @@ class AuthController extends Controller
     public function login(LoginRequest $request)
     {
         try {
-            $identifier = (string) $request->input('email');
+            $identifier = strtolower((string) $request->input('email'));
             Log::info('AUTH_LOGIN_ATTEMPT', ['identifier' => $identifier]);
 
             $user = User::where('email', $identifier)->orWhere('username', $identifier)->first();
