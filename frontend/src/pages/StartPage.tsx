@@ -46,12 +46,12 @@ const StartPage = () => {
             <Container
                 style={{ position: 'relative', zIndex: 1, ...pageStyle, minHeight: '100vh', display: 'flex', alignItems: 'center' }}
             >
-                <div className="d-flex align-items-center justify-content-start">
-                    <img src={LogoBiru} alt="DuitFam" style={{ height: 42 }} />
-                </div>
-
+                          
                 <Row className="align-items-center w-100 mt-4">
                     <Col lg={6} className="mb-5 mb-lg-0">
+                        <div className="d-flex align-items-center justify-content-start mb-4">
+                            <img src={LogoBiru} alt="DuitFam" style={{ height: 42 }} />
+                        </div>
                         <div style={{ maxWidth: 520 }}>
                             <div className="text-dark" style={{ fontSize: 44, lineHeight: 1.05, fontWeight: 800 }}>
                                 Welcome to

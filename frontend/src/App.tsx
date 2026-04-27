@@ -9,7 +9,6 @@ import SettingsPage from "./pages/SettingsPage";
 import PrivateRoute from "./routes/PrivateRoute";
 import ApprovalPage from "./pages/ApprovalPage";
 import FamilyPage from "./pages/FamilyPage";
-import AIChatBox from "./components/AIChatBox";
 
 function App() {
     return (
@@ -30,7 +29,6 @@ function App() {
                     <Route path="/settings" element={<SettingsPage />} />
                 </Route>
             </Routes>
-            <AIChatBox />
         </div>
     );
 }

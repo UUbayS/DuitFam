@@ -275,7 +275,7 @@ const formatRupiah = (amount: number) => {
                     style={{ borderRadius: '50px', fontSize: 20, border: 'none' }}
                     onClick={() => setShowAddSavingModal(true)}
                 >
-                    <Plus size={28} className="me-2" /> Tambah Kantong Tabungan
+                    <Plus size={28} className="me-2" /> Tambah Target Tabungan
                 </Button>
             </div>
 

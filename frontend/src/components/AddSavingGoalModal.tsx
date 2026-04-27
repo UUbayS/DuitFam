@@ -59,7 +59,7 @@ const AddSavingGoalModal: React.FC<AddSavingGoalModalProps> = ({ show, handleClo
 
     return (
         <Modal show={show} onHide={handleClose} centered backdrop="static" className="add-saving-modal">
-            <div className="bg-white" style={{ borderRadius: '25px', overflow: 'hidden', border: 'none' }}>
+            <div className="bg-white" style={{ borderRadius: '5px', overflow: 'hidden', border: 'none' }}>
                 <div className="bg-primary p-4 text-center position-relative">
                     <h4 className="modal-title text-white fw-bold mb-0">Tambah Kantong Tabungan</h4>
                     <Button 

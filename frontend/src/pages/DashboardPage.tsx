@@ -121,7 +121,7 @@ const formatRupiah = (amount: number) => {
                             <div className="d-flex justify-content-between align-items-start">
                                 <div>
                                     <div className="d-flex align-items-center justify-content-between mb-3">
-                                        <div className="fw-bold text-dark" style={{ fontSize: 18 }}>Tabungan</div>
+                                        <div className="fw-bold text-dark" style={{ fontSize: 18 }}>Tabungan Utama</div>
                                         <button
                                             type="button"
                                             onClick={() => setShowSaldo(!showSaldo)}

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import TransactionHistory from './TransactionHistory';
 import TransactionModal from './TransactionModal';
+import AIChatBox from './AIChatBox';
 import { PersonFill, BellFill, List, Plus, ClockHistory } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
 import LogoPutih from '../assets/Logo Putih.svg';
@@ -71,12 +72,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                 {/* Inner Layout Container */}
                 <div className="d-flex flex-grow-1 overflow-hidden">
                     {/* Center Content (Scrollable) */}
-                    <main className="flex-grow-1 overflow-hidden h-100">
+                    <main className="flex-grow-1 overflow-hidden h-100 position-relative">
                         <div className="content-container overflow-auto h-100">
                             <div className="p-3 p-md-4 p-lg-5">
                                 {children}
                             </div>
                         </div>
+                        <AIChatBox />
                     </main>
 
                     {/* Right Sidebar Desktop (Fixed) */}

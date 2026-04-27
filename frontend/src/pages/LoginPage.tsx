@@ -5,7 +5,7 @@ import * as AuthTypes from '../types/auth.types';
 import { loginUser } from '../services/auth.service';
 import LogoBiru from '../assets/Logo Biru.svg';
 import StartIllustration from '../assets/startpage.jpg';
-import { ArrowLeft, Envelope, Lock } from 'react-bootstrap-icons'; 
+import { ArrowLeft, Person, Lock } from 'react-bootstrap-icons'; 
 import { useAuth } from '../context/AuthContext'; 
 
 const LoginPage = () => {
@@ -172,7 +172,7 @@ const LoginPage = () => {
                           borderRight: 0,
                         }}
                       >
-                        <Envelope />
+                        <Person />
                       </InputGroup.Text>
                       <Form.Control
                         type="text"

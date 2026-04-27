@@ -219,7 +219,7 @@ const SettingsPage = () => {
                     <Card className="shadow-sm border-0" style={{ borderRadius: '25px', backgroundColor: '#fff5f5' }}>
                         <Card.Body className="p-4 d-md-flex align-items-center justify-content-between">
                             <div className="mb-3 mb-md-0">
-                                <h5 className="fw-bold text-danger mb-1">Keluar dari SipDana</h5>
+                                <h5 className="fw-bold text-danger mb-1">Keluar dari DuitFam</h5>
                                 <p className="text-muted small mb-0">Pastikan semua data Anda sudah tersimpan dengan benar.</p>
                             </div>
                             <Button 

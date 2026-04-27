@@ -150,7 +150,7 @@ const AddChildModal: React.FC<AddChildModalProps> = ({ show, handleClose, onSucc
                                 <Spinner animation="border" size="sm" />
                             ) : (
                                 <>
-                                    <PlusCircleFill className="me-2" /> + Tambah Akun Anak
+                                    <PlusCircleFill className="me-2" /> Tambah Akun Anak
                                 </>
                             )}
                         </Button>

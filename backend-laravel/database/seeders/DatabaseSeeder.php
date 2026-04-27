@@ -20,19 +20,19 @@ class DatabaseSeeder extends Seeder
         $mongo->selectCollection('users')->createIndex(['role' => 1]);
         $mongo->selectCollection('users')->createIndex(['is_active' => 1]);
 
-        $mongo->selectCollection('wallets')->createIndex(['user_id' => 1], ['unique' => true]);
+        //$mongo->selectCollection('wallets')->createIndex(['user_id' => 1], ['unique' => true]);
 
         $mongo->selectCollection('categories')->createIndex(['nama_kategori' => 1], ['unique' => true]);
 
-        $mongo->selectCollection('parent_child_relations')->createIndex(['parent_id' => 1, 'is_active' => 1]);
-        $mongo->selectCollection('parent_child_relations')->createIndex(['child_id' => 1]);
+        //$mongo->selectCollection('parent_child_relations')->createIndex(['parent_id' => 1, 'is_active' => 1]);
+        //$mongo->selectCollection('parent_child_relations')->createIndex(['child_id' => 1]);
 
         $mongo->selectCollection('transactions')->createIndex(['user_id' => 1, 'created_at' => -1]);
         $mongo->selectCollection('transactions')->createIndex(['user_id' => 1, 'tanggal' => 1]);
         $mongo->selectCollection('transactions')->createIndex(['user_id' => 1, 'jenis' => 1, 'tanggal' => 1]);
 
-        $mongo->selectCollection('saving_goals')->createIndex(['user_id' => 1, 'created_at' => -1]);
-        $mongo->selectCollection('saving_goals')->createIndex(['user_id' => 1, 'status' => 1]);
+        //$mongo->selectCollection('saving_goals')->createIndex(['user_id' => 1, 'created_at' => -1]);
+        //$mongo->selectCollection('saving_goals')->createIndex(['user_id' => 1, 'status' => 1]);
 
         $mongo->selectCollection('withdrawal_requests')->createIndex(['child_id' => 1, 'created_at' => -1]);
         $mongo->selectCollection('withdrawal_requests')->createIndex(['parent_id' => 1, 'created_at' => -1]);
