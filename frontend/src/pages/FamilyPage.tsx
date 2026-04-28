@@ -40,6 +40,7 @@ const formatRupiah = (amount: number) => {
     const [depositModalOpen, setDepositModalOpen] = useState(false);
     const [depositChildId, setDepositChildId] = useState<string>('');
     const [depositAmount, setDepositAmount] = useState<string>('');
+    const [depositKeterangan, setDepositKeterangan] = useState<string>('');
     const [depositLoading, setDepositLoading] = useState(false);
     
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -79,6 +80,7 @@ const formatRupiah = (amount: number) => {
     const openDeposit = (childId: string) => {
         setDepositChildId(childId);
         setDepositAmount('');
+        setDepositKeterangan('');
         setDepositModalOpen(true);
     };
 
@@ -87,7 +89,7 @@ const formatRupiah = (amount: number) => {
         if (!depositChildId || !amount || amount <= 0) return;
         setDepositLoading(true);
         try {
-            await depositToChild({ child_id: depositChildId, amount });
+            await depositToChild({ child_id: depositChildId, amount, keterangan: depositKeterangan || undefined });
             setDepositModalOpen(false);
             loadData();
         } catch (e: any) {
@@ -303,6 +305,16 @@ const formatRupiah = (amount: number) => {
                                 setDepositAmount(val ? parseInt(val).toLocaleString('id-ID') : '');
                             }} 
                             style={{ borderRadius: 12, padding: '12px', fontSize: 24, fontWeight: 'bold' }}
+                        />
+                    </Form.Group>
+                    <Form.Group className="mb-4">
+                        <Form.Label className="small text-muted fw-bold">Catatan (Opsional)</Form.Label>
+                        <Form.Control 
+                            type="text" 
+                            value={depositKeterangan} 
+                            onChange={(e) => setDepositKeterangan(e.target.value)}
+                            placeholder="Contoh: Tabungan bulanan"
+                            style={{ borderRadius: 12, padding: '12px' }}
                         />
                     </Form.Group>
                     <Button 

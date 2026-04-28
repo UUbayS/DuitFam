@@ -4,7 +4,7 @@ export interface TransactionInput {
     jenis: TransactionType;
     jumlah: number;
     tanggal: string;
-    keterangan: string;
+    keterangan?: string;
     id_kategori: string;
     source_id?: string;
 }

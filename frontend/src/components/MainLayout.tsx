@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import TransactionHistory from './TransactionHistory';
@@ -27,10 +27,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     const [showSidebar, setShowSidebar] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     
-    const handleAdded = () => {
+    const handleAdded = useCallback(() => {
         if (onTransactionAdded) onTransactionAdded();
         setShowModal(false);
-    };
+    }, [onTransactionAdded]);
 
     const handleOpenModal = () => {
         if (openTransactionModal) {

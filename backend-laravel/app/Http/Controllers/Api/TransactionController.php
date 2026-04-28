@@ -71,7 +71,7 @@ class TransactionController extends Controller
                 'status' => config('constants.transaction_status.berhasil'),
                 'jumlah' => $amount,
                 'tanggal' => $request->input('tanggal'),
-                'keterangan' => $request->input('keterangan'),
+                'keterangan' => $request->input('keterangan') ?: null,
                 'source_id' => $sourceId,
             ]);
             NotificationFeed::create(['user_id' => (string) $user->id, 'title' => 'Transaksi berhasil', 'message' => 'Transaksi '.$jenis.' sebesar '.number_format($amount, 0, ',', '.').' berhasil dicatat.', 'read_at' => null, 'meta' => ['transaction_id' => (string) $transaction->id]]);
@@ -128,7 +128,7 @@ class TransactionController extends Controller
                 'status' => config('constants.transaction_status.berhasil'),
                 'jumlah' => $amount,
                 'tanggal' => now()->toDateString(),
-                'keterangan' => $validated['keterangan'] ?: 'Deposit dari orang tua',
+                'keterangan' => $request->input('keterangan') ?? 'Deposit dari orang tua',
             ]);
 
             NotificationFeed::create([

@@ -10,9 +10,14 @@ const StartPage = () => {
     const transitionMs = 260;
 
     useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            navigate('/dashboard');
+            return;
+        }
         const id = window.setTimeout(() => setPhase('idle'), 30);
         return () => window.clearTimeout(id);
-    }, []);
+    }, [navigate]);
 
     const go = (to: string) => {
         setPhase('leave');

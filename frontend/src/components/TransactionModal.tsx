@@ -115,8 +115,12 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
         e.preventDefault();
         const numericJumlah = parseFloat(formData.jumlah.replace(/\./g, ''));
 
-        if (numericJumlah <= 0 || !formData.keterangan || formData.id_kategori === '') {
-            setMessage({ type: 'danger', text: 'Semua field wajib diisi dengan benar.' });
+        if (numericJumlah <= 0) {
+            setMessage({ type: 'danger', text: 'Jumlah harus lebih dari 0.' });
+            return;
+        }
+        if (formData.id_kategori === '') {
+            setMessage({ type: 'danger', text: 'Pilih kategori.' });
             return;
         }
 
