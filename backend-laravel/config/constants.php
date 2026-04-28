@@ -38,8 +38,8 @@ return [
 
     'token_expiration' => 3, // hours
     'rate_limit' => [
-        'auth' => 5,      // requests per minute
+        'auth' => 20,      // requests per minute
         'ai' => 10,       // requests per minute
-        'reset_password' => 3, // requests per minute
+        'reset_password' => 5, // requests per minute
     ],
 ];

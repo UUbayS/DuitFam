@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Button, Badge, Spinner, Form } from 'react-bootstrap';
 import * as Icons from 'react-bootstrap-icons';
 import { EyeFill, EyeSlashFill, Tag } from 'react-bootstrap-icons';
 import { fetchTransactionHistory, fetchMonthlySummary } from '../services/report.service';
 import type { TransactionHistoryItem, MonthlySummary } from '../types/report.types';
-import { useTimeFilter } from '../hooks/useTimeFilter'; 
+import { useTimeFilter } from '../hooks/useTimeFilter';
 
 interface TransactionHistoryProps {
     onTransactionAdded: () => void; 
@@ -33,6 +33,8 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const periodKey = useMemo(() => JSON.stringify(period.apiParam), [period.apiParam]);
+
     const loadHistoryData = useCallback(async () => {
         setLoading(true);
         try {
@@ -47,7 +49,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
         } finally {
             setLoading(false);
         }
-    }, [period.apiParam]);
+    }, [periodKey]);
 
     useEffect(() => {
         loadHistoryData();
