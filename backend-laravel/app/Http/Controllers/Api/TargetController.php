@@ -41,7 +41,6 @@ class TargetController extends Controller
                 }
                 $targetUserIds = [(string) $childId];
             } else {
-                // Get all active children IDs
                 $childrenIds = ParentChildRelation::query()
                     ->where('parent_id', (string) $user->id)
                     ->where('is_active', true)
@@ -53,7 +52,7 @@ class TargetController extends Controller
 
         $goals = SavingGoal::whereIn('user_id', $targetUserIds)
             ->latest()
-            ->get()
+            ->get(['_id', 'user_id', 'nama_target', 'target_jumlah', 'jumlah_terkumpul', 'tanggal_target', 'status', 'created_at', 'updated_at'])
             ->map(function ($goal) {
             $target = (float) $goal->target_jumlah;
             $collected = (float) ($goal->jumlah_terkumpul ?? 0);

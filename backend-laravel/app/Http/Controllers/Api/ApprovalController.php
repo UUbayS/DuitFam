@@ -67,7 +67,10 @@ class ApprovalController extends Controller
             $query->where('child_id', $user->id);
         }
 
-        $data = $query->latest()->get()->map(function ($w) {
+        $data = $query->latest()
+            ->limit(50)
+            ->get(['_id', 'child_id', 'parent_id', 'amount', 'reason', 'status', 'created_at'])
+            ->map(function ($w) {
             return [
                 'id' => (string) $w->id,
                 'child_id' => (string) $w->child_id,

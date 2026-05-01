@@ -239,10 +239,15 @@ class UserController extends Controller
 
             $relations = ParentChildRelation::query()
                 ->where('parent_id', $request->user()->id)
-                ->get();
+                ->get(['child_id', 'is_active']);
 
             $childIds = $relations->pluck('child_id')->map(fn($id) => (string) $id)->all();
-            $childMap = User::whereIn('_id', $childIds)->get()->keyBy(fn($u) => (string) $u->id);
+            
+            if (empty($childIds)) {
+                return $this->successResponse([], 'OK');
+            }
+
+            $childMap = User::whereIn('_id', $childIds)->get(['_id', 'username', 'email'])->keyBy(fn($u) => (string) $u->id);
 
             $children = $relations->map(function ($relation) use ($childMap) {
                 $child = $childMap[(string) $relation->child_id] ?? null;
@@ -270,13 +275,20 @@ class UserController extends Controller
                 return $this->errorResponse('Hanya akun parent yang dapat melihat saldo anak.', [], 403);
             }
 
-            $relations = ParentChildRelation::query()->where('parent_id', (string) $request->user()->id)->get();
+            $relations = ParentChildRelation::query()
+                ->where('parent_id', (string) $request->user()->id)
+                ->get(['child_id', 'is_active']);
+
             $childIds = $relations->pluck('child_id')->map(fn($id) => (string) $id)->values();
             
-            $childMap = User::whereIn('_id', $childIds->all())->get()->keyBy(fn($u) => (string) $u->id);
+            if ($childIds->isEmpty()) {
+                return $this->successResponse([], 'OK');
+            }
+            
+            $childMap = User::whereIn('_id', $childIds->all())->get(['_id', 'username', 'email'])->keyBy(fn($u) => (string) $u->id);
             $walletMap = Wallet::query()
                 ->whereIn('user_id', $childIds->all())
-                ->get()
+                ->get(['user_id', 'saldo_sekarang'])
                 ->keyBy('user_id');
 
             $data = $relations->map(function ($relation) use ($childMap, $walletMap) {

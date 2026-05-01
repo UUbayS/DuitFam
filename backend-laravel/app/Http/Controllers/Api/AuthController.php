@@ -62,15 +62,19 @@ class AuthController extends Controller
     public function login(LoginRequest $request)
     {
         try {
+            $start = microtime(true);
             $identifier = strtolower((string) $request->input('email'));
             Log::info('AUTH_LOGIN_ATTEMPT', ['identifier' => $identifier]);
 
+            $t1 = microtime(true);
             $user = User::where('email', $identifier)->orWhere('username', $identifier)->first();
+            $t2 = microtime(true);
             if (! $user || ! Hash::check((string) $request->input('password'), $user->password)) {
                 Log::warning('AUTH_LOGIN_INVALID_CREDENTIALS', ['identifier' => $identifier]);
 
                 return response()->json(['message' => 'Email atau Password salah.'], 401);
             }
+            $t3 = microtime(true);
             if (isset($user->is_active) && ! $user->is_active) {
                 return response()->json(['message' => 'Akun dinonaktifkan.'], 403);
             }
@@ -80,8 +84,9 @@ class AuthController extends Controller
             $user->api_token = hash('sha256', $token);
             $user->api_token_expires_at = $expiresAt;
             $user->save();
+            $t4 = microtime(true);
 
-            Log::info('AUTH_LOGIN_SUCCESS', ['user_id' => $user->id, 'email' => $user->email]);
+            Log::info('AUTH_LOGIN_SUCCESS', ['user_id' => $user->id, 'email' => $user->email, 'timing' => ['query' => $t2-$t1, 'hash' => $t3-$t2, 'save' => $t4-$t3, 'total' => $t4-$start]]);
 
             return response()->json([
                 'message' => 'Login berhasil.',
