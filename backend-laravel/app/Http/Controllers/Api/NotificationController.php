@@ -10,7 +10,11 @@ class NotificationController extends Controller
 {
     public function index(Request $request)
     {
-        $data = NotificationFeed::where('user_id', $request->user()->id)->orderByDesc('created_at')->get()->map(function ($item) {
+        $data = NotificationFeed::where('user_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get(['_id', 'title', 'message', 'read_at', 'created_at'])
+            ->map(function ($item) {
             return [
                 'id' => (string) $item->_id,
                 'title' => $item->title,
