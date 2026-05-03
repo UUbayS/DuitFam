@@ -33,7 +33,7 @@ const formatRupiah = (amount: number) => {
     
     const [summary, setSummary] = useState<ReportTypes.MonthlySummary | null>(null);
     const [historicalData, setHistoricalData] = useState<ReportTypes.AnalysisReport['chartData']>([]);
-    const [children, setChildren] = useState<Array<{ id: string; username: string; email: string; is_active: boolean; saldo: number }>>([]);
+    const [children, setChildren] = useState<Array<{ id: string; username: string; email: string; is_active: boolean; saldo: number; percentage_change: number }>>([]);
 
     const [createChildModalOpen, setCreateChildModalOpen] = useState(false);
 
@@ -76,6 +76,10 @@ const formatRupiah = (amount: number) => {
     }, [loadData]);
 
     const childCount = useMemo(() => children.length, [children.length]);
+
+    const totalChildrenBalance = useMemo(() => 
+        children.reduce((sum, c) => sum + (c.saldo || 0), 0)
+    , [children]);
 
     const openDeposit = (childId: string) => {
         setDepositChildId(childId);
@@ -185,7 +189,7 @@ const formatRupiah = (amount: number) => {
                                 Saldo Total Anak
                             </div>
                             <div className="mt-2" style={{ fontSize: 48, fontWeight: 900, color: '#1389f9', letterSpacing: '-1px' }}>
-                                {showSaldo ? formatRupiah(summary?.saldoAkhir || 0) : 'Rp ••••••'}
+                                {showSaldo ? formatRupiah(totalChildrenBalance) : 'Rp ••••••'}
                             </div>
                             <div className="text-muted fw-semibold" style={{ fontSize: 14 }}>
                                 Saldo gabungan {childCount} anak
@@ -220,8 +224,8 @@ const formatRupiah = (amount: number) => {
                                             <div className="fw-bold mt-1" style={{ fontSize: 26, color: '#1389f9' }}>
                                                 {showSaldo ? formatRupiah(c.saldo) : 'Rp ••••••'}
                                             </div>
-                                            <div className="text-success fw-bold small">
-                                                +5.89% dari bulan lalu
+                                            <div className={`fw-bold small ${c.percentage_change >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                {c.percentage_change >= 0 ? '+' : ''}{c.percentage_change}% dari bulan lalu
                                             </div>
                                         </div>
                                     </div>
@@ -279,7 +283,13 @@ const formatRupiah = (amount: number) => {
                         Analisis Keuangan
                     </div>
                     <div style={{ minHeight: 300 }}>
-                        <MonthlyBarChart chartData={historicalData} />
+                        {historicalData.length > 0 ? (
+                            <MonthlyBarChart key={JSON.stringify(historicalData)} chartData={historicalData} />
+                        ) : (
+                            <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                                Belum ada data untuk ditampilkan.
+                            </div>
+                        )}
                     </div>
                 </Card.Body>
             </Card>

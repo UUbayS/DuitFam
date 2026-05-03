@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.token' => TokenAuthMiddleware::class,
         ]);
+        $middleware->throttleApi('200,1');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

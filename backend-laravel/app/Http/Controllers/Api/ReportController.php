@@ -14,19 +14,34 @@ use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
-    private function buildUserSummary(string $userId, string $month): array
+    private function applyTimeFilter($query, Request $request)
+    {
+        if ($request->has('start_date') && $request->has('end_date')) {
+            return $query->whereBetween('tanggal', [$request->start_date, $request->end_date]);
+        }
+
+        if ($request->has('year')) {
+            return $query->where('tanggal', 'like', $request->year . '%');
+        }
+
+        $month = $request->query('month', now()->format('Y-m'));
+        return $query->where('tanggal', 'like', $month . '%');
+    }
+
+    private function buildUserSummary(string $userId, Request $request): array
     {
         $base = Transaction::query()
             ->where('user_id', $userId)
-            ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('tanggal', 'like', $month.'%');
+            ->where('status', config('constants.transaction_status.berhasil'));
+        
+        $base = $this->applyTimeFilter($base, $request);
 
         $income = (float) (clone $base)->where('jenis', config('constants.transaction_types.pemasukan'))->sum('jumlah');
         $expense = (float) (clone $base)->where('jenis', config('constants.transaction_types.pengeluaran'))->sum('jumlah');
         $wallet = Wallet::firstOrCreate(['user_id' => $userId], ['saldo_sekarang' => 0]);
 
         return [
-            'bulan' => $month,
+            'bulan' => $request->query('month', now()->format('Y-m')),
             'totalPemasukan' => $income,
             'totalPengeluaran' => $expense,
             'neto' => $income - $expense,
@@ -34,7 +49,7 @@ class ReportController extends Controller
         ];
     }
 
-    private function buildFamilySummary(string $parentId, string $month): array
+    private function buildFamilySummary(string $parentId, Request $request): array
     {
         $childIds = ParentChildRelation::query()
             ->where('parent_id', $parentId)
@@ -43,17 +58,27 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
+        $allUserIds = collect([$parentId])->merge($childIds)->unique()->values();
+
         $txBase = Transaction::query()
-            ->whereIn('user_id', $childIds->all())
-            ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('tanggal', 'like', $month.'%');
+            ->whereIn('user_id', $allUserIds->all())
+            ->where('status', config('constants.transaction_status.berhasil'));
+        
+        $txBase = $this->applyTimeFilter($txBase, $request);
 
         $income = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pemasukan'))->sum('jumlah');
         $expense = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pengeluaran'))->sum('jumlah');
-        $walletTotal = (float) Wallet::query()->whereIn('user_id', $childIds->all())->sum('saldo_sekarang');
+        
+        $childWalletTotal = 0;
+        if ($childIds->isNotEmpty()) {
+            $childWalletTotal = (float) Wallet::query()->whereIn('user_id', $childIds->all())->sum('saldo_sekarang');
+        }
+        
+        $parentWallet = Wallet::firstOrCreate(['user_id' => $parentId], ['saldo_sekarang' => 0]);
+        $walletTotal = $childWalletTotal + (float) $parentWallet->saldo_sekarang;
 
         return [
-            'bulan' => $month,
+            'bulan' => $request->query('month', now()->format('Y-m')),
             'totalPemasukan' => $income,
             'totalPengeluaran' => $expense,
             'neto' => $income - $expense,
@@ -65,13 +90,13 @@ class ReportController extends Controller
     public function summary(Request $request)
     {
         $userId = (string) $request->user()->id;
-        $month = (string) $request->query('month', now()->format('Y-m'));
 
-        $transactions = Transaction::query()
+        $query = Transaction::query()
             ->where('user_id', $userId)
-            ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('tanggal', 'like', $month.'%')
-            ->get(['jenis', 'jumlah']);
+            ->where('status', config('constants.transaction_status.berhasil'));
+        
+        $query = $this->applyTimeFilter($query, $request);
+        $transactions = $query->get(['jenis', 'jumlah']);
 
         $income = 0;
         $expense = 0;
@@ -87,19 +112,12 @@ class ReportController extends Controller
         $saldo = $wallet ? (float) $wallet->saldo_sekarang : 0;
 
         $summaryData = [
-            'bulan' => $month,
+            'bulan' => $request->query('month', now()->format('Y-m')),
             'totalPemasukan' => $income,
             'totalPengeluaran' => $expense,
             'neto' => $income - $expense,
             'saldoAkhir' => $saldo,
         ];
-
-        if ($request->boolean('snapshot')) {
-            AnalyticsSnapshot::updateOrCreate(
-                ['user_id' => $userId, 'period' => $month],
-                ['summary' => $summaryData, 'chart_data' => [], 'created_at' => now()]
-            );
-        }
 
         return response()->json(['message' => 'OK', 'data' => $summaryData]);
     }
@@ -108,8 +126,10 @@ class ReportController extends Controller
     {
         $userId = (string) $request->user()->id;
         
-        $rows = Transaction::where('user_id', $userId)
-            ->orderByDesc('created_at')
+        $query = Transaction::where('user_id', $userId);
+        $query = $this->applyTimeFilter($query, $request);
+
+        $rows = $query->orderByDesc('created_at')
             ->limit(50)
             ->get(['_id', 'user_id', 'jenis', 'jumlah', 'keterangan', 'tanggal', 'created_at', 'status', 'category_id', 'source_id', 'jenis as original_jenis']);
 
@@ -182,14 +202,33 @@ class ReportController extends Controller
     public function historical(Request $request)
     {
         $userId = (string) $request->user()->id;
-        $result = Transaction::raw(function ($collection) use ($userId) {
+        $unit = $request->query('unit', 'tahunan'); // Default tahunan for dashboard
+        
+        $result = Transaction::raw(function ($collection) use ($userId, $unit, $request) {
+            $match = [
+                'user_id' => $userId,
+                'status' => config('constants.transaction_status.berhasil')
+            ];
+
+            // Apply specific period filtering if provided
+            if ($unit === 'mingguan' && $request->has('start_date') && $request->has('end_date')) {
+                $match['tanggal'] = ['$gte' => $request->start_date, '$lte' => $request->end_date];
+                $groupBy = ['$substr' => ['$tanggal', 0, 10]]; // YYYY-MM-DD
+            } else if ($unit === 'bulan' && $request->has('month')) {
+                $match['tanggal'] = ['$regex' => '^' . $request->month];
+                $groupBy = ['$substr' => ['$tanggal', 0, 10]]; // YYYY-MM-DD
+            } else if ($unit === 'tahunan' && $request->has('year')) {
+                $match['tanggal'] = ['$regex' => '^' . $request->year];
+                $groupBy = ['$substr' => ['$tanggal', 0, 7]]; // YYYY-MM
+            } else {
+                // Default fallback (usually for dashboard)
+                $groupBy = ['$substr' => ['$tanggal', 0, 7]]; // YYYY-MM
+            }
+
             return $collection->aggregate([
-                ['$match' => [
-                    'user_id' => $userId,
-                    'status' => config('constants.transaction_status.berhasil')
-                ]],
+                ['$match' => $match],
                 ['$group' => [
-                    '_id' => ['$substr' => ['$tanggal', 0, 7]],
+                    '_id' => $groupBy,
                     'pemasukan' => ['$sum' => [
                         '$cond' => [
                             ['$eq' => ['$jenis', config('constants.transaction_types.pemasukan')]],
@@ -205,19 +244,13 @@ class ReportController extends Controller
                         ]
                     ]]
                 ]],
-                ['$sort' => ['_id' => -1]],
-                ['$project' => [
-                    'month' => '$_id',
-                    'pemasukan' => 1,
-                    'pengeluaran' => 1,
-                    '_id' => 0
-                ]]
+                ['$sort' => ['_id' => 1]]
             ]);
         });
 
         $data = array_map(function ($item) {
             return [
-                'month' => $item->_id,
+                'month' => (string) ($item->_id ?? ''),
                 'pemasukan' => (float) ($item->pemasukan ?? 0),
                 'pengeluaran' => (float) ($item->pengeluaran ?? 0),
             ];
@@ -229,68 +262,21 @@ class ReportController extends Controller
     public function analysis(Request $request)
     {
         $userId = (string) $request->user()->id;
-        $month = (string) $request->query('month', now()->format('Y-m'));
+        $summary = $this->buildUserSummary($userId, $request);
+        $month = $request->query('month', now()->format('Y-m'));
+
+        $expenseQuery = Transaction::query()
+            ->where('user_id', $userId)
+            ->where('jenis', config('constants.transaction_types.pengeluaran'))
+            ->where('status', config('constants.transaction_status.berhasil'));
         
-        $txSummary = Transaction::raw(function ($collection) use ($userId, $month) {
-            return $collection->aggregate([
-                ['$match' => [
-                    'user_id' => $userId,
-                    'status' => config('constants.transaction_status.berhasil'),
-                    'tanggal' => ['$regex' => "^$month"]
-                ]],
-                ['$group' => [
-                    '_id' => '$jenis',
-                    'total' => ['$sum' => '$jumlah']
-                ]]
-            ]);
-        });
+        $expenseQuery = $this->applyTimeFilter($expenseQuery, $request);
+        
+        $expenseByCategory = $expenseQuery->get()
+            ->groupBy('category_id')
+            ->map(fn ($items) => (float) $items->sum('jumlah'));
 
-        $income = 0;
-        $expense = 0;
-        foreach ($txSummary as $item) {
-            if ($item->_id === config('constants.transaction_types.pemasukan')) {
-                $income = (float) ($item->total ?? 0);
-            } else if ($item->_id === config('constants.transaction_types.pengeluaran')) {
-                $expense = (float) ($item->total ?? 0);
-            }
-        }
-
-        $wallet = Wallet::where('user_id', $userId)->first(['saldo_sekarang']);
-        $saldo = $wallet ? (float) $wallet->saldo_sekarang : 0;
-
-        $summary = [
-            'bulan' => $month,
-            'totalPemasukan' => $income,
-            'totalPengeluaran' => $expense,
-            'neto' => $income - $expense,
-            'saldoAkhir' => $saldo,
-        ];
-
-        $expenseByCategory = Transaction::raw(function ($collection) use ($userId, $month) {
-            return $collection->aggregate([
-                ['$match' => [
-                    'user_id' => $userId,
-                    'jenis' => config('constants.transaction_types.pengeluaran'),
-                    'status' => config('constants.transaction_status.berhasil'),
-                    'tanggal' => ['$regex' => "^$month"]
-                ]],
-                ['$group' => [
-                    '_id' => '$category_id',
-                    'total' => ['$sum' => '$jumlah']
-                ]],
-                ['$sort' => ['total' => -1]]
-            ]);
-        });
-
-        $categoryIds = [];
-        $categoryTotals = [];
-        foreach ($expenseByCategory as $item) {
-            if ($item->_id) {
-                $categoryIds[] = $item->_id;
-                $categoryTotals[(string)$item->_id] = (float) ($item->total ?? 0);
-            }
-        }
-
+        $categoryIds = $expenseByCategory->keys()->filter()->all();
         $categoryMap = [];
         if (!empty($categoryIds)) {
             $categories = Category::whereIn('_id', $categoryIds)->get(['_id', 'nama_kategori'])->keyBy(fn ($c) => (string) $c->id)->all();
@@ -298,10 +284,9 @@ class ReportController extends Controller
         }
 
         $topExpense = null;
-        if (!empty($categoryTotals)) {
-            arsort($categoryTotals);
-            $topCategoryId = array_key_first($categoryTotals);
-            $topAmount = $categoryTotals[$topCategoryId];
+        if ($expenseByCategory->isNotEmpty()) {
+            $topCategoryId = $expenseByCategory->sortDesc()->keys()->first();
+            $topAmount = (float) $expenseByCategory->max();
             $topExpense = [
                 'categoryId' => $topCategoryId,
                 'namaKategori' => $categoryMap[$topCategoryId] ?? 'Lainnya',
@@ -309,39 +294,32 @@ class ReportController extends Controller
             ];
         }
 
-        $categoryBreakdown = array_map(function ($amount, $categoryId) use ($summary, $categoryMap) {
-            return [
+        $categoryBreakdown = [];
+        foreach ($expenseByCategory as $categoryId => $amount) {
+            $categoryBreakdown[] = [
                 'categoryId' => $categoryId,
                 'namaKategori' => $categoryMap[$categoryId] ?? 'Lainnya',
                 'jumlah' => $amount,
                 'persentase' => $summary['totalPengeluaran'] > 0 ? round(($amount / $summary['totalPengeluaran']) * 100, 2) : 0,
             ];
-        }, $categoryTotals, array_keys($categoryTotals));
-        $categoryBreakdown = array_values($categoryBreakdown);
+        }
 
         $chart = $this->historical($request)->getData(true)['data'];
         $smartRecommendation = $summary['totalPengeluaran'] > $summary['totalPemasukan']
             ? 'Pengeluaran melebihi pemasukan. Terapkan batas kategori harian.'
             : 'Kondisi arus kas sehat. Alokasikan minimal 20% ke tabungan/investasi.';
+        
         $incomeVal = (float) $summary['totalPemasukan'];
         $need = round($incomeVal * 0.5, 0);
         $want = round($incomeVal * 0.3, 0);
         $save = round($incomeVal * 0.2, 0);
+        
         $recommendation = [
             'namaMetode' => 'Metode 50/30/20',
             'deskripsiMetode' => 'Bagi pemasukan: 50% kebutuhan, 30% keinginan, 20% tabungan/investasi.',
             'detailRekomendasi' => 'Dari pemasukan '.number_format($incomeVal, 0, ',', '.').', rekomendasi alokasi: kebutuhan '.number_format($need, 0, ',', '.').', keinginan '.number_format($want, 0, ',', '.').', tabungan/investasi '.number_format($save, 0, ',', '.').'.',
             'langkah_implementasi' => 'Catat semua pemasukan & pengeluaran|Kelompokkan pengeluaran menjadi kebutuhan vs keinginan|Tetapkan batas pengeluaran per kategori|Sisihkan 20% di awal bulan untuk tabungan/target|Evaluasi akhir periode dan sesuaikan batas',
         ];
-        SmartInsight::updateOrCreate([
-            'user_id' => $request->user()->id,
-            'month' => $month,
-        ], [
-            'insight' => 'Analisis 50/30/20 otomatis.',
-            'recommendation' => $smartRecommendation,
-            'score' => $summary['neto'] >= 0 ? 80 : 55,
-            'created_at' => now(),
-        ]);
 
         return response()->json(['message' => 'OK', 'data' => [
             'summary' => $summary,
@@ -365,8 +343,7 @@ class ReportController extends Controller
             return response()->json(['message' => 'Hanya akun parent yang dapat melihat laporan keluarga.'], 403);
         }
 
-        $month = (string) $request->query('month', now()->format('Y-m'));
-        $data = $this->buildFamilySummary((string) $parent->id, $month);
+        $data = $this->buildFamilySummary((string) $parent->id, $request);
 
         return response()->json(['message' => 'OK', 'data' => $data]);
     }
@@ -385,18 +362,33 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
-        if ($childIds->isEmpty()) {
-            return response()->json(['message' => 'OK', 'data' => []]);
-        }
+        // Include parent's ID for transaction queries
+        $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+        $unit = $request->query('unit', 'tahunan');
 
-        $result = Transaction::raw(function ($collection) use ($childIds) {
+        $result = Transaction::raw(function ($collection) use ($allUserIds, $unit, $request) {
+            $match = [
+                'user_id' => ['$in' => $allUserIds->all()],
+                'status' => config('constants.transaction_status.berhasil')
+            ];
+
+            if ($unit === 'mingguan' && $request->has('start_date') && $request->has('end_date')) {
+                $match['tanggal'] = ['$gte' => $request->start_date, '$lte' => $request->end_date];
+                $groupBy = ['$substr' => ['$tanggal', 0, 10]];
+            } else if ($unit === 'bulan' && $request->has('month')) {
+                $match['tanggal'] = ['$regex' => '^' . $request->month];
+                $groupBy = ['$substr' => ['$tanggal', 0, 10]];
+            } else if ($unit === 'tahunan' && $request->has('year')) {
+                $match['tanggal'] = ['$regex' => '^' . $request->year];
+                $groupBy = ['$substr' => ['$tanggal', 0, 7]];
+            } else {
+                $groupBy = ['$substr' => ['$tanggal', 0, 7]];
+            }
+
             return $collection->aggregate([
-                ['$match' => [
-                    'user_id' => ['$in' => $childIds->all()],
-                    'status' => config('constants.transaction_status.berhasil')
-                ]],
+                ['$match' => $match],
                 ['$group' => [
-                    '_id' => ['$substr' => ['$tanggal', 0, 7]],
+                    '_id' => $groupBy,
                     'pemasukan' => ['$sum' => [
                         '$cond' => [
                             ['$eq' => ['$jenis', config('constants.transaction_types.pemasukan')]],
@@ -412,19 +404,13 @@ class ReportController extends Controller
                         ]
                     ]]
                 ]],
-                ['$sort' => ['_id' => -1]],
-                ['$project' => [
-                    'month' => '$_id',
-                    'pemasukan' => 1,
-                    'pengeluaran' => 1,
-                    '_id' => 0
-                ]]
+                ['$sort' => ['_id' => 1]]
             ]);
         });
 
         $data = array_map(function ($item) {
             return [
-                'month' => $item->_id,
+                'month' => (string) ($item->_id ?? ''),
                 'pemasukan' => (float) ($item->pemasukan ?? 0),
                 'pengeluaran' => (float) ($item->pengeluaran ?? 0),
             ];
@@ -447,9 +433,13 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
-        $rows = Transaction::query()
-            ->whereIn('user_id', $childIds->all())
-            ->orderByDesc('created_at')
+        // Include parent's ID for transaction queries
+        $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+
+        $query = Transaction::query()->whereIn('user_id', $allUserIds->all());
+        $query = $this->applyTimeFilter($query, $request);
+
+        $rows = $query->orderByDesc('created_at')
             ->limit(100)
             ->get();
 
@@ -527,8 +517,7 @@ class ReportController extends Controller
             return response()->json(['message' => 'Hanya akun parent yang dapat melihat laporan keluarga.'], 403);
         }
 
-        $month = (string) $request->query('month', now()->format('Y-m'));
-        $summary = $this->buildFamilySummary((string) $parent->id, $month);
+        $summary = $this->buildFamilySummary((string) $parent->id, $request);
         $childIds = ParentChildRelation::query()
             ->where('parent_id', $parent->id)
             ->where('is_active', true)
@@ -536,12 +525,16 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
-        $expenseByCategory = Transaction::query()
-            ->whereIn('user_id', $childIds->all())
+        $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+
+        $expenseQuery = Transaction::query()
+            ->whereIn('user_id', $allUserIds->all())
             ->where('jenis', config('constants.transaction_types.pengeluaran'))
-            ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('tanggal', 'like', $month.'%')
-            ->get()
+            ->where('status', config('constants.transaction_status.berhasil'));
+        
+        $expenseQuery = $this->applyTimeFilter($expenseQuery, $request);
+        
+        $expenseByCategory = $expenseQuery->get()
             ->groupBy('category_id')
             ->map(fn ($items) => (float) $items->sum('jumlah'));
 
