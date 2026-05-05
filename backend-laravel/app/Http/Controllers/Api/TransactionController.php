@@ -112,15 +112,45 @@ class TransactionController extends Controller
 
         return $this->safeMongoTransaction(function () use ($request, $parent, $validated) {
             $child = User::where('_id', (string) $validated['child_id'])->where('role', config('constants.roles.child'))->firstOrFail();
-            $wallet = Wallet::where('user_id', (string) $child->id)->first();
-            if (!$wallet) {
-                $wallet = Wallet::create(['user_id' => (string) $child->id, 'saldo_sekarang' => 0]);
-            }
             $amount = (float) $validated['amount'];
-            $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) + $amount;
-            $wallet->save();
+            
+            // 1. Deduct from Parent Wallet
+            $parentWallet = Wallet::where('user_id', (string) $parent->id)->first();
+            if (!$parentWallet) {
+                $parentWallet = Wallet::create(['user_id' => (string) $parent->id, 'saldo_sekarang' => 0]);
+            }
+            
+            if ((float) $parentWallet->saldo_sekarang < $amount) {
+                return response()->json(['message' => 'Saldo Anda tidak mencukupi untuk melakukan deposit.'], 422);
+            }
+            
+            $parentWallet->saldo_sekarang = ((float) $parentWallet->saldo_sekarang) - $amount;
+            $parentWallet->save();
+
+            // 2. Add to Child Wallet
+            $childWallet = Wallet::where('user_id', (string) $child->id)->first();
+            if (!$childWallet) {
+                $childWallet = Wallet::create(['user_id' => (string) $child->id, 'saldo_sekarang' => 0]);
+            }
+            $childWallet->saldo_sekarang = ((float) $childWallet->saldo_sekarang) + $amount;
+            $childWallet->save();
 
             $depositCategory = Category::query()->where('nama_kategori', config('constants.categories.Tabungan'))->first();
+            $keterangan = $request->input('keterangan') ?? 'Deposit ke anak: ' . $child->username;
+
+            // 3. Create Transaction for Parent (Expense)
+            Transaction::create([
+                'user_id' => (string) $parent->id,
+                'category_id' => $depositCategory ? (string) $depositCategory->id : null,
+                'jenis' => config('constants.transaction_types.pengeluaran'),
+                'status' => config('constants.transaction_status.berhasil'),
+                'jumlah' => $amount,
+                'tanggal' => now()->toDateString(),
+                'keterangan' => $keterangan,
+                'is_internal' => true,
+            ]);
+
+            // 4. Create Transaction for Child (Income)
             $transaction = Transaction::create([
                 'user_id' => (string) $child->id,
                 'category_id' => $depositCategory ? (string) $depositCategory->id : null,
@@ -128,7 +158,8 @@ class TransactionController extends Controller
                 'status' => config('constants.transaction_status.berhasil'),
                 'jumlah' => $amount,
                 'tanggal' => now()->toDateString(),
-                'keterangan' => $request->input('keterangan') ?? 'Deposit dari orang tua',
+                'keterangan' => $request->input('keterangan') ?? 'Deposit dari orang tua (' . $parent->username . ')',
+                'is_internal' => true,
             ]);
 
             NotificationFeed::create([
@@ -145,7 +176,7 @@ class TransactionController extends Controller
                 'transaction_id' => (string) $transaction->id,
             ]);
 
-            return response()->json(['message' => 'Deposit berhasil.'], 201);
+            return response()->json(['message' => 'Deposit berhasil dan saldo Anda telah diperbarui.'], 201);
         });
     }
 
