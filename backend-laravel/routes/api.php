@@ -12,37 +12,37 @@ use App\Http\Controllers\Api\UtilityController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix("auth")->group(function () {
-    Route::post("/register", [AuthController::class, "register"])->middleware("throttle:20,1");
-    Route::post("/login", [AuthController::class, "login"])->middleware("throttle:20,1");
+    Route::post("/register", [AuthController::class, "register"]);
+    Route::post("/login", [AuthController::class, "login"]);
 });
 
 Route::middleware("auth.token")->group(function () {
     Route::post("/auth/logout", [AuthController::class, "logout"]);
 
-    Route::post("/transactions", [TransactionController::class, "store"])->middleware("throttle:30,1");
+    Route::post("/transactions", [TransactionController::class, "store"]);
     Route::post("/transactions/deposit", [
         TransactionController::class,
         "deposit",
-    ])->middleware("throttle:15,1");
+    ]);
     Route::post("/transactions/withdrawals", [
         ApprovalController::class,
         "store",
-    ])->middleware("throttle:30,1");
+    ]);
     Route::get("/transactions/withdrawals", [
         ApprovalController::class,
         "index",
-    ])->middleware("throttle:30,1");
+    ]);
     Route::patch("/transactions/withdrawals/{id}", [
         ApprovalController::class,
         "action",
-    ])->middleware("throttle:15,1");
+    ]);
 
-    Route::get("/targets", [TargetController::class, "index"])->middleware("throttle:30,1");
-    Route::post("/targets", [TargetController::class, "store"])->middleware("throttle:15,1");
-    Route::put("/targets/{id}", [TargetController::class, "update"])->middleware("throttle:15,1");
-    Route::delete("/targets/{id}", [TargetController::class, "destroy"])->middleware("throttle:10,1");
-    Route::post("/targets/contribute", [TargetController::class, "contribute"])->middleware("throttle:20,1");
-    Route::post("/targets/withdraw", [TargetController::class, "withdraw"])->middleware("throttle:20,1");
+    Route::get("/targets", [TargetController::class, "index"]);
+    Route::post("/targets", [TargetController::class, "store"]);
+    Route::put("/targets/{id}", [TargetController::class, "update"]);
+    Route::delete("/targets/{id}", [TargetController::class, "destroy"]);
+    Route::post("/targets/contribute", [TargetController::class, "contribute"]);
+    Route::post("/targets/withdraw", [TargetController::class, "withdraw"]);
 
     Route::put("/users/profile", [UserController::class, "updateProfile"]);
     Route::put("/users/password", [UserController::class, "updatePassword"]);
@@ -64,7 +64,7 @@ Route::middleware("auth.token")->group(function () {
     Route::post("/users/children/{id}/reset-password", [
         UserController::class,
         "resetChildPassword"
-    ])->middleware("throttle:3,1");
+    ]);
     Route::get("/users/children/balances", [
         UserController::class,
         "childrenBalances",
@@ -75,9 +75,9 @@ Route::middleware("auth.token")->group(function () {
         "categories",
     ]);
 
-    Route::get("/reports/summary", [ReportController::class, "summary"])->middleware("throttle:30,1");
+    Route::get("/reports/summary", [ReportController::class, "summary"]);
     Route::get("/reports/history", [ReportController::class, "history"]);
-    Route::get("/reports/analysis", [ReportController::class, "analysis"])->middleware("throttle:20,1");
+    Route::get("/reports/analysis", [ReportController::class, "analysis"]);
     Route::get("/reports/historical", [ReportController::class, "historical"]);
     Route::get("/reports/family/summary", [
         ReportController::class,
@@ -96,13 +96,13 @@ Route::middleware("auth.token")->group(function () {
         "familyAnalysis",
     ]);
 
-    Route::get("/notifications", [NotificationController::class, "index"])->middleware("throttle:30,1");
+    Route::get("/notifications", [NotificationController::class, "index"]);
     Route::patch("/notifications/{id}/read", [
         NotificationController::class,
         "markRead",
-    ])->middleware("throttle:30,1");
+    ]);
 
     // AI Chat & Alerts
-    Route::post("/ai/chat", [AiChatController::class, "chat"])->middleware("throttle:10,1");
-    Route::get("/ai/alerts", [AiChatController::class, "getAlerts"])->middleware("throttle:10,1");
+    Route::post("/ai/chat", [AiChatController::class, "chat"]);
+    Route::get("/ai/alerts", [AiChatController::class, "getAlerts"]);
 });

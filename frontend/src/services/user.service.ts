@@ -36,8 +36,8 @@ export const fetchChildrenService = async (): Promise<{ id: string; username: st
     return response.data.data;
 };
 
-export const fetchChildrenBalancesService = async (): Promise<{ id: string; username: string; email: string; is_active: boolean; saldo: number }[]> => {
-    const response = await api.get<{ message: string; data: { id: string; username: string; email: string; is_active: boolean; saldo: number }[] }>('/users/children/balances');
+export const fetchChildrenBalancesService = async (): Promise<{ id: string; username: string; email: string; is_active: boolean; saldo: number; percentage_change: number }[]> => {
+    const response = await api.get<{ message: string; data: { id: string; username: string; email: string; is_active: boolean; saldo: number; percentage_change: number }[] }>('/users/children/balances');
     return response.data.data;
 };
 

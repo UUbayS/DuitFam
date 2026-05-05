@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-import { ArrowLeftShort, ArrowRightShort } from 'react-bootstrap-icons';
-import { fetchAnalysisReport, fetchFamilyAnalysisReport, fetchFamilyHistoricalData, fetchHistoricalData } from '../services/report.service';
+import { ArrowLeftShort, ArrowRightShort, Tag } from 'react-bootstrap-icons';
+import * as Icons from 'react-bootstrap-icons';
+import { fetchAnalysisReport, fetchFamilyAnalysisReport, fetchFamilyHistoricalData, fetchHistoricalData, fetchTransactionHistory, fetchFamilyTransactionHistory } from '../services/report.service';
 import type * as ReportTypes from '../types/report.types';
 import MonthlyBarChart from '../components/MonthlyBarChart';
 import { useAuth } from '../context/AuthContext';
 import { useTimeFilter } from '../hooks/useTimeFilter';
 import TransactionModal from '../components/TransactionModal';
 import IconAnalisisBiru from '../assets/IconAnalisisBiru.svg';
-import IconBuku from '../assets/Buku.svg';
-import IconLampu from '../assets/Lampu.svg';
-import IconHurufI from '../assets/HurufIHijau.svg';
-import IconChecklist from '../assets/ChecklistHijau.svg';
 
 const formatRupiah = (amount: number) => {
     const formatted = new Intl.NumberFormat('id-ID', {
@@ -30,26 +27,34 @@ const AnalisisPage = () => {
     const [report, setReport] = useState<any>(null);
     const [historicalData, setHistoricalData] = useState<ReportTypes.AnalysisReport['chartData']>([]);
     const [loading, setLoading] = useState(true);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [transactions, setTransactions] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
 
-        const loadData = useCallback(async () => {
-            setLoading(true);
-            try {
-                const isParent = user?.role === 'parent';
-                const [analysisRes, historical] = await Promise.all([
-                    isParent ? fetchFamilyAnalysisReport(period.apiParam) : fetchAnalysisReport(period.apiParam),
-                    isParent ? fetchFamilyHistoricalData() : fetchHistoricalData({ unit: unit === 'bulan' ? 'bulanan' : unit })
-                ]);
-                setReport(analysisRes);
-                setHistoricalData(historical);
-                setError(null);
-            } catch (err: any) {
-                setError("Gagal memuat data analisis.");
-            } finally {
-                setLoading(false);
-            }
-        }, [period.apiParam, unit, user?.role]);
+    const loadData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const isParent = user?.role === 'parent';
+            const [analysisRes, historical] = await Promise.all([
+                isParent ? fetchFamilyAnalysisReport(period.apiParam) : fetchAnalysisReport(period.apiParam),
+                isParent 
+                    ? fetchFamilyHistoricalData({ unit: unit === 'bulan' ? 'bulan' : unit, ...period.apiParam }) 
+                    : fetchHistoricalData({ unit: unit === 'bulan' ? 'bulan' : unit, ...period.apiParam })
+            ]);
+            setReport(analysisRes);
+            setHistoricalData(historical);
+            setError(null);
+            
+            // Load history separately to not block main UI and avoid rate limit spikes
+            const history = await (isParent ? fetchFamilyTransactionHistory(period.apiParam) : fetchTransactionHistory(period.apiParam));
+            setTransactions(history);
+        } catch (err: any) {
+            setError("Gagal memuat data analisis.");
+        } finally {
+            setLoading(false);
+        }
+    }, [period.apiParam, unit, user?.role]);
 
     useEffect(() => {
         loadData();
@@ -66,8 +71,7 @@ const AnalisisPage = () => {
     }
 
     const summary = report?.summary;
-    const smartAi = report?.smartRecommendation;
-    const rec = report?.recommendation;
+
 
     return (
         <MainLayout onTransactionAdded={loadData} openTransactionModal={() => setShowModal(true)} hideAddButton={false}>
@@ -138,57 +142,66 @@ const AnalisisPage = () => {
                 </Card.Body>
             </Card>
 
-            {smartAi && (
-                <Card className="border-0 shadow-sm mb-4 overflow-hidden" style={{ borderRadius: 25 }}>
-                    <Card.Header className="bg-primary text-white border-0 py-3 px-4 d-flex align-items-center">
-                        <img src={IconLampu} alt="" style={{ width: 22, filter: 'brightness(0) invert(1)', marginRight: 10 }} />
-                        <h5 className="mb-0 fw-bold">Smart Spending AI</h5>
-                    </Card.Header>
-                    <Card.Body className="p-4">
-                        <p className="mb-0 text-muted">{smartAi}</p>
-                    </Card.Body>
-                </Card>
-            )}
-
-            {rec && (
-                <Card className="border-0 shadow-sm mb-5 overflow-hidden" style={{ borderRadius: 25 }}>
-                    <Card.Header className="bg-primary text-white border-0 py-3 px-4 d-flex align-items-center">
-                        <img src={IconBuku} alt="" style={{ width: 22, filter: 'brightness(0) invert(1)', marginRight: 10 }} />
-                        <h5 className="mb-0 fw-bold">Metode Mengelola Keuangan</h5>
-                    </Card.Header>
-                    <Card.Body className="p-4">
-                        <div className="d-flex align-items-start mb-3">
-                            <div className="bg-primary rounded-4 p-3 me-3">
-                                <img src={IconLampu} alt="" style={{ width: 40, filter: 'brightness(0) invert(1)' }} />
-                            </div>
-                            <div>
-                                <h4 className="text-primary fw-bold mb-1">{rec.namaMetode}</h4>
-                                <div className="badge bg-success-subtle text-success px-3 py-2 rounded-pill fw-bold" style={{ fontSize: 11 }}>
-                                    <img src={IconChecklist} alt="" className="me-1" style={{ width: 14 }} /> DIREKOMENDASIKAN
-                                </div>
-                            </div>
-                        </div>
-                        <p className="text-muted">{rec.detailRekomendasi || rec.deskripsiMetode}</p>
-                        
-                        {rec.langkah_implementasi && (
-                            <div className="mt-4 p-4 rounded-4" style={{ backgroundColor: '#f0fff4' }}>
-                                <h5 className="text-success fw-bold mb-3 d-flex align-items-center">
-                                    <img src={IconHurufI} alt="" className="me-2" style={{ width: 24 }} /> Cara Implementasi Metode
-                                </h5>
-                                <ul className="list-unstyled mb-0">
-                                    {rec.langkah_implementasi.split('|').map((step: string, i: number) => (
-                                        <li key={i} className="mb-2 text-muted d-flex align-items-start">
-                                            <span className="me-2">•</span> {step.trim()}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </Card.Body>
-                </Card>
-            )}
-
             <TransactionModal show={showModal} handleClose={() => setShowModal(false)} onSuccess={loadData} />
+
+            <Card className="border-0 shadow-sm mb-5" style={{ borderRadius: 25 }}>
+                <Card.Body className="p-4">
+                    <div className="fw-bold mb-4 text-dark" style={{ fontSize: 22 }}>Riwayat Transaksi</div>
+                    {historyLoading ? (
+                        <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
+                    ) : transactions.length === 0 ? (
+                        <div className="text-center py-5 text-muted">Belum ada transaksi pada periode ini.</div>
+                    ) : (
+                        <div className="px-1">
+                            {transactions.map((tx: any) => (
+                                <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0 transition-all" style={{ borderRadius: '18px', overflow: 'hidden' }}>
+                                    <Card.Body className="p-3">
+                                        <div className="d-flex align-items-center gap-3">
+                                            <div 
+                                                className="d-flex align-items-center justify-content-center flex-shrink-0"
+                                                style={{ 
+                                                    width: '45px', 
+                                                    height: '45px', 
+                                                    borderRadius: '14px', 
+                                                    backgroundColor: tx.jenis === 'pemasukan' ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)',
+                                                    color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545',
+                                                    fontSize: '20px'
+                                                }}
+                                            >
+                                                {React.createElement((Icons as any)[tx.icon_kategori || 'Tag'] || Tag)}
+                                            </div>
+                                            <div className="flex-grow-1 d-flex flex-column min-width-0">
+                                                <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
+                                                    <div className="fw-bold text-dark text-truncate" style={{ fontSize: '14px' }}>
+                                                        {tx.keterangan || 'Tanpa keterangan'}
+                                                    </div>
+                                                </div>
+                                                <div className="d-flex justify-content-between align-items-center">
+                                                    <small className="text-muted" style={{ fontSize: '11px' }}>
+                                                        {tx.username && <span className="fw-bold text-primary me-1">{tx.username}</span>}
+                                                        {tx.username && ' • '}
+                                                        {tx.nama_kategori || 'Lainnya'} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                                                    </small>
+                                                    <div 
+                                                        className="fw-bold" 
+                                                        style={{ 
+                                                            color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545', 
+                                                            fontSize: '14px'
+                                                        }}
+                                                    >
+                                                        {tx.jenis === 'pengeluaran' ? '- ' : '+ '}
+                                                        {formatRupiah(tx.jumlah)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card.Body>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </Card.Body>
+            </Card>
         </MainLayout>
     );
 };

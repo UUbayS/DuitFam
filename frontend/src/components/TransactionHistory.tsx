@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Button, Badge, Spinner, Form } from 'react-bootstrap';
 import * as Icons from 'react-bootstrap-icons';
 import { EyeFill, EyeSlashFill, Tag } from 'react-bootstrap-icons';
-import { fetchTransactionHistory, fetchMonthlySummary } from '../services/report.service';
+import { fetchTransactionHistory, fetchMonthlySummary, fetchFamilyTransactionHistory, fetchFamilyMonthlySummary } from '../services/report.service';
 import type { TransactionHistoryItem, MonthlySummary } from '../types/report.types';
 import { useTimeFilter } from '../hooks/useTimeFilter';
 
@@ -38,13 +38,19 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
     const loadHistoryData = useCallback(async () => {
         setLoading(true);
         try {
-            const history = await fetchTransactionHistory(period.apiParam); 
-            const monthlySummary = await fetchMonthlySummary(period.apiParam); 
+            const userStr = localStorage.getItem('user');
+            const isParent = userStr ? (JSON.parse(userStr).role === 'parent') : false;
+            
+            const [history, monthlySummary] = await Promise.all([
+                isParent ? fetchFamilyTransactionHistory(period.apiParam) : fetchTransactionHistory(period.apiParam),
+                isParent ? fetchFamilyMonthlySummary(period.apiParam) : fetchMonthlySummary(period.apiParam)
+            ]);
             
             setTransactions(history); 
             setSummary(monthlySummary);
             setError(null);
-        } catch {
+        } catch (err) {
+            console.error(err);
             setError("Gagal memuat riwayat transaksi.");
         } finally {
             setLoading(false);
@@ -179,8 +185,8 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                                 </div>
                                 <div className="flex-grow-1 d-flex flex-column min-width-0">
                                     <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
-                                        <div className="fw-bold text-dark text-truncate" style={{ fontSize: '14px' }} title={tx.keterangan}>
-                                            {tx.keterangan.replace('Kontribusi Target ID:', 'Tabungan #')}
+                                        <div className="fw-bold text-dark text-truncate" style={{ fontSize: '14px' }} title={tx.keterangan || ''}>
+                                            {(tx.keterangan || '').replace('Kontribusi Target ID:', 'Tabungan #')}
                                         </div>
                                         {tx.status && tx.status !== 'berhasil' ? (
                                             <Badge bg={tx.status === 'pending' ? 'warning' : 'danger'} style={{ fontSize: '10px', borderRadius: 6 }}>
@@ -191,7 +197,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
 
                                     <div className="d-flex justify-content-between align-items-center">
                                         <small className="text-muted" style={{ fontSize: '11px' }}>
-                                            {tx.nama_kategori} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { 
+                                            {(tx.nama_kategori || 'Lainnya')} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { 
                                                 day: '2-digit', 
                                                 month: 'short'
                                             })}

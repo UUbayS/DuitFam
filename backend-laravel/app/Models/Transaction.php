@@ -19,6 +19,7 @@ class Transaction extends Model
         'tanggal',
         'keterangan',
         'source_id',
+        'is_internal',
     ];
 
     public function category()
