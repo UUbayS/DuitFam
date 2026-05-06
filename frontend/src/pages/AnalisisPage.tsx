@@ -178,6 +178,8 @@ const AnalisisPage = () => {
                                                 </div>
                                                 <div className="d-flex justify-content-between align-items-center">
                                                     <small className="text-muted" style={{ fontSize: '11px' }}>
+                                                        {tx.username && <span className="fw-bold text-primary me-1">{tx.username}</span>}
+                                                        {tx.username && ' • '}
                                                         {tx.nama_kategori || 'Lainnya'} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
                                                     </small>
                                                     <div 

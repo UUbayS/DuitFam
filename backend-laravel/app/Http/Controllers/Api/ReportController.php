@@ -66,8 +66,12 @@ class ReportController extends Controller
         
         $txBase = $this->applyTimeFilter($txBase, $request);
 
-        $income = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pemasukan'))->sum('jumlah');
-        $expense = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pengeluaran'))->sum('jumlah');
+        $income = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pemasukan'))
+            ->where('is_internal', '!=', true)
+            ->sum('jumlah');
+        $expense = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pengeluaran'))
+            ->where('is_internal', '!=', true)
+            ->sum('jumlah');
         
         $childWalletTotal = 0;
         if ($childIds->isNotEmpty()) {
@@ -145,7 +149,9 @@ class ReportController extends Controller
             $categoryMap = $categories;
         }
 
-        $data = $rows->map(function ($t) use ($categoryMap) {
+        $username = $request->user()->username;
+
+        $data = $rows->map(function ($t) use ($categoryMap, $username) {
             $cat = $t->category_id ? ($categoryMap[(string) $t->category_id] ?? null) : null;
             $categoryName = $cat ? $cat['nama'] : 'Lainnya';
             $categoryIcon = $cat ? $cat['icon'] : 'Tag';
@@ -163,6 +169,7 @@ class ReportController extends Controller
 
             return [
                 'id_transaksi' => (string) $t->id,
+                'username' => $username,
                 'jenis' => $t->jenis,
                 'jumlah' => $t->jumlah,
                 'keterangan' => $t->keterangan,
@@ -369,7 +376,8 @@ class ReportController extends Controller
         $result = Transaction::raw(function ($collection) use ($allUserIds, $unit, $request) {
             $match = [
                 'user_id' => ['$in' => $allUserIds->all()],
-                'status' => config('constants.transaction_status.berhasil')
+                'status' => config('constants.transaction_status.berhasil'),
+                'is_internal' => ['$ne' => true]
             ];
 
             if ($unit === 'mingguan' && $request->has('start_date') && $request->has('end_date')) {
@@ -454,7 +462,12 @@ class ReportController extends Controller
             ])
             ->all();
 
-        $data = $rows->map(function ($t) use ($categoryMap) {
+        $familyMemberMap = \App\Models\User::whereIn('_id', $allUserIds->all())->get(['_id', 'username'])->keyBy(fn($u) => (string) $u->id);
+
+        $data = $rows->filter(function ($t) {
+            // To avoid double entry in family history, we hide the "Expense" side of internal transfers (deposits)
+            return !($t->is_internal && $t->jenis === config('constants.transaction_types.pengeluaran'));
+        })->map(function ($t) use ($categoryMap, $familyMemberMap) {
             $cat = $t->category_id ? ($categoryMap[(string) $t->category_id] ?? null) : null;
             $categoryName = $cat ? $cat['nama'] : 'Lainnya';
             $categoryIcon = $cat ? $cat['icon'] : 'Tag';
@@ -473,6 +486,7 @@ class ReportController extends Controller
             return [
                 'id_transaksi' => (string) $t->id,
                 'user_id' => (string) $t->user_id,
+                'username' => $familyMemberMap[(string) $t->user_id]->username ?? 'Unknown',
                 'jenis' => $t->jenis,
                 'jumlah' => (float) $t->jumlah,
                 'keterangan' => $t->keterangan,
@@ -495,6 +509,7 @@ class ReportController extends Controller
                 return [
                     'id_transaksi' => 'withdrawal:'.(string) $w->id,
                     'user_id' => (string) $w->child_id,
+                    'username' => $familyMemberMap[(string) $w->child_id]->username ?? 'Unknown',
                     'jenis' => config('constants.transaction_types.pengeluaran'),
                     'jumlah' => (float) $w->amount,
                     'keterangan' => $w->reason ?: 'Pengajuan penarikan',
@@ -530,7 +545,8 @@ class ReportController extends Controller
         $expenseQuery = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('jenis', config('constants.transaction_types.pengeluaran'))
-            ->where('status', config('constants.transaction_status.berhasil'));
+            ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('is_internal', '!=', true);
         
         $expenseQuery = $this->applyTimeFilter($expenseQuery, $request);
         
