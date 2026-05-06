@@ -58,7 +58,7 @@ export const fetchAnalysisReport = async (params: FilterParams | string = getCur
 /**
  * Mengambil Data Historis untuk Grafik.
  */
-export const fetchHistoricalData = async (params: FilterParams = { unit: 'bulanan' }): Promise<ReportTypes.AnalysisReport['chartData']> => {
+export const fetchHistoricalData = async (params: FilterParams = { unit: 'tahunan' }): Promise<ReportTypes.AnalysisReport['chartData']> => {
     const queryString = buildQueryString(params);
     const response = await api.get<{ message: string, data: ReportTypes.AnalysisReport['chartData'] }>(`/reports/historical${queryString}`);
     return response.data.data;
@@ -75,8 +75,9 @@ export const fetchFamilyTransactionHistory = async (): Promise<(ReportTypes.Tran
     return response.data.data;
 };
 
-export const fetchFamilyHistoricalData = async (): Promise<ReportTypes.AnalysisReport['chartData']> => {
-    const response = await api.get<{ message: string, data: ReportTypes.AnalysisReport['chartData'] }>(`/reports/family/historical`);
+export const fetchFamilyHistoricalData = async (params: FilterParams = { unit: 'tahunan' }): Promise<ReportTypes.AnalysisReport['chartData']> => {
+    const queryString = buildQueryString(params);
+    const response = await api.get<{ message: string, data: ReportTypes.AnalysisReport['chartData'] }>(`/reports/family/historical${queryString}`);
     return response.data.data;
 };
 

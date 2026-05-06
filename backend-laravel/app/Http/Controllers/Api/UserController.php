@@ -291,17 +291,51 @@ class UserController extends Controller
                 ->get(['user_id', 'saldo_sekarang'])
                 ->keyBy('user_id');
 
-            $data = $relations->map(function ($relation) use ($childMap, $walletMap) {
+            // Calculate percentage change based on this month's net transactions
+            $startOfThisMonth = now()->startOfMonth()->toDateString();
+            $thisMonthTransactions = Transaction::query()
+                ->whereIn('user_id', $childIds->all())
+                ->where('status', config('constants.transaction_status.berhasil'))
+                ->where('tanggal', '>=', $startOfThisMonth)
+                ->get(['user_id', 'jenis', 'jumlah']);
+
+            $thisMonthNetMap = [];
+            foreach ($thisMonthTransactions as $tx) {
+                $uid = (string) $tx->user_id;
+                if (!isset($thisMonthNetMap[$uid])) {
+                    $thisMonthNetMap[$uid] = 0;
+                }
+                
+                if ($tx->jenis === config('constants.transaction_types.pemasukan')) {
+                    $thisMonthNetMap[$uid] += (float) $tx->jumlah;
+                } else if ($tx->jenis === config('constants.transaction_types.pengeluaran')) {
+                    $thisMonthNetMap[$uid] -= (float) $tx->jumlah;
+                }
+            }
+
+            $data = $relations->map(function ($relation) use ($childMap, $walletMap, $thisMonthNetMap) {
                 $child = $childMap[(string) $relation->child_id] ?? null;
                 if (!$child) return null;
                 $wallet = $walletMap[(string) $child->id] ?? null;
+
+                $currentSaldo = (float) ($wallet?->saldo_sekarang ?? 0);
+                $thisMonthNet = (float) ($thisMonthNetMap[(string) $child->id] ?? 0);
+                $lastMonthSaldo = $currentSaldo - $thisMonthNet;
+
+                $percentageChange = 0;
+                if ($lastMonthSaldo > 0) {
+                    $percentageChange = ($thisMonthNet / $lastMonthSaldo) * 100;
+                } elseif ($lastMonthSaldo == 0 && $thisMonthNet > 0) {
+                    $percentageChange = 100;
+                }
 
                 return [
                     'id' => (string) $child->id,
                     'username' => $child->username,
                     'email' => $child->email,
                     'is_active' => (bool) ($relation->is_active ?? false),
-                    'saldo' => (float) ($wallet?->saldo_sekarang ?? 0),
+                    'saldo' => $currentSaldo,
+                    'percentage_change' => round($percentageChange, 2),
                 ];
             })->filter()->values();
 

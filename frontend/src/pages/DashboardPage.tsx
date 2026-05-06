@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Card, Col, Row, Spinner } from "react-bootstrap";
-import { EyeFill, EyeSlashFill, GridFill, Coin } from "react-bootstrap-icons";
+import { EyeFill, EyeSlashFill, GridFill, Coin, ArrowUpRight, ArrowDownRight } from "react-bootstrap-icons";
 import MainLayout from "../components/MainLayout";
 import DashboardAlertBanner from "../components/DashboardAlertBanner";
 import { useAuth } from "../context/AuthContext";
@@ -24,6 +24,50 @@ const formatRupiah = (amount: number) => {
     }).format(Math.floor(amount));
 
     return formatted.replace("Rp", "Rp ");
+};
+
+const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
+    if (!data) return null;
+    const currentSaldo = data.saldoAkhir || 0;
+    const neto = data.neto || 0;
+    const previousSaldo = currentSaldo - neto;
+
+    let percentage = 0;
+    if (previousSaldo === 0) {
+        if (neto > 0) percentage = 100;
+        else if (neto < 0) percentage = -100;
+        else percentage = 0;
+    } else {
+        percentage = (neto / previousSaldo) * 100;
+    }
+
+    const isPositive = percentage > 0;
+    const isNegative = percentage < 0;
+    const absPercentage = Math.abs(percentage).toFixed(2);
+
+    let badgeClass = "bg-secondary bg-opacity-10 text-secondary";
+    let Icon = null;
+    let prefix = "";
+
+    if (isPositive) {
+        badgeClass = "bg-success bg-opacity-10 text-success";
+        Icon = ArrowUpRight;
+        prefix = "+";
+    } else if (isNegative) {
+        badgeClass = "bg-danger bg-opacity-10 text-danger";
+        Icon = ArrowDownRight;
+        prefix = "-";
+    }
+
+    return (
+        <div className="d-flex align-items-center gap-2 mt-2">
+            <div className={`px-2 py-1 rounded d-inline-flex align-items-center gap-1 fw-bold small ${badgeClass}`}>
+                {Icon && <Icon size={14} />}
+                {prefix}{absPercentage}%
+            </div>
+            <span className="text-muted small">dari bulan lalu</span>
+        </div>
+    );
 };
 
     const DashboardPage = () => {
@@ -51,7 +95,7 @@ const formatRupiah = (amount: number) => {
                 const [s, ps, hist] = await Promise.all([
                     fetchFamilyMonthlySummary(),
                     fetchMonthlySummary(),
-                    fetchFamilyHistoricalData(),
+                    fetchFamilyHistoricalData({ unit: 'tahunan', year: new Date().getFullYear().toString() }),
                 ]);
                 setSummary(s);
                 setParentSummary(ps);
@@ -59,7 +103,7 @@ const formatRupiah = (amount: number) => {
             } else {
                 const [s, hist] = await Promise.all([
                     fetchMonthlySummary(),
-                    fetchHistoricalData(),
+                    fetchHistoricalData({ unit: 'tahunan', year: new Date().getFullYear().toString() }),
                 ]);
                 setSummary(s);
                 setParentSummary(s);
@@ -131,13 +175,11 @@ const formatRupiah = (amount: number) => {
                                         </button>
                                     </div>
                                     <div className="text-muted small">Saldo saat ini</div>
-                                    <div className="mt-1 text-primary fw-bolder" style={{ fontSize: 'calc(1.4rem + 1vw)', color: '#1389f9' }}>
-                                        {showSaldo ? formatRupiah(parentSummary?.saldoAkhir || 0) : "Rp ••••••"}
-                                    </div>
-                                    <div className="text-success fw-bold small mt-1">
-                                        +5.89% dari bulan lalu
-                                    </div>
+                                <div className="mt-1 text-primary fw-bolder" style={{ fontSize: 'calc(1.4rem + 1vw)', color: '#1389f9' }}>
+                                    {showSaldo ? formatRupiah(parentSummary?.saldoAkhir || 0) : "Rp ••••••"}
                                 </div>
+                                {renderPercentageBadge(parentSummary)}
+                            </div>
                                 <div className="bg-primary bg-opacity-10 p-3 rounded-circle text-primary d-flex align-items-center justify-content-center" style={{ width: 64, height: 64 }}>
                                     <Coin size={32} />
                                 </div>
@@ -164,13 +206,11 @@ const formatRupiah = (amount: number) => {
                                         </button>
                                     </div>
                                     <div className="text-muted small">Saldo saat ini</div>
-                                    <div className="mt-1 text-primary fw-bolder" style={{ fontSize: 'calc(1.4rem + 1vw)', color: '#1389f9' }}>
-                                        {showSaldo ? formatRupiah(summary?.saldoAkhir || 0) : "Rp ••••••"}
-                                    </div>
-                                    <div className="text-success fw-bold small mt-1">
-                                        +5.89% dari bulan lalu
-                                    </div>
+                                <div className="mt-1 text-primary fw-bolder" style={{ fontSize: 'calc(1.4rem + 1vw)', color: '#1389f9' }}>
+                                    {showSaldo ? formatRupiah(summary?.saldoAkhir || 0) : "Rp ••••••"}
                                 </div>
+                                {renderPercentageBadge(summary)}
+                            </div>
                                 <div className="bg-primary bg-opacity-10 p-3 rounded-circle text-primary d-flex align-items-center justify-content-center" style={{ width: 64, height: 64 }}>
                                     <Coin size={32} />
                                 </div>
@@ -192,7 +232,13 @@ const formatRupiah = (amount: number) => {
                         Analisis Keuangan
                     </div>
                     <div style={{ minHeight: 300 }}>
-                        <MonthlyBarChart chartData={historicalData} />
+                        {historicalData.length > 0 ? (
+                            <MonthlyBarChart key={JSON.stringify(historicalData)} chartData={historicalData} />
+                        ) : (
+                            <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                                Belum ada data untuk ditampilkan.
+                            </div>
+                        )}
                     </div>
                 </Card.Body>
             </Card>
