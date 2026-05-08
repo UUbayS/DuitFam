@@ -10,7 +10,7 @@ import TransactionModal from '../components/TransactionModal';
 import MonthlyBarChart from '../components/MonthlyBarChart';
 import AddChildModal from '../components/AddChildModal';
 import ResetPasswordModal from '../components/ResetPasswordModal';
-import IconBerandaBiru from '../assets/IconBerandaBiru.svg';
+import AnggotaBlue from '../assets/IconAnggotaBiru.svg';
 import type * as ReportTypes from '../types/report.types';
 
 const formatRupiah = (amount: number) => {
@@ -173,7 +173,7 @@ const formatRupiah = (amount: number) => {
             hideAddButton={false}
         >
             <div className="d-flex align-items-center gap-2 mb-4">
-                <img src={IconBerandaBiru} alt="Ikon Keluarga" style={{ width: 32, height: 32 }} />
+                <img src={AnggotaBlue} alt="Ikon Keluarga" style={{ width: 32, height: 32 }} />
                 <h2 className="text-primary fw-bold mb-0" style={{ fontSize: 35 }}>
                     Anggota Keluarga
                 </h2>

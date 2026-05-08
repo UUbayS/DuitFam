@@ -4,11 +4,12 @@ import Sidebar from './Sidebar';
 import TransactionHistory from './TransactionHistory';
 import TransactionModal from './TransactionModal';
 import AIChatBox from './AIChatBox';
-import { PersonFill, BellFill, List, Plus, ClockHistory } from 'react-bootstrap-icons';
+import { PersonFill, List, Plus, ClockHistory } from 'react-bootstrap-icons';
 import NotificationBell from "../components/NotificationBell";
 import { useAuth } from '../context/AuthContext';
 import LogoPutih from '../assets/Logo Putih.svg';
 import { Offcanvas, Button } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 
 interface MainLayoutProps {
     children: ReactNode;
@@ -58,7 +59,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                         <Button variant="link" className="text-white p-0 shadow-none" onClick={toggleSidebar}>
                             <List size={28} />
                         </Button>
-                        <img src={LogoPutih} alt="Logo" style={{ height: '24px' }} />
+                        {/* Bungkus dengan Link */}
+                        <Link to="/dashboard">
+                            <img src={LogoPutih} alt="Logo" style={{ height: '24px' }} />
+                        </Link>
                     </div>
                     <div className="d-flex align-items-center gap-3">
                         <div>

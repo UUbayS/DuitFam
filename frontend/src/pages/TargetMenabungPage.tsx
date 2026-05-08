@@ -12,7 +12,7 @@ import IconTargetBiru from '../assets/IconTargetBiru.svg';
 import OnlyLogoBiru from '../assets/OnlyLogoBiru.svg';
 import { useAuth } from '../context/AuthContext';
 
-const formatRupiah = (amount: number) => {
+    const formatRupiah = (amount: number) => {
     const formatted = new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
@@ -21,6 +21,15 @@ const formatRupiah = (amount: number) => {
     }).format(Math.floor(amount));
     return formatted.replace('Rp', 'Rp ');
 };
+
+    const formatTanggal = (tanggal: string) => {
+        const date = new Date(tanggal);
+        return date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    };
 
     const TargetMenabungPage = () => {
         const { user } = useAuth();
@@ -210,24 +219,36 @@ const formatRupiah = (amount: number) => {
                                     <Card className="border-0 shadow-sm h-100 transition-all hover-shadow" style={{ borderRadius: 25, backgroundColor: '#ffffff' }}>
                                         <Card.Body className="p-4">
                                             <div className="d-flex justify-content-between align-items-start mb-3">
-                                                <div className="d-flex align-items-center gap-3">
-                                                    <div className="bg-primary bg-opacity-10 p-2 rounded-circle text-primary d-flex align-items-center justify-content-center" style={{ width: 48, height: 48 }}>
-                                                        <div className="bg-primary rounded-circle" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '18px' }}>
-                                                            🎯
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="fw-bold text-dark text-truncate" style={{ fontSize: 18, maxWidth: '120px' }}>
-                                                            {target.nama_target}
-                                                        </div>
-                                                        <div className="text-muted" style={{ fontSize: 11 }}>Target: {formatRupiah(target.target_jumlah)}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                                 <div className="d-flex align-items-center gap-3">
+                                                     <div className="bg-primary bg-opacity-10 p-2 rounded-circle text-primary d-flex align-items-center justify-content-center" style={{ width: 48, height: 48 }}>
+                                                         <div className="bg-primary rounded-circle" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '18px' }}>
+                                                             🎯
+                                                         </div>
+                                                     </div>
+                                                     <div>
+                                                          <div className="fw-bold text-dark text-truncate" style={{ fontSize: 18, maxWidth: '120px' }}>
+                                                              {target.nama_target}
+                                                          </div>
+                                                          <div className="text-muted" style={{ fontSize: 11 }}>Target: {formatRupiah(target.target_jumlah)}</div>
+                                                          <div className="text-muted" style={{ fontSize: 11 }}>Deadline: {formatTanggal(target.tanggal_target)}</div>
+                                                      </div>
+                                                 </div>
+                                                 <div>
+                                                     {target.status === 'tercapai' && (
+                                                         <span className="badge bg-success" style={{ fontSize: 10 }}>Tercapai</span>
+                                                     )}
+                                                     {target.status === 'aktif' && (
+                                                         <span className="badge bg-primary" style={{ fontSize: 10 }}>Aktif</span>
+                                                     )}
+                                                     {target.status === 'batal' && (
+                                                         <span className="badge bg-danger" style={{ fontSize: 10 }}>Batal</span>
+                                                     )}
+                                                 </div>
+                                             </div>
 
                                             <div className="mb-4">
                                                 <div className="d-flex justify-content-between mb-1">
-                                                    <span className="text-muted small fw-bold">Progres</span>
+                                                    <span className="text-muted small fw-bold">Progress</span>
                                                     <span className="text-primary small fw-bold">{progress}%</span>
                                                 </div>
                                                 <ProgressBar 

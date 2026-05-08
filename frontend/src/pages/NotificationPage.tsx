@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNotification } from '../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'react-bootstrap-icons';
+import { ArrowLeft, BellFill } from 'react-bootstrap-icons';
+import MainLayout from '../components/MainLayout';
 import type { AppNotification } from '../types/notification.types';
 
 const NotificationPage: React.FC = () => {
@@ -33,53 +34,58 @@ const NotificationPage: React.FC = () => {
   };
 
   return (
-    <div className="container-fluid p-0" style={{ maxWidth: '800px' }}>
-      <div className="d-flex align-items-center justify-content-between p-3 border-bottom bg-white sticky-top">
-        <div className="d-flex align-items-center gap-3">
-          <button className="btn btn-link p-0 text-dark" onClick={() => navigate(-1)}>
-            <ArrowLeft size={22} />
-          </button>
-          <h5 className="mb-0 fw-bold">Notifikasi</h5>
-        </div>
-        {unreadCount > 0 && (
-          <button className="btn btn-link text-decoration-none" onClick={markAllRead}>
-            Tandai semua dibaca
-          </button>
-        )}
-      </div>
-
-      <div className="bg-white">
-        {loading ? (
-          <div className="text-center p-5 text-muted">Memuat notifikasi...</div>
-        ) : notifications.length === 0 ? (
-          <div className="text-center p-5">
-            <div className="mb-3" style={{ fontSize: '48px' }}>🔔</div>
-            <p className="text-muted">Tidak ada notifikasi</p>
+    <MainLayout>
+      <div className="container-fluid p-0" style={{ maxWidth: '800px' }}>
+        <div className="d-flex align-items-center justify-content-between p-3 border-bottom bg-white sticky-top">
+          <div className="d-flex align-items-center gap-3">
+            <BellFill className="text-primary" size={window.innerWidth > 768 ? 32 : 24} />
+              <h2
+                  className="text-primary fw-bold mb-0 responsive-h2"
+                  style={{ fontSize: 'calc(1.5rem + 1.5vw)' }}
+              >
+                  Notifikasi
+              </h2>
           </div>
-        ) : (
-          notifications.map(notif => (
-            <div
-              key={notif.id}
-              className={`p-3 border-bottom ${!notif.read_at ? 'bg-light' : ''}`}
-              onClick={() => handleClick(notif)}
-              style={{ cursor: 'pointer' }}
-              role="button"
-            >
-              <div className="d-flex justify-content-between align-items-start mb-1">
-                <h6 className="mb-0 fw-bold" style={{ fontSize: '15px' }}>{notif.title}</h6>
-                <div className="d-flex align-items-center gap-2">
-                  {!notif.read_at && (
-                    <span className="badge bg-primary rounded-circle" style={{ width: '8px', height: '8px' }} />
-                  )}
-                  <small className="text-muted">{formatTime(notif.created_at)}</small>
-                </div>
-              </div>
-              <p className="mb-0 text-muted" style={{ fontSize: '14px' }}>{notif.message}</p>
+          {unreadCount > 0 && (
+            <button className="btn btn-link text-decoration-none" onClick={markAllRead}>
+              Tandai semua dibaca
+            </button>
+          )}
+        </div>
+
+        <div className="bg-white">
+          {loading ? (
+            <div className="text-center p-5 text-muted">Memuat notifikasi...</div>
+          ) : notifications.length === 0 ? (
+            <div className="text-center p-5">
+              <div className="mb-3" style={{ fontSize: '48px' }}>🔔</div>
+              <p className="text-muted">Tidak ada notifikasi</p>
             </div>
-          ))
-        )}
+          ) : (
+            notifications.map(notif => (
+              <div
+                key={notif.id}
+                className={`p-3 border-bottom ${!notif.read_at ? 'bg-light' : ''}`}
+                onClick={() => handleClick(notif)}
+                style={{ cursor: 'pointer' }}
+                role="button"
+              >
+                <div className="d-flex justify-content-between align-items-start mb-1">
+                  <h6 className="mb-0 fw-bold" style={{ fontSize: '15px' }}>{notif.title}</h6>
+                  <div className="d-flex align-items-center gap-2">
+                    {!notif.read_at && (
+                      <span className="badge bg-primary rounded-circle" style={{ width: '8px', height: '8px' }} />
+                    )}
+                    <small className="text-muted">{formatTime(notif.created_at)}</small>
+                  </div>
+                </div>
+                <p className="mb-0 text-muted" style={{ fontSize: '14px' }}>{notif.message}</p>
+              </div>
+            ))
+          )}
+        </div>
       </div>
-    </div>
+    </MainLayout>
   );
 };
 

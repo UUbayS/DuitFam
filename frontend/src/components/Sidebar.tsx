@@ -63,11 +63,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick }) => {
     >
       
       <div className="px-4 mb-5 mt-4">
-        <img 
-          src={LogoPutih} 
-          alt="SipDana Logo" 
-          style={{ width: '100%', maxWidth: '180px' }} 
-        />
+        {/* Bungkus dengan Link */}
+        <Link to="/dashboard">
+          <img 
+            src={LogoPutih} 
+            alt="SipDana Logo" 
+            style={{ width: '100%', maxWidth: '180px' }} 
+          />
+        </Link>
       </div>
 
       <Link 
