@@ -5,6 +5,7 @@ import TransactionHistory from './TransactionHistory';
 import TransactionModal from './TransactionModal';
 import AIChatBox from './AIChatBox';
 import { PersonFill, BellFill, List, Plus, ClockHistory } from 'react-bootstrap-icons';
+import NotificationBell from "../components/NotificationBell";
 import { useAuth } from '../context/AuthContext';
 import LogoPutih from '../assets/Logo Putih.svg';
 import { Offcanvas, Button } from 'react-bootstrap';
@@ -60,6 +61,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                         <img src={LogoPutih} alt="Logo" style={{ height: '24px' }} />
                     </div>
                     <div className="d-flex align-items-center gap-3">
+                        <div>
+                            <NotificationBell/>
+                        </div>
                         <Button variant="link" className="text-white p-0 shadow-none" onClick={() => setShowHistory(true)}>
                             <ClockHistory size={24} />
                         </Button>

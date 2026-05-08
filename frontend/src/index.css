@@ -100,6 +100,10 @@ aside {
     transition: all 0.3s ease;
 }
 
+.responsive-bell-icon {
+  color: var(--white);
+}
+
 /* Responsive Helpers */
 @media (max-width: 1199.98px) {
   .desktop-only {
@@ -120,6 +124,9 @@ aside {
   .content-container {
     height: 100%;
     width: 100%;
+  }
+  .responsive-bell-icon {
+    color: var(--primary-color);
   }
 }
 

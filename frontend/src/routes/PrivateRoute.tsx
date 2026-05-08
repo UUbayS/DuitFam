@@ -14,7 +14,7 @@ const PrivateRoute = () => {
   }
 
   // Jika belum login, redirect ke Login
-  return <Navigate to="/login" replace />;
+  return <Navigate to="/" replace />;
 };
 
 export default PrivateRoute;

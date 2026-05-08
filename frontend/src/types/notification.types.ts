@@ -4,4 +4,5 @@ export interface AppNotification {
   message: string;
   read_at: string | null;
   created_at: string;
+  meta?: Record<string, any>;
 }

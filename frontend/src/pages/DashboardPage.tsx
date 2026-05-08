@@ -3,6 +3,7 @@ import { Alert, Card, Col, Row, Spinner } from "react-bootstrap";
 import { EyeFill, EyeSlashFill, GridFill, Coin, ArrowUpRight, ArrowDownRight } from "react-bootstrap-icons";
 import MainLayout from "../components/MainLayout";
 import DashboardAlertBanner from "../components/DashboardAlertBanner";
+import NotificationBell from "../components/NotificationBell";
 import { useAuth } from "../context/AuthContext";
 import {
     fetchFamilyMonthlySummary,
@@ -137,14 +138,19 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
             openTransactionModal={() => setShowTransactionModal(true)}
             hideAddButton={false}
         >
-            <div className="d-flex align-items-center gap-2 mb-4">
-                <GridFill className="text-primary" size={window.innerWidth > 768 ? 32 : 24} />
-                <h2
-                    className="text-primary fw-bold mb-0 responsive-h2"
-                    style={{ fontSize: 'calc(1.5rem + 1.5vw)' }}
-                >
-                    Beranda
-                </h2>
+            <div className="d-flex align-items-center justify-content-between mb-4">
+                <div className="d-flex align-items-center gap-2">
+                    <GridFill className="text-primary" size={window.innerWidth > 768 ? 32 : 24} />
+                    <h2
+                        className="text-primary fw-bold mb-0 responsive-h2"
+                        style={{ fontSize: 'calc(1.5rem + 1.5vw)' }}
+                    >
+                        Beranda
+                    </h2>
+                </div>
+                <div className="desktop-only">
+                    <NotificationBell />
+                </div> 
             </div>
 
             {error ? (
