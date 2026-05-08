@@ -181,29 +181,7 @@ class ReportController extends Controller
             ];
         });
 
-        $withdrawals = WithdrawalRequest::query()
-            ->where('child_id', $userId)
-            ->orderByDesc('created_at')
-            ->limit(50)
-            ->get()
-            ->map(function ($w) {
-                $status = $w->status === 'pending' ? 'pending' : ($w->status === 'rejected' ? 'ditolak' : 'berhasil');
-
-                return [
-                    'id_transaksi' => 'withdrawal:'.(string) $w->id,
-                    'jenis' => config('constants.transaction_types.pengeluaran'),
-                    'jumlah' => (float) $w->amount,
-                    'keterangan' => $w->reason ?: 'Permintaan',
-                    'tanggal' => $w->created_at ? $w->created_at->toDateString() : now()->toDateString(),
-                    'created_at' => $w->created_at,
-                    'status' => $status,
-                    'nama_kategori' => 'Permintaan',
-                ];
-            });
-
-        $merged = $data->concat($withdrawals)->sortByDesc('created_at')->values()->take(50)->values();
-
-        return response()->json(['message' => 'OK', 'data' => $merged]);
+        return response()->json(['message' => 'OK', 'data' => $data->values()->take(50)->values()]);
     }
 
     public function historical(Request $request)
@@ -498,31 +476,7 @@ class ReportController extends Controller
             ];
         });
 
-        $withdrawals = WithdrawalRequest::query()
-            ->where('parent_id', (string) $parent->id)
-            ->orderByDesc('created_at')
-            ->limit(100)
-            ->get()
-            ->map(function ($w) {
-                $status = $w->status === 'pending' ? 'pending' : ($w->status === 'rejected' ? 'ditolak' : 'berhasil');
-
-                return [
-                    'id_transaksi' => 'withdrawal:'.(string) $w->id,
-                    'user_id' => (string) $w->child_id,
-                    'username' => $familyMemberMap[(string) $w->child_id]->username ?? 'Unknown',
-                    'jenis' => config('constants.transaction_types.pengeluaran'),
-                    'jumlah' => (float) $w->amount,
-                    'keterangan' => $w->reason ?: 'Permintaan',
-                    'tanggal' => $w->created_at ? $w->created_at->toDateString() : now()->toDateString(),
-                    'created_at' => $w->created_at,
-                    'status' => $status,
-                    'nama_kategori' => 'Permintaan',
-                ];
-            });
-
-        $merged = $data->concat($withdrawals)->sortByDesc('created_at')->values()->take(100)->values();
-
-        return response()->json(['message' => 'OK', 'data' => $merged]);
+        return response()->json(['message' => 'OK', 'data' => $data->values()->take(100)->values()]);
     }
 
     public function familyAnalysis(Request $request)

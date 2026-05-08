@@ -18,7 +18,7 @@ export interface TransactionHistoryItem { // <-- TIPE DATA BARU
     created_at: string; 
     nama_kategori: string;
     icon_kategori?: string;
-    status?: 'berhasil' | 'pending' | 'ditolak';
+    status?: 'berhasil';
 }
 
 export interface ReportCategory {

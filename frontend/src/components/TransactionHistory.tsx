@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, Button, Badge, Spinner, Form } from 'react-bootstrap';
+import { Card, Button, Spinner, Form } from 'react-bootstrap';
 import * as Icons from 'react-bootstrap-icons';
 import { EyeFill, EyeSlashFill, Tag } from 'react-bootstrap-icons';
 import { fetchTransactionHistory, fetchMonthlySummary, fetchFamilyTransactionHistory, fetchFamilyMonthlySummary } from '../services/report.service';
@@ -29,7 +29,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
 
     const [transactions, setTransactions] = useState<TransactionHistoryItem[]>([]);
     const [summary, setSummary] = useState<MonthlySummary | null>(null);
-    const [filter, setFilter] = useState<'all' | 'pemasukan' | 'pengeluaran' | 'pending' | 'ditolak'>('all');
+    const [filter, setFilter] = useState<'all' | 'pemasukan' | 'pengeluaran'>('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -69,8 +69,6 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
     const filteredTransactions = transactions.filter((tx) => {
         if (filter === 'all') return true;
         if (filter === 'pemasukan' || filter === 'pengeluaran') return tx.jenis === filter;
-        if (filter === 'pending') return tx.status === 'pending';
-        if (filter === 'ditolak') return tx.status === 'ditolak';
         return true;
     });
 
@@ -151,8 +149,6 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
             <option value="all">Semua Transaksi</option>
             <option value="pemasukan">Pemasukan</option>
             <option value="pengeluaran">Pengeluaran</option>
-            <option value="pending">Pending</option>
-            <option value="ditolak">Ditolak</option>
         </Form.Select>
 
         <div className="mb-3 fw-bold text-dark" style={{ flexShrink: 0, fontSize: 18, textAlign: 'center' }}>Riwayat Transaksi</div>
@@ -184,27 +180,19 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                                     {React.createElement((Icons as any)[tx.icon_kategori || 'Tag'] || Tag)}
                                 </div>
                                 <div className="flex-grow-1 d-flex flex-column min-width-0">
-                                    <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
-                                        <div className="fw-bold text-dark text-truncate" style={{ fontSize: '14px' }} title={tx.keterangan || ''}>
-                                            {(tx.keterangan || '').replace('Kontribusi Target ID:', 'Tabungan #')}
-                                        </div>
-                                        {tx.status && tx.status !== 'berhasil' ? (
-                                            <Badge bg={tx.status === 'pending' ? 'warning' : 'danger'} style={{ fontSize: '10px', borderRadius: 6 }}>
-                                                {tx.status === 'pending' ? 'Pending' : 'Ditolak'}
-                                            </Badge>
-                                        ) : null}
+                                    <div className="fw-bold text-dark text-truncate mb-1" style={{ fontSize: '14px' }} title={tx.keterangan || ''}>
+                                        {(tx.keterangan || '').replace('Kontribusi Target ID:', 'Tabungan #')}
                                     </div>
 
                                     <div className="d-flex justify-content-between align-items-center">
-                                        <small className="text-muted" style={{ fontSize: '11px' }}>
+                                        <small className="text-muted text-truncate me-2" style={{ fontSize: '11px' }}>
                                             {(tx.nama_kategori || 'Lainnya')} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { 
                                                 day: '2-digit', 
                                                 month: 'short'
                                             })}
                                         </small>
-
                                         <div 
-                                            className="fw-bold" 
+                                            className="fw-bold flex-shrink-0"
                                             style={{ 
                                                 color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545', 
                                                 fontSize: '14px',
