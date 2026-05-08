@@ -486,9 +486,9 @@ const LoginPage = () => {
               <input
                 className="auth-input"
                 style={S.input}
-                type="email"
+                type="text"
                 name="email"
-                placeholder="Email"
+                placeholder="Email or Username"
                 value={loginData.email}
                 onChange={handleLoginChange}
                 required
