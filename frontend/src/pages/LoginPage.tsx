@@ -1,272 +1,575 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Form, Button, Card, Alert, InputGroup, Container, Row, Col } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import * as AuthTypes from '../types/auth.types'; 
-import { loginUser } from '../services/auth.service';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import * as AuthTypes from '../types/auth.types';
+import { loginUser, registerUser } from '../services/auth.service';
 import LogoBiru from '../assets/Logo Biru.svg';
-import StartIllustration from '../assets/startpage.jpg';
-import { ArrowLeft, Person, Lock } from 'react-bootstrap-icons'; 
-import { useAuth } from '../context/AuthContext'; 
+import LogoPutih from '../assets/Logo Putih.svg';
+import { CheckCircleFill, XCircleFill } from 'react-bootstrap-icons';
+import { useAuth } from '../context/AuthContext';
+import Grainient from '../components/Backgrounds/Grainient';
 
+type AuthMode = 'login' | 'register';
+
+/* ------------------------------------------------------------------ */
+/*  Small helper – password-strength indicator                        */
+/* ------------------------------------------------------------------ */
+const ValidationItem = ({ isPassed, text }: { isPassed: boolean; text: string }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginTop: 4 }}>
+    {isPassed
+      ? <CheckCircleFill size={12} style={{ color: '#22c55e', flexShrink: 0 }} />
+      : <XCircleFill size={12} style={{ color: '#ccc', flexShrink: 0 }} />}
+    <span style={{ color: isPassed ? '#22c55e' : '#999' }}>{text}</span>
+  </div>
+);
+
+/* ================================================================== */
+/*  LOGIN PAGE – Sliding Overlay inspired by BOSS0exe                 */
+/* ================================================================== */
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setUser } = useAuth();
-  const [phase, setPhase] = useState<'enter' | 'idle' | 'leave'>('enter');
-  const transitionMs = 260;
-  
-  const [formData, setFormData] = useState<AuthTypes.LoginFormInput>({
-    email: '',
-    password: '',
-  });
-  
+
+  const initialMode = (location.pathname === '/register' ? 'register' : 'login') as AuthMode;
+  const [mode, setMode] = useState<AuthMode>(initialMode);
+
+  // Login form
+  const [loginData, setLoginData] = useState<AuthTypes.LoginFormInput>({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
+
+  // Register form
+  const [registerData, setRegisterData] = useState({ username: '', email: '', password: '' });
+  const [checks, setChecks] = useState({ length: false, capital: false, number: false });
+
+  // Common
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [validated, setValidated] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  // Sync URL ↔ mode
   useEffect(() => {
-    const id = window.setTimeout(() => setPhase('idle'), 30);
-    return () => window.clearTimeout(id);
-  }, []);
+    if (mode === 'register' && location.pathname !== '/register') navigate('/register');
+    else if (mode === 'login' && location.pathname !== '/login') navigate('/login');
+  }, [mode, navigate, location.pathname]);
 
-  const go = (to: string) => {
-    setPhase('leave');
-    window.setTimeout(() => navigate(to), transitionMs);
-  };
+  // Password checks
+  useEffect(() => {
+    setChecks({
+      length: registerData.password.length >= 8,
+      capital: /[A-Z]/.test(registerData.password),
+      number: /\d/.test(registerData.password),
+    });
+  }, [registerData.password]);
 
-  const pageStyle = useMemo(() => {
-    const base: React.CSSProperties = { transform: 'translateX(0)', opacity: 1, transition: `all ${transitionMs}ms ease` };
-    if (phase === 'enter') return { ...base, transform: 'translateX(-14px)', opacity: 0 };
-    if (phase === 'leave') return { ...base, transform: 'translateX(14px)', opacity: 0 };
-    return base;
-  }, [phase]);
+  /* ---------- handlers ---------- */
+  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setLoginData({ ...loginData, [e.target.name]: e.target.value });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setRegisterData({ ...registerData, [e.target.name]: e.target.value });
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    
-    if (form.checkValidity() === false) {
-      e.stopPropagation();
-      setValidated(true);
-      return;
-    }
-    
     setError(null);
     setLoading(true);
-
     try {
-      const response = await loginUser(formData);
-      
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
-      setUser(response.user);
-      
+      const res = await loginUser(loginData);
+      localStorage.setItem('token', res.token);
+      setUser(res.user);
       navigate('/dashboard');
-
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Gagal login. Periksa email dan password Anda.';
-      setError(errorMessage);
+      setError(err?.response?.data?.message || 'Login gagal. Coba lagi.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleRegisterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!checks.length || !checks.capital || !checks.number) {
+      setError('Password belum memenuhi syarat.');
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      await registerUser(registerData as AuthTypes.RegisterFormInput);
+      setMode('login');
+      setError(null);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Registrasi gagal. Coba lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchMode = (to: AuthMode) => {
+    setError(null);
+    setMode(to);
+  };
+
+  const isActive = mode === 'register';
+
+  /* ================================================================ */
+  /*  INLINE STYLES – faithfully mirroring the CSS from the           */
+  /*  inspiration repo, re-themed in DuitFam blue.                    */
+  /* ================================================================ */
+
+  const S = {
+    /* Full-page dark background */
+    page: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'transparent',
+      fontFamily: "'Montserrat', 'Inter', sans-serif",
+      padding: 20,
+      position: 'relative' as const,
+      overflow: 'hidden' as const,
+    } as React.CSSProperties,
+
+    /* The main card container */
+    container: {
+      background: '#fff',
+      borderRadius: 30,
+      boxShadow: '0 14px 60px rgba(0,0,0,0.35)',
+      position: 'relative' as const,
+      overflow: 'hidden' as const,
+      width: 820,
+      maxWidth: '100%',
+      minHeight: 520,
+    } as React.CSSProperties,
+
+    /* Each form panel (sign-in / sign-up) */
+    formContainer: {
+      position: 'absolute' as const,
+      top: 0,
+      height: '100%',
+      transition: 'all 0.6s ease-in-out',
+    } as React.CSSProperties,
+
+    signIn: {
+      left: 0,
+      width: '50%',
+      zIndex: 2,
+      transform: isActive ? 'translateX(100%)' : 'translateX(0)',
+    } as React.CSSProperties,
+
+    signUp: {
+      left: 0,
+      width: '50%',
+      opacity: isActive ? 1 : 0,
+      zIndex: isActive ? 5 : 1,
+      transform: isActive ? 'translateX(100%)' : 'translateX(0)',
+      animation: isActive ? 'authMove 0.6s' : 'none',
+    } as React.CSSProperties,
+
+    form: {
+      background: '#fff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'column' as const,
+      padding: '0 40px',
+      height: '100%',
+    } as React.CSSProperties,
+
+    input: {
+      background: '#f0f4f8',
+      border: '2px solid transparent',
+      margin: '8px 0',
+      padding: '12px 16px',
+      fontSize: 13,
+      borderRadius: 10,
+      width: '100%',
+      outline: 'none',
+      fontFamily: 'inherit',
+      transition: 'border-color 0.3s, box-shadow 0.3s',
+      color: '#1a1a2e',
+    } as React.CSSProperties,
+
+    inputFocusStyle: {
+      borderColor: '#1aa7ff',
+      boxShadow: '0 0 0 3px rgba(26,167,255,0.15)',
+    },
+
+    submitBtn: {
+      background: 'linear-gradient(135deg, #1aa7ff 0%, #0077cc 100%)',
+      color: '#fff',
+      fontSize: 13,
+      padding: '12px 45px',
+      border: 'none',
+      borderRadius: 10,
+      fontWeight: 700,
+      letterSpacing: 1,
+      textTransform: 'uppercase' as const,
+      marginTop: 12,
+      cursor: 'pointer',
+      width: '100%',
+      transition: 'transform 0.2s, box-shadow 0.3s',
+      fontFamily: 'inherit',
+      boxShadow: '0 4px 15px rgba(26,167,255,0.35)',
+    } as React.CSSProperties,
+
+    /* ---- Toggle Overlay ---- */
+    toggleContainer: {
+      position: 'absolute' as const,
+      top: 0,
+      left: '50%',
+      width: '50%',
+      height: '100%',
+      overflow: 'hidden' as const,
+      transition: 'all 0.6s ease-in-out',
+      borderRadius: 20,
+      zIndex: 1000,
+      transform: isActive ? 'translateX(-100%)' : 'translateX(0)',
+    } as React.CSSProperties,
+
+    toggle: {
+      background: 'linear-gradient(135deg, #1aa7ff 0%, #0055cc 100%)',
+      backgroundSize: '50% 100%',
+      height: '100%',
+      color: '#fff',
+      position: 'relative' as const,
+      left: '-100%',
+      width: '200%',
+      transform: isActive ? 'translateX(50%)' : 'translateX(0)',
+      transition: 'all 0.6s ease-in-out',
+    } as React.CSSProperties,
+
+    togglePanel: {
+      position: 'absolute' as const,
+      width: '50%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'column' as const,
+      padding: '0 30px',
+      textAlign: 'center' as const,
+      top: 0,
+      transition: 'all 0.6s ease-in-out',
+    } as React.CSSProperties,
+
+    toggleLeft: {
+      transform: isActive ? 'translateX(0)' : 'translateX(-200%)',
+    } as React.CSSProperties,
+
+    toggleRight: {
+      right: 0,
+      transform: 'translateX(0)',
+    } as React.CSSProperties,
+
+    toggleBtn: {
+      background: 'transparent',
+      border: '2px solid #fff',
+      color: '#fff',
+      fontSize: 12,
+      padding: '10px 45px',
+      borderRadius: 10,
+      fontWeight: 700,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase' as const,
+      marginTop: 16,
+      cursor: 'pointer',
+      transition: 'all 0.3s',
+      fontFamily: 'inherit',
+    } as React.CSSProperties,
+
+    heading: {
+      fontSize: 28,
+      fontWeight: 800,
+      color: '#1a1a2e',
+      margin: 0,
+      letterSpacing: -0.5,
+    } as React.CSSProperties,
+
+    subtitle: {
+      fontSize: 13,
+      lineHeight: '20px',
+      letterSpacing: 0.3,
+      margin: '12px 0 8px',
+      color: '#777',
+    } as React.CSSProperties,
+
+    errorBox: {
+      background: '#fff0f0',
+      color: '#d32f2f',
+      border: '1px solid #ffcdd2',
+      borderRadius: 10,
+      padding: '8px 16px',
+      fontSize: 12,
+      fontWeight: 600,
+      textAlign: 'center' as const,
+      width: '100%',
+      marginBottom: 4,
+    } as React.CSSProperties,
+
+    link: {
+      color: '#1aa7ff',
+      fontSize: 12,
+      textDecoration: 'none',
+      marginTop: 10,
+      cursor: 'pointer',
+      fontWeight: 600,
+    } as React.CSSProperties,
+
+    checkboxLabel: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 12,
+      color: '#666',
+      marginTop: 4,
+      cursor: 'pointer',
+      userSelect: 'none' as const,
+    } as React.CSSProperties,
+  };
+
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(180deg, #f2fbff 0%, #1aa7ff 100%)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-      className="d-flex align-items-stretch"
-    >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'radial-gradient(circle at 50% 22%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 58%)',
-        }}
-      />
+    <>
 
-      <button
-        type="button"
-        aria-label="Kembali"
-        onClick={() => go('/')}
-        style={{
-          position: 'absolute',
-          top: 24,
-          left: 24,
-          border: 0,
-          background: 'transparent',
-          padding: 8,
-          zIndex: 2,
-        }}
-      >
-        <ArrowLeft size={28} />
-      </button>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 
-      <Container fluid className="h-100" style={{ position: 'relative', zIndex: 1, ...pageStyle }}>
-        <Row className="h-100 align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
-          <Col
-            lg={6}
-            className="d-none d-lg-flex flex-column justify-content-center"
-            style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 28 }}
+        @keyframes authMove {
+          0%, 49.99% { opacity: 0; z-index: 1; }
+          50%, 100%  { opacity: 1; z-index: 5; }
+        }
+
+        .auth-input:focus {
+          border-color: #1aa7ff !important;
+          box-shadow: 0 0 0 3px rgba(26,167,255,0.15) !important;
+        }
+        .auth-input::placeholder {
+          color: #aab4c2;
+        }
+
+        .auth-submit-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 24px rgba(26,167,255,0.45) !important;
+        }
+        .auth-submit-btn:active:not(:disabled) {
+          transform: translateY(0);
+        }
+        .auth-submit-btn:disabled {
+          opacity: 0.65;
+          cursor: not-allowed;
+        }
+
+        .toggle-btn-outline:hover {
+          background: rgba(255,255,255,0.15) !important;
+          transform: translateY(-1px);
+        }
+
+        /* Floating decorative circles */
+        .auth-deco-circle {
+          position: absolute;
+          border-radius: 50%;
+          opacity: 0.06;
+          pointer-events: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+          .auth-container-card {
+            min-height: 680px !important;
+          }
+          .auth-form-panel {
+            width: 100% !important;
+            position: relative !important;
+            transform: none !important;
+          }
+          .auth-toggle-overlay {
+            display: none !important;
+          }
+          .auth-mobile-switch {
+            display: flex !important;
+          }
+          .auth-sign-in-panel {
+            display: ${isActive ? 'none' : 'flex'} !important;
+          }
+          .auth-sign-up-panel {
+            display: ${isActive ? 'flex' : 'none'} !important;
+          }
+        }
+      `}</style>
+
+      <div style={S.page}>
+        <Grainient 
+          color1="#dadada" 
+          color2="#44ADE6" 
+          color3="#0E82E8" 
+          noiseScale={1.95} 
+        />
+
+        {/* ============ MAIN CONTAINER CARD ============ */}
+        <div className="auth-container-card" style={S.container}>
+
+          {/* -------- SIGN UP FORM (left, hidden by default) -------- */}
+          <div
+            className="auth-form-panel auth-sign-up-panel"
+            style={{ ...S.formContainer, ...S.signUp }}
           >
-            <div style={{ maxWidth: 520 }}>
-              <div className="text-dark fw-bold" style={{ fontSize: 42, lineHeight: 1.1 }}>
-                Selamat Datang Kembali
+            <form onSubmit={handleRegisterSubmit} style={S.form}>
+              <img src={LogoBiru} alt="DuitFam" style={{ height: 36, marginBottom: 12 }} />
+              <h1 style={S.heading}>Create Account</h1>
+              <p style={S.subtitle}>Buat akun baru untuk memulai menabung bersama keluarga</p>
+
+              {error && mode === 'register' && <div style={S.errorBox}>{error}</div>}
+
+              <input
+                className="auth-input"
+                style={S.input}
+                type="text"
+                name="username"
+                placeholder="Name"
+                value={registerData.username}
+                onChange={handleRegisterChange}
+                required
+              />
+              <input
+                className="auth-input"
+                style={S.input}
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={registerData.email}
+                onChange={handleRegisterChange}
+                required
+              />
+              <input
+                className="auth-input"
+                style={S.input}
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={registerData.password}
+                onChange={handleRegisterChange}
+                required
+              />
+
+              {/* Password strength */}
+              <div style={{ width: '100%', marginBottom: 4, marginTop: -2 }}>
+                <ValidationItem isPassed={checks.length} text="At least 8 characters" />
+                <ValidationItem isPassed={checks.capital} text="Contains a capital letter" />
+                <ValidationItem isPassed={checks.number} text="Contains a number" />
               </div>
-              <div className="text-dark opacity-75 mt-2" style={{ fontSize: 16, maxWidth: 420 }}>
-                Kelola keuangan keluarga bersama DuitFam
+
+              <button type="submit" disabled={loading} className="auth-submit-btn" style={S.submitBtn}>
+                {loading ? 'Loading...' : 'SIGN UP'}
+              </button>
+
+              {/* Mobile-only switch link */}
+              <p className="auth-mobile-switch" style={{ ...S.subtitle, display: 'none', marginTop: 16 }}>
+                Already have an account?{' '}
+                <span style={S.link} onClick={() => switchMode('login')}>Sign In</span>
+              </p>
+            </form>
+          </div>
+
+          {/* -------- SIGN IN FORM (left, visible by default) -------- */}
+          <div
+            className="auth-form-panel auth-sign-in-panel"
+            style={{ ...S.formContainer, ...S.signIn }}
+          >
+            <form onSubmit={handleLoginSubmit} style={S.form}>
+              <img src={LogoBiru} alt="DuitFam" style={{ height: 36, marginBottom: 12 }} />
+              <h1 style={S.heading}>Sign In</h1>
+              <p style={S.subtitle}>Selamat datang kembali ke DuitFam</p>
+
+              {error && mode === 'login' && <div style={S.errorBox}>{error}</div>}
+
+
+              <input
+                className="auth-input"
+                style={S.input}
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={loginData.email}
+                onChange={handleLoginChange}
+                required
+              />
+              <input
+                className="auth-input"
+                style={S.input}
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                placeholder="Password"
+                value={loginData.password}
+                onChange={handleLoginChange}
+                required
+              />
+
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={S.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={showPassword}
+                    onChange={() => setShowPassword(!showPassword)}
+                    style={{ accentColor: '#1aa7ff' }}
+                  />
+                  Show password
+                </label>
+                <a href="#" style={S.link} onClick={(e) => e.preventDefault()}>Forgot Password?</a>
               </div>
-              <div className="mt-4">
-                <img
-                  src={StartIllustration}
-                  alt="Ilustrasi"
-                  style={{
-                    width: '100%',
-                    maxWidth: 520,
-                    filter: 'drop-shadow(0 25px 45px rgba(0,0,0,0.12))',
-                  }}
-                />
+
+              <button type="submit" disabled={loading} className="auth-submit-btn" style={S.submitBtn}>
+                {loading ? 'Loading...' : 'SIGN IN'}
+              </button>
+
+              {/* Mobile-only switch link */}
+              <p className="auth-mobile-switch" style={{ ...S.subtitle, display: 'none', marginTop: 16 }}>
+                Don't have an account?{' '}
+                <span style={S.link} onClick={() => switchMode('register')}>Sign Up</span>
+              </p>
+            </form>
+          </div>
+
+          {/* ============ TOGGLE OVERLAY (colored sliding panel) ============ */}
+          <div className="auth-toggle-overlay" style={S.toggleContainer}>
+            <div style={S.toggle}>
+
+              {/* Left panel – shown when "active" (register mode) */}
+              <div style={{ ...S.togglePanel, ...S.toggleLeft }}>
+                <img src={LogoPutih} alt="DuitFam" style={{ height: 42, marginBottom: 8 }} />
+                <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>Welcome Back!</h1>
+                <p style={{ fontSize: 13, lineHeight: '22px', margin: '14px 0', opacity: 0.92 }}>
+                  Masuk dengan akun yang sudah ada untuk mengakses keuangan keluargamu
+                </p>
+                <button
+                  type="button"
+                  className="toggle-btn-outline"
+                  style={S.toggleBtn}
+                  onClick={() => switchMode('login')}
+                >
+                  SIGN IN
+                </button>
+              </div>
+
+              {/* Right panel – shown by default (login mode) */}
+              <div style={{ ...S.togglePanel, ...S.toggleRight }}>
+                <img src={LogoPutih} alt="DuitFam" style={{ height: 42, marginBottom: 8 }} />
+                <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>Hello, Friends!</h1>
+                <p style={{ fontSize: 13, lineHeight: '22px', margin: '14px 0', opacity: 0.92 }}>
+                  Daftar sekarang dan mulai kelola keuangan bersama keluargamu
+                </p>
+                <button
+                  type="button"
+                  className="toggle-btn-outline"
+                  style={S.toggleBtn}
+                  onClick={() => switchMode('register')}
+                >
+                  SIGN UP
+                </button>
               </div>
             </div>
-          </Col>
-
-          <Col lg={4} className="d-flex flex-column align-items-center justify-content-center">
-            <img src={LogoBiru} alt="DuitFam" style={{ height: 44, marginBottom: 18 }} />
-
-            <Form noValidate validated={validated} onSubmit={handleSubmit} style={{ width: '100%', maxWidth: 360 }}>
-              <Card
-                className="border-0"
-                style={{
-                  borderRadius: 12,
-                  boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
-                }}
-              >
-                <Card.Body style={{ padding: 22 }}>
-                  <div className="text-center mb-4">
-                    <div style={{ fontSize: 22, fontWeight: 800 }}>Login</div>
-                  </div>
-
-                  {error ? (
-                    <Alert variant="danger" className="border-0 rounded-4 py-2 small mb-4 fw-medium text-center">
-                      {error}
-                    </Alert>
-                  ) : null}
-
-                  <Form.Group className="mb-3">
-                    <Form.Label className="fw-semibold">Username/Email</Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text
-                        className="bg-white"
-                        style={{
-                          borderRadius: '10px 0 0 10px',
-                          border: '1px solid rgba(0,0,0,0.25)',
-                          borderRight: 0,
-                        }}
-                      >
-                        <Person />
-                      </InputGroup.Text>
-                      <Form.Control
-                        type="text"
-                        name="email"
-                        placeholder="Masukkan Username/Email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                        style={{
-                          borderRadius: '0 10px 10px 0',
-                          border: '1px solid rgba(0,0,0,0.25)',
-                          borderLeft: 0,
-                          padding: '10px 12px',
-                        }}
-                      />
-                    </InputGroup>
-                  </Form.Group>
-
-                  <Form.Group className="mb-4">
-                    <Form.Label className="fw-semibold">Password</Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text
-                        className="bg-white"
-                        style={{
-                          borderRadius: '10px 0 0 10px',
-                          border: '1px solid rgba(0,0,0,0.25)',
-                          borderRight: 0,
-                        }}
-                      >
-                        <Lock />
-                      </InputGroup.Text>
-                      <Form.Control
-                        type={showPassword ? 'text' : 'password'}
-                        name="password"
-                        placeholder="Masukkan password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        required
-                        style={{
-                          borderRadius: '0 10px 10px 0',
-                          border: '1px solid rgba(0,0,0,0.25)',
-                          borderLeft: 0,
-                          padding: '10px 12px',
-                        }}
-                      />
-                    </InputGroup>
-                    <div className="mt-2">
-                      <Form.Check
-                        type="checkbox"
-                        id="show-password"
-                        label="Tampilkan password"
-                        checked={showPassword}
-                        onChange={() => setShowPassword(!showPassword)}
-                      />
-                    </div>
-                  </Form.Group>
-
-                  <div className="text-center mt-2 fw-semibold" style={{ fontSize: 13 }}>
-                    Belum punya akun?{' '}
-                    <a
-                      href="/register"
-                      className="text-decoration-none"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        go('/register');
-                      }}
-                    >
-                      Daftar disini
-                    </a>
-                  </div>
-                </Card.Body>
-              </Card>
-
-              <div className="d-flex justify-content-center mt-4">
-                <Button
-                  variant="light"
-                  type="submit"
-                  disabled={loading}
-                  className="px-5 py-2"
-                  style={{
-                    borderRadius: 14,
-                    minWidth: 220,
-                    fontWeight: 700,
-                    boxShadow: '0 14px 30px rgba(0,0,0,0.12)',
-                  }}
-                >
-                  {loading ? 'Loading...' : 'Login'}
-                </Button>
-              </div>
-            </Form>
-          </Col>
-        </Row>
-      </Container>
-    </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 
