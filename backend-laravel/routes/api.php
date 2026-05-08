@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\ApprovalController;
+use App\Http\Controllers\Api\SpendingTipsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ReportController;
@@ -105,4 +106,5 @@ Route::middleware("auth.token")->group(function () {
     // AI Chat & Alerts
     Route::post("/ai/chat", [AiChatController::class, "chat"]);
     Route::get("/ai/alerts", [AiChatController::class, "getAlerts"]);
+    Route::get("/ai/spending-tips", [SpendingTipsController::class, "index"]);
 });
