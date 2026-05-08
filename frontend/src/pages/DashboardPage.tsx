@@ -29,17 +29,22 @@ const formatRupiah = (amount: number) => {
 
 const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
     if (!data) return null;
+    
     const currentSaldo = data.saldoAkhir || 0;
-    const neto = data.neto || 0;
-    const previousSaldo = currentSaldo - neto;
-
+    const prevSaldo = data.saldoBulanLalu ?? 0;
+    
     let percentage = 0;
-    if (previousSaldo === 0) {
-        if (neto > 0) percentage = 100;
-        else if (neto < 0) percentage = -100;
-        else percentage = 0;
+    
+    if (prevSaldo === 0) {
+        if (currentSaldo > 0) {
+            percentage = 100;
+        } else if (currentSaldo < 0) {
+            percentage = -100;
+        } else {
+            percentage = 0;
+        }
     } else {
-        percentage = (neto / previousSaldo) * 100;
+        percentage = ((currentSaldo - prevSaldo) / Math.abs(prevSaldo)) * 100;
     }
 
     const isPositive = percentage > 0;

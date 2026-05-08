@@ -4,6 +4,7 @@ export interface MonthlySummary {
     totalPengeluaran: number;
     neto: number; // Pemasukan - Pengeluaran
     saldoAkhir: number;
+    saldoBulanLalu?: number; // Saldo penutupan bulan sebelumnya
     persentasePemasukan?: number;
     persentasePengeluaran?: number;
 }

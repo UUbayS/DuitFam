@@ -40,12 +40,54 @@ class ReportController extends Controller
         $expense = (float) (clone $base)->where('jenis', config('constants.transaction_types.pengeluaran'))->sum('jumlah');
         $wallet = Wallet::firstOrCreate(['user_id' => $userId], ['saldo_sekarang' => 0]);
 
+        $selectedMonth = $request->query('month', now()->format('Y-m'));
+        $endOfSelectedMonth = now()->createFromFormat('Y-m', $selectedMonth)->endOfMonth()->toDateString();
+        $endOfPrevMonth = now()->createFromFormat('Y-m', $selectedMonth)->subMonth()->endOfMonth()->toDateString();
+        
+        $currentSaldo = (float) $wallet->saldo_sekarang;
+        
+        // Calculate saldoAkhir (closing balance of selected month)
+        // = current balance - transactions after selected month
+        $transactionsAfterSelected = Transaction::query()
+            ->where('user_id', $userId)
+            ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('tanggal', '>', $endOfSelectedMonth)
+            ->get(['jenis', 'jumlah']);
+        
+        $netAfterSelected = 0;
+        foreach ($transactionsAfterSelected as $t) {
+            if ($t->jenis === config('constants.transaction_types.pemasukan')) {
+                $netAfterSelected -= (float) $t->jumlah;
+            } else {
+                $netAfterSelected += (float) $t->jumlah;
+            }
+        }
+        $saldoAkhir = $currentSaldo + $netAfterSelected;
+        
+        // Calculate saldoBulanLalu (closing balance of previous month)
+        $transactionsAfterPrev = Transaction::query()
+            ->where('user_id', $userId)
+            ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('tanggal', '>', $endOfPrevMonth)
+            ->get(['jenis', 'jumlah']);
+        
+        $netAfterPrev = 0;
+        foreach ($transactionsAfterPrev as $t) {
+            if ($t->jenis === config('constants.transaction_types.pemasukan')) {
+                $netAfterPrev -= (float) $t->jumlah;
+            } else {
+                $netAfterPrev += (float) $t->jumlah;
+            }
+        }
+        $saldoBulanLalu = $currentSaldo + $netAfterPrev;
+
         return [
-            'bulan' => $request->query('month', now()->format('Y-m')),
+            'bulan' => $selectedMonth,
             'totalPemasukan' => $income,
             'totalPengeluaran' => $expense,
             'neto' => $income - $expense,
-            'saldoAkhir' => (float) $wallet->saldo_sekarang,
+            'saldoAkhir' => $saldoAkhir,
+            'saldoBulanLalu' => $saldoBulanLalu,
         ];
     }
 
@@ -73,20 +115,62 @@ class ReportController extends Controller
             ->where('is_internal', '!=', true)
             ->sum('jumlah');
         
+        // Calculate current family wallet total
         $childWalletTotal = 0;
         if ($childIds->isNotEmpty()) {
             $childWalletTotal = (float) Wallet::query()->whereIn('user_id', $childIds->all())->sum('saldo_sekarang');
         }
         
         $parentWallet = Wallet::firstOrCreate(['user_id' => $parentId], ['saldo_sekarang' => 0]);
-        $walletTotal = $childWalletTotal + (float) $parentWallet->saldo_sekarang;
+        $currentSaldoTotal = $childWalletTotal + (float) $parentWallet->saldo_sekarang;
+
+        $selectedMonth = $request->query('month', now()->format('Y-m'));
+        $endOfSelectedMonth = now()->createFromFormat('Y-m', $selectedMonth)->endOfMonth()->toDateString();
+        $endOfPrevMonth = now()->createFromFormat('Y-m', $selectedMonth)->subMonth()->endOfMonth()->toDateString();
+
+        // Calculate saldoAkhir (closing balance of selected month)
+        $transactionsAfterSelected = Transaction::query()
+            ->whereIn('user_id', $allUserIds->all())
+            ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('is_internal', '!=', true)
+            ->where('tanggal', '>', $endOfSelectedMonth)
+            ->get(['jenis', 'jumlah']);
+        
+        $netAfterSelected = 0;
+        foreach ($transactionsAfterSelected as $t) {
+            if ($t->jenis === config('constants.transaction_types.pemasukan')) {
+                $netAfterSelected -= (float) $t->jumlah;
+            } else {
+                $netAfterSelected += (float) $t->jumlah;
+            }
+        }
+        $saldoAkhir = $currentSaldoTotal + $netAfterSelected;
+
+        // Calculate saldoBulanLalu (closing balance of previous month)
+        $transactionsAfterPrev = Transaction::query()
+            ->whereIn('user_id', $allUserIds->all())
+            ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('is_internal', '!=', true)
+            ->where('tanggal', '>', $endOfPrevMonth)
+            ->get(['jenis', 'jumlah']);
+        
+        $netAfterPrev = 0;
+        foreach ($transactionsAfterPrev as $t) {
+            if ($t->jenis === config('constants.transaction_types.pemasukan')) {
+                $netAfterPrev -= (float) $t->jumlah;
+            } else {
+                $netAfterPrev += (float) $t->jumlah;
+            }
+        }
+        $saldoBulanLalu = $currentSaldoTotal + $netAfterPrev;
 
         return [
-            'bulan' => $request->query('month', now()->format('Y-m')),
+            'bulan' => $selectedMonth,
             'totalPemasukan' => $income,
             'totalPengeluaran' => $expense,
             'neto' => $income - $expense,
-            'saldoAkhir' => $walletTotal,
+            'saldoAkhir' => $saldoAkhir,
+            'saldoBulanLalu' => $saldoBulanLalu,
             'childCount' => $childIds->count(),
         ];
     }
@@ -113,14 +197,53 @@ class ReportController extends Controller
         }
 
         $wallet = Wallet::where('user_id', $userId)->first(['saldo_sekarang']);
-        $saldo = $wallet ? (float) $wallet->saldo_sekarang : 0;
+        $currentSaldo = $wallet ? (float) $wallet->saldo_sekarang : 0;
+
+        $selectedMonth = $request->query('month', now()->format('Y-m'));
+        $endOfSelectedMonth = now()->createFromFormat('Y-m', $selectedMonth)->endOfMonth()->toDateString();
+        $endOfPrevMonth = now()->createFromFormat('Y-m', $selectedMonth)->subMonth()->endOfMonth()->toDateString();
+
+        // Calculate saldoAkhir (closing balance of selected month)
+        $transactionsAfterSelected = Transaction::query()
+            ->where('user_id', $userId)
+            ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('tanggal', '>', $endOfSelectedMonth)
+            ->get(['jenis', 'jumlah']);
+        
+        $netAfterSelected = 0;
+        foreach ($transactionsAfterSelected as $t) {
+            if ($t->jenis === config('constants.transaction_types.pemasukan')) {
+                $netAfterSelected -= (float) $t->jumlah;
+            } else {
+                $netAfterSelected += (float) $t->jumlah;
+            }
+        }
+        $saldoAkhir = $currentSaldo + $netAfterSelected;
+
+        // Calculate saldoBulanLalu (closing balance of previous month)
+        $transactionsAfterPrev = Transaction::query()
+            ->where('user_id', $userId)
+            ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('tanggal', '>', $endOfPrevMonth)
+            ->get(['jenis', 'jumlah']);
+        
+        $netAfterPrev = 0;
+        foreach ($transactionsAfterPrev as $t) {
+            if ($t->jenis === config('constants.transaction_types.pemasukan')) {
+                $netAfterPrev -= (float) $t->jumlah;
+            } else {
+                $netAfterPrev += (float) $t->jumlah;
+            }
+        }
+        $saldoBulanLalu = $currentSaldo + $netAfterPrev;
 
         $summaryData = [
-            'bulan' => $request->query('month', now()->format('Y-m')),
+            'bulan' => $selectedMonth,
             'totalPemasukan' => $income,
             'totalPengeluaran' => $expense,
             'neto' => $income - $expense,
-            'saldoAkhir' => $saldo,
+            'saldoAkhir' => $saldoAkhir,
+            'saldoBulanLalu' => $saldoBulanLalu,
         ];
 
         return response()->json(['message' => 'OK', 'data' => $summaryData]);
