@@ -6,7 +6,6 @@ import { createWithdrawalRequest, fetchWithdrawalRequests, processWithdrawalRequ
 import { fetchChildrenService } from '../services/user.service';
 import TransactionModal from '../components/TransactionModal';
 import type { WithdrawalRequestItem } from '../types/approval.types';
-    import IconPersetujuanBiru from '../assets/IconApprovalBiru.svg'; // Assuming this exists or using generic if not
 
 const formatRupiah = (amount: number) => {
     const formatted = new Intl.NumberFormat('id-ID', {
@@ -17,6 +16,59 @@ const formatRupiah = (amount: number) => {
     }).format(Math.floor(amount));
     return formatted.replace('Rp', 'Rp. ');
 };
+
+// RequestCard Component
+interface RequestCardProps {
+    row: WithdrawalRequestItem;
+    childName: string;
+    showActions?: boolean;
+    onProcess?: (id: string, action: 'approved' | 'rejected') => void;
+    actionLoading?: Record<string, boolean>;
+}
+
+const RequestCard = ({ row, childName, showActions = false, onProcess, actionLoading = {} }: RequestCardProps) => (
+    <Card className="border-0 shadow-sm h-100" style={{ borderRadius: 25, overflow: 'hidden' }}>
+        <Card.Body className="p-4">
+            <div className="fw-bold mb-1" style={{ fontSize: 20 }}>
+                {childName}
+            </div>
+            <div className="text-muted small mb-3">Permintaan saldo sejumlah:</div>
+            <div className="fw-bold text-primary mb-3" style={{ fontSize: 24 }}>
+                {formatRupiah(Number(row.amount))}
+            </div>
+            <div className="text-muted small mb-4" style={{ minHeight: 40 }}>
+                <strong>Alasan:</strong> {row.reason || '-'}
+            </div>
+
+            {showActions && row.status === 'pending' && onProcess && (
+                <div className="d-flex gap-2">
+                    <Button
+                        variant="danger"
+                        className="flex-grow-1 py-2 fw-bold rounded-3"
+                        onClick={() => onProcess(row.id, 'rejected')}
+                        disabled={actionLoading[row.id]}
+                    >
+                        Tolak
+                    </Button>
+                    <Button
+                        variant="primary"
+                        className="flex-grow-1 py-2 fw-bold rounded-3"
+                        onClick={() => onProcess(row.id, 'approved')}
+                        disabled={actionLoading[row.id]}
+                    >
+                        Setujui
+                    </Button>
+                </div>
+            )}
+
+            {row.status !== 'pending' && (
+                <div className={`text-center py-2 fw-bold rounded-3 ${row.status === 'approved' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}`}>
+                    {row.status === 'approved' ? 'Disetujui' : 'Ditolak'}
+                </div>
+            )}
+        </Card.Body>
+    </Card>
+);
 
 const ApprovalPage = () => {
     const { user } = useAuth();
@@ -81,17 +133,19 @@ const ApprovalPage = () => {
         }
     };
 
+    const pendingRequests = data.filter(r => r.status === 'pending');
+    const historyRequests = data.filter(r => r.status !== 'pending');
+
     return (
-        <MainLayout 
-            onTransactionAdded={loadData} 
+        <MainLayout
+            onTransactionAdded={loadData}
             openTransactionModal={() => setShowTransactionModal(true)}
             hideAddButton={false}
         >
             <div className="d-flex align-items-center gap-2 mb-4">
-                {/* Fallback to IconAnalisisBiru style icon if IconApprovalBiru is missing */}
                 <div style={{ backgroundColor: '#0b84ff', width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>✓</div>
                 <h2 className="text-primary fw-bold mb-0" style={{ fontSize: 35 }}>
-                    {user?.role === 'parent' ? 'Persetujuan' : 'Pengajuan'}
+                    {user?.role === 'parent' ? 'Pusat Persetujuan' : 'Pengajuan'}
                 </h2>
             </div>
 
@@ -103,10 +157,10 @@ const ApprovalPage = () => {
                         <h4 className="fw-bold mb-4">Ajukan Permintaan Saldo</h4>
                         <Form.Group className="mb-3">
                             <Form.Label className="fw-bold small text-muted">Jumlah Permintaan (Rp)</Form.Label>
-                            <Form.Control 
-                                type="number" 
-                                value={amount} 
-                                onChange={(e) => setAmount(e.target.value)} 
+                            <Form.Control
+                                type="number"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
                                 placeholder="0"
                                 className="py-3 px-4 rounded-4 border-0"
                                 style={{ backgroundColor: '#f6f4ff' }}
@@ -114,11 +168,11 @@ const ApprovalPage = () => {
                         </Form.Group>
                         <Form.Group className="mb-4">
                             <Form.Label className="fw-bold small text-muted">Alasan Permintaan</Form.Label>
-                            <Form.Control 
-                                as="textarea" 
-                                rows={3} 
-                                value={reason} 
-                                onChange={(e) => setReason(e.target.value)} 
+                            <Form.Control
+                                as="textarea"
+                                rows={3}
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
                                 placeholder="Misal: Beli buku sekolah"
                                 className="py-3 px-4 rounded-4 border-0"
                                 style={{ backgroundColor: '#f6f4ff' }}
@@ -134,64 +188,88 @@ const ApprovalPage = () => {
             {loading && data.length === 0 ? (
                 <div className="text-center p-5"><Spinner animation="border" variant="primary" /></div>
             ) : (
-                <Row className="g-4">
-                    {data.filter(r => user?.role === 'parent' ? r.status === 'pending' : true).map((row) => (
-                        <Col key={row.id} md={6} lg={4}>
-                            <Card className="border-0 shadow-sm h-100" style={{ borderRadius: 25, overflow: 'hidden' }}>
-                                <Card.Body className="p-4">
-                                    <div className="fw-bold mb-1" style={{ fontSize: 20 }}>
-                                        {user?.role === 'parent' ? children[row.child_id] || 'Anak' : user?.username}
-                                    </div>
-                                    <div className="text-muted small mb-3">Permintaan saldo sejumlah:</div>
-                                    <div className="fw-bold text-primary mb-3" style={{ fontSize: 24 }}>
-                                        {formatRupiah(Number(row.amount))}
-                                    </div>
-                                    <div className="text-muted small mb-4" style={{ minHeight: 40 }}>
-                                        <strong>Alasan:</strong> {row.reason || '-'}
-                                    </div>
-                                    
-                                    {user?.role === 'parent' && row.status === 'pending' && (
-                                        <div className="d-flex gap-2">
-                                            <Button 
-                                                variant="danger" 
-                                                className="flex-grow-1 py-2 fw-bold rounded-3" 
-                                                onClick={() => onProcess(row.id, 'rejected')}
-                                                disabled={actionLoading[row.id]}
-                                            >
-                                                Tolak
-                                            </Button>
-                                            <Button 
-                                                variant="primary" 
-                                                className="flex-grow-1 py-2 fw-bold rounded-3" 
-                                                onClick={() => onProcess(row.id, 'approved')}
-                                                disabled={actionLoading[row.id]}
-                                            >
-                                                Setujui
-                                            </Button>
+                <>
+                    {/* Parent View */}
+                    {user?.role === 'parent' && (
+                        <>
+                            {/* Section 1: Permintaan Masuk (Pending) */}
+                            <div className="mb-5">
+                                <h4 className="fw-bold mb-4">Permintaan Masuk</h4>
+                                {pendingRequests.length === 0 ? (
+                                    <div className="text-center p-5">
+                                        <div className="text-muted" style={{ opacity: 0.6 }}>
+                                            Tidak ada permintaan
                                         </div>
-                                    )}
-                                    
-                                    {row.status !== 'pending' && (
-                                        <div className={`text-center py-2 fw-bold rounded-3 ${row.status === 'approved' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}`}>
-                                            {row.status === 'approved' ? 'Disetujui' : 'Ditolak'}
+                                    </div>
+                                ) : (
+                                    <Row className="g-4">
+                                        {pendingRequests.map((row) => (
+                                            <Col key={row.id} md={6} lg={4}>
+                                                <RequestCard
+                                                    row={row}
+                                                    childName={children[row.child_id] || 'Anak'}
+                                                    showActions={true}
+                                                    onProcess={onProcess}
+                                                    actionLoading={actionLoading}
+                                                />
+                                            </Col>
+                                        ))}
+                                    </Row>
+                                )}
+                            </div>
+
+                            {/* Section 2: Riwayat Persetujuan (Approved/Rejected) */}
+                            <div>
+                                <h4 className="fw-bold mb-4">Riwayat Persetujuan</h4>
+                                {historyRequests.length === 0 ? (
+                                    <div className="text-center p-5">
+                                        <div className="text-muted">
+                                            Tidak ada riwayat persetujuan.
                                         </div>
-                                    )}
-                                </Card.Body>
-                            </Card>
-                        </Col>
-                    ))}
-                    {data.length === 0 && (
-                        <Col className="text-center p-5">
-                            <div className="text-muted">Tidak ada data permintaan persetujuan.</div>
-                        </Col>
+                                    </div>
+                                ) : (
+                                    <Row className="g-4">
+                                        {historyRequests.map((row) => (
+                                            <Col key={row.id} md={6} lg={4}>
+                                                <RequestCard
+                                                    row={row}
+                                                    childName={children[row.child_id] || 'Anak'}
+                                                    showActions={false}
+                                                />
+                                            </Col>
+                                        ))}
+                                    </Row>
+                                )}
+                            </div>
+                        </>
                     )}
-                </Row>
+
+                    {/* Child View */}
+                    {user?.role === 'child' && (
+                        <Row className="g-4">
+                            {data.map((row) => (
+                                <Col key={row.id} md={6} lg={4}>
+                                    <RequestCard
+                                        row={row}
+                                        childName={user?.username || ''}
+                                        showActions={false}
+                                    />
+                                </Col>
+                            ))}
+                            {data.length === 0 && (
+                                <Col className="text-center p-5">
+                                    <div className="text-muted">Tidak ada data permintaan.</div>
+                                </Col>
+                            )}
+                        </Row>
+                    )}
+                </>
             )}
 
-            <TransactionModal 
-                show={showTransactionModal} 
-                handleClose={() => setShowTransactionModal(false)} 
-                onSuccess={loadData} 
+            <TransactionModal
+                show={showTransactionModal}
+                handleClose={() => setShowTransactionModal(false)}
+                onSuccess={loadData}
             />
         </MainLayout>
     );
