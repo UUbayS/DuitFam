@@ -144,7 +144,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
 
     return (
         <Modal show={show} onHide={handleClose} centered backdrop="static" className="transaction-modal">
-            <div className="bg-white" style={{ borderRadius: '15px', overflow: 'hidden', border: 'none' }}>
+            <div className="bg-white" style={{ borderRadius: '5px', overflow: 'hidden', border: 'none' }}>
                 <div className="bg-primary p-3 d-flex justify-content-between align-items-center">
                     <h5 className="modal-title text-white fw-bold mb-0">Catat Transaksi Baru</h5>
                     <Button variant="link" className="text-white p-0" onClick={handleClose}>

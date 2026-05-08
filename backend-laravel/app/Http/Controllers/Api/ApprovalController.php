@@ -69,7 +69,7 @@ class ApprovalController extends Controller
 
         $data = $query->latest()
             ->limit(50)
-            ->get(['_id', 'child_id', 'parent_id', 'amount', 'reason', 'status', 'created_at'])
+            ->get(['_id', 'child_id', 'parent_id', 'amount', 'reason', 'rejection_reason', 'status', 'created_at'])
             ->map(function ($w) {
             return [
                 'id' => (string) $w->id,
@@ -77,6 +77,7 @@ class ApprovalController extends Controller
                 'parent_id' => (string) $w->parent_id,
                 'amount' => (float) $w->amount,
                 'reason' => $w->reason,
+                'rejection_reason' => $w->rejection_reason ?? null,
                 'status' => $w->status,
                 'created_at' => $w->created_at,
             ];
@@ -101,7 +102,9 @@ class ApprovalController extends Controller
 
         return $this->safeMongoTransaction(function () use ($request, $parent, $withdrawal, $action) {
             $withdrawal->status = $action;
-            $withdrawal->reason = $request->input('reason', $withdrawal->reason);
+            if ($action === 'rejected') {
+                $withdrawal->rejection_reason = $request->input('reason', '');
+            }
             $withdrawal->approved_by = (string) $parent->id;
             $withdrawal->approved_at = now();
             $withdrawal->save();

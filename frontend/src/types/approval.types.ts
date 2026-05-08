@@ -4,6 +4,7 @@ export interface WithdrawalRequestItem {
   parent_id: string;
   amount: number;
   reason: string | null;
+  rejection_reason: string | null;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
 }

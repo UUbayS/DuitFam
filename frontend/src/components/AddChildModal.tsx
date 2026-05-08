@@ -63,7 +63,7 @@ const AddChildModal: React.FC<AddChildModalProps> = ({ show, handleClose, onSucc
 
     return (
         <Modal show={show} onHide={handleClose} centered backdrop="static" className="add-child-modal">
-            <div style={{ borderRadius: '25px', overflow: 'hidden', border: 'none' }}>
+            <div style={{ borderRadius: '5px', overflow: 'hidden', border: 'none' }}>
                 <div className="bg-primary p-4 d-flex justify-content-between align-items-center">
                     <h4 className="modal-title text-white fw-bold mb-0">Tambah Akun Anak</h4>
                     <Button variant="link" className="text-white p-0 shadow-none" onClick={handleClose}>
