@@ -40,6 +40,7 @@ const LoginPage = () => {
   // Register form
   const [registerData, setRegisterData] = useState({ username: '', email: '', password: '' });
   const [checks, setChecks] = useState({ length: false, capital: false, number: false });
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
   // Common
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +107,12 @@ const LoginPage = () => {
   const switchMode = (to: AuthMode) => {
     setError(null);
     setMode(to);
+    // Reset password visibility when switching modes
+    if (to === 'login') {
+      setShowRegisterPassword(false);
+    } else {
+      setShowPassword(false);
+    }
   };
 
   const isActive = mode === 'register';
@@ -375,18 +382,35 @@ const LoginPage = () => {
         /* Responsive */
         @media (max-width: 768px) {
           .auth-container-card {
-            min-height: 680px !important;
+            width: 100% !important;
+            max-width: 400px !important; /* Keeps the card a nice, readable size */
+            min-height: auto !important;
+            padding: 40px 0 !important;
+            margin: 0 auto !important; /* Forces perfect horizontal centering */
           }
           .auth-form-panel {
             width: 100% !important;
             position: relative !important;
             transform: none !important;
+            height: auto !important;
+            left: 0 !important; /* Resets any leftover sliding animation positions */
+          }
+          .auth-form-panel form {
+            padding: 0 24px !important; 
+            height: auto !important; 
+            width: 100% !important;
           }
           .auth-toggle-overlay {
             display: none !important;
           }
           .auth-mobile-switch {
             display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+          }
+          .auth-mobile-switch a {
+            margin-top: 0 !important; 
+            margin-left: 4px !important; 
           }
           .auth-sign-in-panel {
             display: ${isActive ? 'none' : 'flex'} !important;
@@ -443,13 +467,25 @@ const LoginPage = () => {
               <input
                 className="auth-input"
                 style={S.input}
-                type="password"
+                type={showRegisterPassword ? 'text' : 'password'}
                 name="password"
                 placeholder="Password"
                 value={registerData.password}
                 onChange={handleRegisterChange}
                 required
               />
+
+              <div style={{ width: '100%', display: 'flex', alignItems: 'center' }}>
+                <label style={S.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={showRegisterPassword}
+                    onChange={() => setShowRegisterPassword(!showRegisterPassword)}
+                    style={{ accentColor: '#1aa7ff' }}
+                  />
+                  Show password
+                </label>
+              </div>
 
               {/* Password strength */}
               <div style={{ width: '100%', marginBottom: 4, marginTop: -2 }}>
@@ -464,8 +500,7 @@ const LoginPage = () => {
 
               {/* Mobile-only switch link */}
               <p className="auth-mobile-switch" style={{ ...S.subtitle, display: 'none', marginTop: 16 }}>
-                Already have an account?{' '}
-                <span style={S.link} onClick={() => switchMode('login')}>Sign In</span>
+                Already have an account?<a style={S.link} onClick={() => switchMode('login')}>Sign In</a> 
               </p>
             </form>
           </div>
@@ -523,8 +558,7 @@ const LoginPage = () => {
 
               {/* Mobile-only switch link */}
               <p className="auth-mobile-switch" style={{ ...S.subtitle, display: 'none', marginTop: 16 }}>
-                Don't have an account?{' '}
-                <span style={S.link} onClick={() => switchMode('register')}>Sign Up</span>
+                Don't have an account?<a style={S.link} onClick={() => switchMode('register')}>Sign Up</a>
               </p>
             </form>
           </div>

@@ -44,7 +44,6 @@ class DatabaseSeeder extends Seeder
 
         $categories = [
             // Pengeluaran
-            ['nama_kategori' => 'Makanan', 'jenis' => 'pengeluaran', 'icon' => 'CupHot'],
             ['nama_kategori' => 'Makanan & Minuman', 'jenis' => 'pengeluaran', 'icon' => 'CupHot'],
             ['nama_kategori' => 'Belanja', 'jenis' => 'pengeluaran', 'icon' => 'Bag'],
             ['nama_kategori' => 'Transportasi', 'jenis' => 'pengeluaran', 'icon' => 'CarFront'],
