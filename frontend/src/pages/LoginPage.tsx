@@ -74,6 +74,7 @@ const LoginPage = () => {
     try {
       const res = await loginUser(loginData);
       localStorage.setItem('token', res.token);
+      localStorage.setItem('user', JSON.stringify(res.user));
       setUser(res.user);
       navigate('/dashboard');
     } catch (err: any) {
