@@ -100,9 +100,9 @@ const ApprovalPage = () => {
             {user?.role === 'child' && (
                 <Card className="border-0 shadow-sm mb-5" style={{ borderRadius: 25 }}>
                     <Card.Body className="p-4">
-                        <h4 className="fw-bold mb-4">Ajukan Penarikan Saldo</h4>
+                        <h4 className="fw-bold mb-4">Ajukan Permintaan Saldo</h4>
                         <Form.Group className="mb-3">
-                            <Form.Label className="fw-bold small text-muted">Jumlah Penarikan (Rp)</Form.Label>
+                            <Form.Label className="fw-bold small text-muted">Jumlah Permintaan (Rp)</Form.Label>
                             <Form.Control 
                                 type="number" 
                                 value={amount} 
@@ -113,7 +113,7 @@ const ApprovalPage = () => {
                             />
                         </Form.Group>
                         <Form.Group className="mb-4">
-                            <Form.Label className="fw-bold small text-muted">Alasan Penarikan</Form.Label>
+                            <Form.Label className="fw-bold small text-muted">Alasan Permintaan</Form.Label>
                             <Form.Control 
                                 as="textarea" 
                                 rows={3} 
@@ -142,7 +142,7 @@ const ApprovalPage = () => {
                                     <div className="fw-bold mb-1" style={{ fontSize: 20 }}>
                                         {user?.role === 'parent' ? children[row.child_id] || 'Anak' : user?.username}
                                     </div>
-                                    <div className="text-muted small mb-3">Penarikan saldo sejumlah:</div>
+                                    <div className="text-muted small mb-3">Permintaan saldo sejumlah:</div>
                                     <div className="fw-bold text-primary mb-3" style={{ fontSize: 24 }}>
                                         {formatRupiah(Number(row.amount))}
                                     </div>

@@ -44,8 +44,8 @@ class ApprovalController extends Controller
 
         NotificationFeed::create([
             'user_id' => $relation->parent_id,
-            'title' => 'Permintaan penarikan baru',
-            'message' => 'Ada permintaan penarikan dana baru dari akun anak.',
+            'title' => 'Permintaan baru',
+            'message' => 'Ada permintaan dana baru dari akun anak.',
             'read_at' => null,
             'meta' => ['child_id' => $child->id],
         ]);
@@ -54,7 +54,7 @@ class ApprovalController extends Controller
             'amount' => (float) $request->input('amount'),
         ]);
 
-        return response()->json(['message' => 'Permintaan penarikan berhasil dibuat.'], 201);
+        return response()->json(['message' => 'Permintaan berhasil dibuat.'], 201);
     }
 
     public function index(Request $request)
@@ -107,26 +107,44 @@ class ApprovalController extends Controller
             $withdrawal->save();
 
             if ($action === config('constants.transaction_status.approved')) {
-                $wallet = Wallet::where('user_id', $withdrawal->child_id)->firstOrFail();
-                if ((float) $wallet->saldo_sekarang < (float) $withdrawal->amount) {
-                    throw ValidationException::withMessages(['amount' => ['Saldo anak tidak mencukupi untuk disetujui.']]);
+                // 1. Kurangi saldo Orang Tua
+                $parentWallet = Wallet::where('user_id', $withdrawal->parent_id)->firstOrFail();
+                if ((float) $parentWallet->saldo_sekarang < (float) $withdrawal->amount) {
+                    throw ValidationException::withMessages(['amount' => ['Saldo orang tua tidak mencukupi.']]);
                 }
-                $wallet->saldo_sekarang = ((float) $wallet->saldo_sekarang) - (float) $withdrawal->amount;
-                $wallet->save();
+                $parentWallet->saldo_sekarang = ((float) $parentWallet->saldo_sekarang) - (float) $withdrawal->amount;
+                $parentWallet->save();
+
+                // 2. Tambah saldo Anak
+                $childWallet = Wallet::where('user_id', $withdrawal->child_id)->firstOrFail();
+                $childWallet->saldo_sekarang = ((float) $childWallet->saldo_sekarang) + (float) $withdrawal->amount;
+                $childWallet->save();
+
+                // 3. Transaksi untuk Orang Tua (Pengeluaran)
                 Transaction::create([
-                    'user_id' => $withdrawal->child_id,
+                    'user_id' => $withdrawal->parent_id,
                     'jenis' => config('constants.transaction_types.pengeluaran'),
                     'status' => config('constants.transaction_status.berhasil'),
                     'jumlah' => $withdrawal->amount,
                     'tanggal' => now()->toDateString(),
-                    'keterangan' => 'Penarikan disetujui orang tua',
+                    'keterangan' => 'Permintaan anak disetujui',
+                ]);
+
+                // 4. Transaksi untuk Anak (Pemasukan)
+                Transaction::create([
+                    'user_id' => $withdrawal->child_id,
+                    'jenis' => config('constants.transaction_types.pemasukan'),
+                    'status' => config('constants.transaction_status.berhasil'),
+                    'jumlah' => $withdrawal->amount,
+                    'tanggal' => now()->toDateString(),
+                    'keterangan' => 'Permintaan disetujui orang tua',
                 ]);
             }
 
             NotificationFeed::create([
                 'user_id' => $withdrawal->child_id,
-                'title' => 'Status penarikan diperbarui',
-                'message' => 'Permintaan penarikan Anda '.$withdrawal->status.'.',
+                'title' => 'Status permintaan diperbarui',
+                'message' => 'Permintaan Anda '.$withdrawal->status.'.',
                 'read_at' => null,
                 'meta' => ['withdrawal_id' => (string) $withdrawal->id, 'status' => $withdrawal->status],
             ]);

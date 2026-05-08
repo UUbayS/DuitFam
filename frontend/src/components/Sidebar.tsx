@@ -46,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick }) => {
           { to: "/family", icon: { active: AnggotaBlue, inactive: AnggotaWhite }, label: "Anggota Keluarga" },
           { to: "/approval", icon: { active: PersetujuanBlue, inactive: PersetujuanWhite }, label: "Pusat Persetujuan" },
         ]
-      : [{ to: "/approval", icon: { active: PersetujuanBlue, inactive: PersetujuanWhite }, label: "Penarikan" }]),
+      : [{ to: "/approval", icon: { active: PersetujuanBlue, inactive: PersetujuanWhite }, label: "Permintaan" }]),
   ];
 
   const isActive = (path: string) => location.pathname === path;

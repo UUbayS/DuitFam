@@ -193,11 +193,11 @@ class ReportController extends Controller
                     'id_transaksi' => 'withdrawal:'.(string) $w->id,
                     'jenis' => config('constants.transaction_types.pengeluaran'),
                     'jumlah' => (float) $w->amount,
-                    'keterangan' => $w->reason ?: 'Pengajuan penarikan',
+                    'keterangan' => $w->reason ?: 'Permintaan',
                     'tanggal' => $w->created_at ? $w->created_at->toDateString() : now()->toDateString(),
                     'created_at' => $w->created_at,
                     'status' => $status,
-                    'nama_kategori' => 'Penarikan',
+                    'nama_kategori' => 'Permintaan',
                 ];
             });
 
@@ -512,11 +512,11 @@ class ReportController extends Controller
                     'username' => $familyMemberMap[(string) $w->child_id]->username ?? 'Unknown',
                     'jenis' => config('constants.transaction_types.pengeluaran'),
                     'jumlah' => (float) $w->amount,
-                    'keterangan' => $w->reason ?: 'Pengajuan penarikan',
+                    'keterangan' => $w->reason ?: 'Permintaan',
                     'tanggal' => $w->created_at ? $w->created_at->toDateString() : now()->toDateString(),
                     'created_at' => $w->created_at,
                     'status' => $status,
-                    'nama_kategori' => 'Penarikan',
+                    'nama_kategori' => 'Permintaan',
                 ];
             });
 
