@@ -603,7 +603,7 @@ const LoginPage = () => {
                 required
               />
 
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ width: '100%', display: 'flex', alignItems: 'center' }}>
                 <label style={S.checkboxLabel}>
                   <input
                     type="checkbox"
@@ -613,7 +613,6 @@ const LoginPage = () => {
                   />
                   Show password
                 </label>
-                <a href="#" style={S.link} onClick={(e) => e.preventDefault()}>Forgot Password?</a>
               </div>
 
               <button type="submit" disabled={loading} className="auth-submit-btn" style={S.submitBtn}>

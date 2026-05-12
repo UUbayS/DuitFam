@@ -19,7 +19,7 @@ Route::prefix("auth")->group(function () {
 
 Route::middleware("auth.token")->group(function () {
     Route::post("/auth/logout", [AuthController::class, "logout"]);
-    Route::post("/auth/generate-invite", [AuthController::class, "generateInvite"]);
+    Route::post("/auth/generate-invite", [AuthController::class, "generateInvite"])->middleware('throttle:3,1');
     Route::get("/auth/parent-status", [AuthController::class, "parentStatus"]);
 
     Route::post("/transactions", [TransactionController::class, "store"]);

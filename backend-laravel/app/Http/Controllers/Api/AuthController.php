@@ -20,7 +20,7 @@ class AuthController extends Controller
     {
         try {
             $payload = $request->validated();
-            $username = strtolower($payload['username']);
+            $username = $payload['username'];
             $email = strtolower($payload['email']);
             $role = $payload['role'] ?? 'parent';
 
@@ -30,7 +30,7 @@ class AuthController extends Controller
                 'role' => $role,
             ]);
 
-            if (User::where('username', $username)->exists() || User::where('email', $email)->exists()) {
+            if (User::where('username_lower', strtolower($username))->exists() || User::where('email', $email)->exists()) {
                 return response()->json(['message' => 'Email atau Username sudah terdaftar.'], 409);
             }
 
@@ -84,7 +84,7 @@ class AuthController extends Controller
             Log::info('AUTH_LOGIN_ATTEMPT', ['identifier' => $identifier]);
 
             $t1 = microtime(true);
-            $user = User::where('email', $identifier)->orWhere('username', $identifier)->first();
+            $user = User::where('email', $identifier)->orWhere('username_lower', $identifier)->first();
             $t2 = microtime(true);
             if (! $user || ! Hash::check((string) $request->input('password'), $user->password)) {
                 Log::warning('AUTH_LOGIN_INVALID_CREDENTIALS', ['identifier' => $identifier]);
