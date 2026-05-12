@@ -148,7 +148,6 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
                 <div className="bg-primary p-3 d-flex justify-content-between align-items-center">
                     <h5 className="modal-title text-white fw-bold mb-0">Catat Transaksi Baru</h5>
                     <Button variant="link" className="text-white p-0" onClick={handleClose}>
-                        <ArrowUp className="d-none" /> {/* placeholder */}
                         <span style={{ fontSize: '24px', lineHeight: '1' }}>&times;</span>
                     </Button>
                 </div>

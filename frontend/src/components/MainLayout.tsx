@@ -15,14 +15,16 @@ interface MainLayoutProps {
     children: ReactNode;
     onTransactionAdded?: () => void;
     openTransactionModal?: () => void;
-    hideAddButton?: boolean; 
+    hideAddButton?: boolean;
+    style?: React.CSSProperties;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ 
     children, 
     onTransactionAdded, 
     openTransactionModal,
-    hideAddButton = false 
+    hideAddButton = false,
+    style
 }) => {
     const { user } = useAuth();
     const [showModal, setShowModal] = useState(false);
@@ -45,7 +47,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     const toggleSidebar = () => setShowSidebar(!showSidebar);
 
     return (
-        <div className="d-flex overflow-hidden" style={{ height: '100dvh', backgroundColor: 'var(--primary-color)' }}>
+        <div className="d-flex overflow-hidden" style={{ height: '100dvh', backgroundColor: 'var(--primary-color)', ...style }}>
             {/* Left Sidebar Desktop (Fixed) */}
             <aside className="desktop-only" style={{ width: 'var(--sidebar-width)', minWidth: 'var(--sidebar-width)', height: '100vh' }}>
                 <Sidebar />

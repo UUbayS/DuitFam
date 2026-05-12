@@ -71,8 +71,9 @@ export const fetchFamilyMonthlySummary = async (params: FilterParams | string = 
     return response.data.data;
 };
 
-export const fetchFamilyTransactionHistory = async (): Promise<(ReportTypes.TransactionHistoryItem & { user_id?: string; status?: string })[]> => {
-    const response = await api.get<{ message: string, data: (ReportTypes.TransactionHistoryItem & { user_id?: string; status?: string })[] }>(`/reports/family/history`);
+export const fetchFamilyTransactionHistory = async (params: FilterParams | string = ''): Promise<(ReportTypes.TransactionHistoryItem & { user_id?: string; status?: string })[]> => {
+    const queryString = buildQueryString(params);
+    const response = await api.get<{ message: string; data: (ReportTypes.TransactionHistoryItem & { user_id?: string; status?: string })[] }>(`/reports/family/history${queryString}`);
     return response.data.data;
 };
 

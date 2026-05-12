@@ -199,6 +199,7 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
             <DashboardAlertBanner />
 
             <Row className="g-4 mb-4">
+                {isParent && (
                 <Col md={6}>
                     <Card
                         className="border-0 shadow-sm h-100"
@@ -230,7 +231,8 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
                         </Card.Body>
                     </Card>
                 </Col>
-                <Col md={6}>
+                )}
+                <Col md={isParent ? 6 : 12}>
                     <Card
                         className="border-0 shadow-sm h-100"
                         style={{ borderRadius: 25 }}

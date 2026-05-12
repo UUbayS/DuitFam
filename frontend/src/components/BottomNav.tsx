@@ -32,12 +32,16 @@ const BottomNav: React.FC<BottomNavProps> = ({ openTransactionModal }) => {
     
     const isActive = (path: string) => location.pathname === path;
 
-    const navItems = [
-        { to: "/dashboard", icon: { active: HomeBlue, inactive: HomeWhite }, label: "Beranda" },
-        { to: "/analisis", icon: { active: AnalysisBlue, inactive: AnalysisWhite }, label: "Analisis" },
+    type NavLinkItem = { type: 'link'; to: string; icon: { active: string; inactive: string }; label: string };
+    type NavActionItem = { type: 'action'; icon: React.ReactNode; label: string; onClick: () => void };
+    type NavItem = NavLinkItem | NavActionItem;
+
+    const navItems: NavItem[] = [
+        { type: 'link', to: "/dashboard", icon: { active: HomeBlue, inactive: HomeWhite }, label: "Beranda" },
+        { type: 'link', to: "/analisis", icon: { active: AnalysisBlue, inactive: AnalysisWhite }, label: "Analisis" },
         { type: 'action', icon: <PlusCircleFill size={36} className="text-primary" />, label: "Tambah", onClick: openTransactionModal },
-        { to: "/target", icon: { active: TargetBlue, inactive: TargetWhite }, label: "Target" },
-        { to: "/settings", icon: { active: SettingsBlue, inactive: SettingsWhite }, label: "Profil" },
+        { type: 'link', to: "/target", icon: { active: TargetBlue, inactive: TargetWhite }, label: "Target" },
+        { type: 'link', to: "/settings", icon: { active: SettingsBlue, inactive: SettingsWhite }, label: "Profil" },
     ];
 
     return (
@@ -61,7 +65,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ openTransactionModal }) => {
                     );
                 }
 
-                const active = isActive(item.to!);
+                const active = isActive(item.to);
                 return (
                     <Nav.Link 
                         key={item.to}
