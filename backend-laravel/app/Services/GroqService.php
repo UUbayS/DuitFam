@@ -149,14 +149,17 @@ class GroqService
 
         $prompt .= "**INSTRUKSI:**\n";
         $prompt .= "1. Jawab dalam Bahasa Indonesia yang santai tapi profesional.\n";
-        $prompt .= "3. Jika pengeluaran > pemasukan, berikan peringatan tegas tapi sopan.\n";
-        $prompt .= "4. Berikan saran praktis untuk menghemat atau menabung.\n";
-        $prompt .= "5. JANGAN memberikan nasihat investasi saham/kripto yang berisiko tinggi.\n";
-        $prompt .= "6. Selalu prioritaskan keamanan dana darurat.\n";
-        $prompt .= "7. JAWAB LANGSUNG pada intinya. Hindari proses berpikir internal yang terlalu panjang.\n";
-        $prompt .= "8. JANGAN gunakan tag <think> atau menuliskan proses berpikirmu. Tampilkan jawaban akhir saja.\n";
-        $prompt .= "9. Jika orang tua, berikan saran pengelolaan keuangan keluarga. Jika anak, berikan tips menabung yang menyenangkan.\n";
-        $prompt .= "10. Ingatkan target yang terlewati deadline dengan sopan dan berikan saran mengejar target jika deadline ≤7 hari.";
+        $prompt .= "2. HANYA jawab pertanyaan yang berkaitan dengan keuangan, pengelolaan uang, menabung, atau fitur DuitFam. Ini sangat penting!\n";
+        $prompt .= "3. Jika pengguna bertanya tentang topik di luar keuangan (misalnya hiburan, politik, cuaca, coding, atau topik umum lainnya), Anda WAJIB menolaknya dengan sopan.\n";
+        $prompt .= "4. Contoh penolakan: 'Maaf, sebagai asisten keuangan DuitFam, saya hanya bisa membantu pertanyaan seputar keuangan dan pengelolaan anggaran Anda.'\n";
+        $prompt .= "5. Jika pengeluaran > pemasukan, berikan peringatan tegas tapi sopan.\n";
+        $prompt .= "6. Berikan saran praktis untuk menghemat atau menabung.\n";
+        $prompt .= "7. JANGAN memberikan nasihat investasi saham/kripto yang berisiko tinggi.\n";
+        $prompt .= "8. Selalu prioritaskan keamanan dana darurat.\n";
+        $prompt .= "9. JAWAB LANGSUNG pada intinya. Hindari proses berpikir internal yang terlalu panjang.\n";
+        $prompt .= "10. JANGAN gunakan tag <think> atau menuliskan proses berpikirmu. Tampilkan jawaban akhir saja.\n";
+        $prompt .= "11. Jika orang tua, berikan saran pengelolaan keuangan keluarga. Jika anak, berikan tips menabung yang menyenangkan.\n";
+        $prompt .= "12. Ingatkan target yang terlewati deadline dengan sopan dan berikan saran mengejar target jika deadline ≤7 hari.";
 
         return $prompt;
     }
@@ -299,5 +302,265 @@ class GroqService
     public function chat(string $message, array $context = []): ?string
     {
         return $this->generateFinancialAdvice($context, $message);
+    }
+
+    /**
+     * Generate structured spending tips based on financial data
+     * Returns array with categories: budget_tips, category_tips, saving_tips, warnings
+     */
+    public function generateSpendingTips(array $financialData): array
+    {
+        set_time_limit(180);
+        
+        // Try primary AI provider
+        $provider = config('services.ai.provider', 'cloud');
+        $tipsJson = $this->attemptSpendingTipsAiResponse($provider, $financialData);
+        
+        if ($tipsJson) {
+            $parsed = json_decode($tipsJson, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($parsed)) {
+                return $this->validateTipsStructure($parsed);
+            }
+        }
+        
+        // Fallback to local AI if cloud failed
+        if ($provider === 'cloud' && config('services.ai.fallback_to_local')) {
+            Log::info("Groq Cloud failed for spending tips, falling back to Ollama Local");
+            $tipsJson = $this->attemptSpendingTipsAiResponse('local', $financialData);
+            if ($tipsJson) {
+                $parsed = json_decode($tipsJson, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($parsed)) {
+                    return $this->validateTipsStructure($parsed);
+                }
+            }
+        }
+        
+        // Final fallback to rule-based tips
+        Log::warning("All AI providers failed for spending tips. Using Rule-Based fallback.");
+        return $this->generateRuleBasedSpendingTips($financialData);
+    }
+    
+    /**
+     * Attempt to get spending tips from AI provider
+     */
+    protected function attemptSpendingTipsAiResponse(string $provider, array $data): ?string
+    {
+        $config = config("services.ai.{$provider}");
+        if (!$config || (empty($config['api_key']) && $provider === 'cloud')) {
+            return null;
+        }
+        
+        try {
+            $messages = [
+                ['role' => 'system', 'content' => $this->buildSpendingTipsPrompt($data)],
+                ['role' => 'user', 'content' => 'Berikan tips pengeluaran cerdas dalam format JSON sesuai instruksi. Pastikan output adalah JSON yang valid tanpa teks tambahan.']
+            ];
+            
+            Log::info("Calling AI Provider: {$provider} for spending tips");
+            
+            $response = Http::withHeaders($provider === 'cloud' ? [
+                'Authorization' => 'Bearer ' . $config['api_key'],
+                'Content-Type' => 'application/json',
+            ] : [
+                'Content-Type' => 'application/json',
+            ])
+            ->timeout(120)
+            ->post($config['api_url'], [
+                'model' => $config['model'],
+                'messages' => $messages,
+                'temperature' => 0.3,
+                'max_tokens' => 2000,
+            ]);
+            
+            if ($response->successful()) {
+                $content = $response->json('choices.0.message.content');
+                if ($content && trim($content) !== '') {
+                    $content = preg_replace('/<think>.*?<\/think>/s', '', $content);
+                    return trim($content);
+                }
+            }
+            
+            return null;
+        } catch (\Exception $e) {
+            Log::error("AI Provider {$provider} exception for spending tips: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Build prompt for spending tips generation
+     */
+    protected function buildSpendingTipsPrompt(array $data): string
+    {
+        $summary = $data['summary'] ?? [];
+        $income = number_format($summary['totalPemasukan'] ?? 0, 0, ',', '.');
+        $expense = number_format($summary['totalPengeluaran'] ?? 0, 0, ',', '.');
+        $net = number_format($summary['neto'] ?? 0, 0, ',', '.');
+        $balance = number_format($summary['saldoAkhir'] ?? 0, 0, ',', '.');
+        
+        $prompt = "Kamu adalah DuitFam AI Financial Advisor. Berikan tips pengeluaran cerdas berdasarkan data keuangan berikut.\n\n";
+        $prompt .= "**DATA KEUANGAN:**\n";
+        $prompt .= "- Pemasukan: Rp {$income}\n";
+        $prompt .= "- Pengeluaran: Rp {$expense}\n";
+        $prompt .= "- Saldo Akhir: Rp {$balance}\n";
+        $prompt .= "- Net: Rp {$net}\n\n";
+        
+        $prompt .= "**KATEGORI PENGELUARAN:**\n";
+        foreach (array_slice($data['spendingByCategory'] ?? [], 0, 5) as $cat) {
+            $amt = number_format($cat['jumlah'], 0, ',', '.');
+            $prompt .= "- {$cat['namaKategori']}: Rp {$amt} ({$cat['persentase']}%)\n";
+        }
+        
+        $prompt .= "\n**TARGET MENABUNG:**\n";
+        if (!empty($data['saving_goals'])) {
+            foreach ($data['saving_goals'] as $goal) {
+                $targetAmt = number_format($goal['target_jumlah'], 0, ',', '.');
+                $collectedAmt = number_format($goal['jumlah_terkumpul'], 0, ',', '.');
+                $prompt .= "- {$goal['nama_target']}: {$goal['progress']}% (Rp {$collectedAmt} / Rp {$targetAmt})\n";
+            }
+        } else {
+            $prompt .= "- Tidak ada target menabung aktif\n";
+        }
+        
+        $prompt .= "\n**INSTRUKSI:**\n";
+        $prompt .= "1. Berikan tips dalam Bahasa Indonesia yang santai dan praktis.\n";
+        $prompt .= "2. Bagi tips menjadi 4 kategori: budget_tips, category_tips, saving_tips, warnings.\n";
+        $prompt .= "3. Setiap kategori berisi array of objects dengan field: id (string), title (string), message (string), priority ('high'/'medium'/'low').\n";
+        $prompt .= "4. Untuk budget_tips: Tips mengelola anggaran berdasarkan pemasukan (gunakan aturan 50/30/20 jika relevan).\n";
+        $prompt .= "5. Untuk category_tips: Tips berdasarkan kategori pengeluaran terbesar (beri saran spesifik per kategori).\n";
+        $prompt .= "6. Untuk saving_tips: Tips menabung sesuai target yang ada.\n";
+        $prompt .= "7. Untuk warnings: Peringatan jika pengeluaran > pemasukan, atau kategori terlalu tinggi.\n";
+        $prompt .= "8. Kembalikan dalam format JSON yang valid, tanpa teks tambahan di luar JSON.\n";
+        $prompt .= "9. Pastikan setiap tips memiliki id unik (contoh: 'budget_1', 'category_1', 'saving_1', 'warning_1').\n";
+        $prompt .= "10. JANGAN gunakan tag <think> atau menuliskan proses berpikirmu. Tampilkan jawaban akhir saja.\n";
+        
+        return $prompt;
+    }
+    
+    /**
+     * Validate and structure the tips array
+     */
+    protected function validateTipsStructure(array $tips): array
+    {
+        $validCategories = ['budget_tips', 'category_tips', 'saving_tips', 'warnings'];
+        $validPriorities = ['high', 'medium', 'low'];
+        
+        $result = [];
+        foreach ($validCategories as $cat) {
+            $result[$cat] = [];
+            if (isset($tips[$cat]) && is_array($tips[$cat])) {
+                foreach ($tips[$cat] as $tip) {
+                    if (isset($tip['id'], $tip['title'], $tip['message'], $tip['priority'])) {
+                        $result[$cat][] = [
+                            'id' => (string)$tip['id'],
+                            'title' => $tip['title'],
+                            'message' => $tip['message'],
+                            'priority' => in_array($tip['priority'], $validPriorities) ? $tip['priority'] : 'low',
+                        ];
+                    }
+                }
+            }
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Generate rule-based spending tips as fallback
+     */
+    protected function generateRuleBasedSpendingTips(array $data): array
+    {
+        $summary = $data['summary'] ?? [];
+        $income = $summary['totalPemasukan'] ?? 0;
+        $expense = $summary['totalPengeluaran'] ?? 0;
+        $net = $summary['neto'] ?? 0;
+        $spendingByCategory = $data['spendingByCategory'] ?? [];
+        $savingGoals = $data['saving_goals'] ?? [];
+        
+        $tips = [
+            'budget_tips' => [],
+            'category_tips' => [],
+            'saving_tips' => [],
+            'warnings' => []
+        ];
+        
+        // Budget tips
+        if ($income > 0) {
+            $ratio = $expense / $income;
+            if ($ratio > 1) {
+                $tips['budget_tips'][] = [
+                    'id' => 'budget_1',
+                    'title' => 'Pengeluaran Melebihi Pemasukan',
+                    'message' => 'Segera kurangi pengeluaran! Selisih: Rp ' . number_format(abs($net), 0, ',', '.'),
+                    'priority' => 'high'
+                ];
+            } elseif ($ratio > 0.9) {
+                $tips['budget_tips'][] = [
+                    'id' => 'budget_2',
+                    'title' => 'Budget Kritis',
+                    'message' => 'Pengeluaran sudah mencapai ' . round($ratio*100) . '% dari pemasukan. Kurangi pengeluaran non-esensial.',
+                    'priority' => 'high'
+                ];
+            } else {
+                $tips['budget_tips'][] = [
+                    'id' => 'budget_3',
+                    'title' => 'Anggaran Aman',
+                    'message' => 'Pengeluaran Anda ' . round($ratio*100) . '% dari pemasukan. Pertahankan pola ini!',
+                    'priority' => 'low'
+                ];
+            }
+        }
+        
+        // Category tips
+        foreach (array_slice($spendingByCategory, 0, 3) as $index => $cat) {
+            if ($cat['persentase'] > 20) {
+                $tips['category_tips'][] = [
+                    'id' => 'category_' . ($index + 1),
+                    'title' => 'Pengeluaran ' . $cat['namaKategori'] . ' Tinggi',
+                    'message' => 'Kategori ' . $cat['namaKategori'] . ' menghabiskan ' . $cat['persentase'] . '% total pengeluaran. Coba batasi pengeluaran di kategori ini.',
+                    'priority' => $cat['persentase'] > 30 ? 'high' : 'medium'
+                ];
+            }
+        }
+        
+        // Saving tips
+        if (empty($savingGoals)) {
+            $tips['saving_tips'][] = [
+                'id' => 'saving_1',
+                'title' => 'Buat Target Menabung',
+                'message' => 'Anda belum memiliki target menabung aktif. Yuk buat di menu Target Menabung!',
+                'priority' => 'low'
+            ];
+        } else {
+            foreach ($savingGoals as $goal) {
+                if ($goal['is_near_deadline']) {
+                    $tips['saving_tips'][] = [
+                        'id' => 'saving_2',
+                        'title' => 'Deadline Target Dekat',
+                        'message' => 'Target ' . $goal['nama_target'] . ' akan berakhir dalam 7 hari. Segera kejar target Anda!',
+                        'priority' => 'high'
+                    ];
+                } elseif ($goal['is_overdue']) {
+                    $tips['saving_tips'][] = [
+                        'id' => 'saving_3',
+                        'title' => 'Deadline Target Terlewat',
+                        'message' => 'Target ' . $goal['nama_target'] . ' sudah melewati deadline. Evaluasi target Anda!',
+                        'priority' => 'medium'
+                    ];
+                }
+            }
+        }
+        
+        // Warnings
+        if ($expense > $income) {
+            $tips['warnings'][] = [
+                'id' => 'warning_1',
+                'title' => 'Defisit Keuangan',
+                'message' => 'Pengeluaran melebihi pemasukan sebesar Rp ' . number_format(abs($net), 0, ',', '.'),
+                'priority' => 'high'
+            ];
+        }
+        
+        return $tips;
     }
 }

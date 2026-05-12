@@ -6,6 +6,7 @@ import * as Icons from 'react-bootstrap-icons';
 import { fetchAnalysisReport, fetchFamilyAnalysisReport, fetchFamilyHistoricalData, fetchHistoricalData, fetchTransactionHistory, fetchFamilyTransactionHistory } from '../services/report.service';
 import type * as ReportTypes from '../types/report.types';
 import MonthlyBarChart from '../components/MonthlyBarChart';
+import SmartSpendingTips from '../components/SmartSpendingTips';
 import { useAuth } from '../context/AuthContext';
 import { useTimeFilter } from '../hooks/useTimeFilter';
 import TransactionModal from '../components/TransactionModal';
@@ -47,7 +48,7 @@ const AnalisisPage = () => {
             setError(null);
             
             // Load history separately to not block main UI and avoid rate limit spikes
-            const history = await (isParent ? fetchFamilyTransactionHistory(period.apiParam) : fetchTransactionHistory(period.apiParam));
+            const history = await (isParent ? fetchFamilyTransactionHistory() : fetchTransactionHistory(period.apiParam));
             setTransactions(history);
         } catch (err: any) {
             setError("Gagal memuat data analisis.");
@@ -141,6 +142,8 @@ const AnalisisPage = () => {
                     </div>
                 </Card.Body>
             </Card>
+
+            <SmartSpendingTips />
 
             <TransactionModal show={showModal} handleClose={() => setShowModal(false)} onSuccess={loadData} />
 

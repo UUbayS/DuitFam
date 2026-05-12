@@ -101,6 +101,15 @@ class ApprovalController extends Controller
         $action = $request->input('action');
 
         return $this->safeMongoTransaction(function () use ($request, $parent, $withdrawal, $action) {
+            $parentWallet = null;
+
+            if ($action === config('constants.transaction_status.approved')) {
+                $parentWallet = Wallet::where('user_id', $withdrawal->parent_id)->firstOrFail();
+                if ((float) $parentWallet->saldo_sekarang < (float) $withdrawal->amount) {
+                    return response()->json(['message' => 'Saldo orang tua tidak mencukupi untuk menyetujui permintaan ini.'], 422);
+                }
+            }
+
             $withdrawal->status = $action;
             if ($action === 'rejected') {
                 $withdrawal->rejection_reason = $request->input('reason', '');
@@ -111,10 +120,6 @@ class ApprovalController extends Controller
 
             if ($action === config('constants.transaction_status.approved')) {
                 // 1. Kurangi saldo Orang Tua
-                $parentWallet = Wallet::where('user_id', $withdrawal->parent_id)->firstOrFail();
-                if ((float) $parentWallet->saldo_sekarang < (float) $withdrawal->amount) {
-                    throw ValidationException::withMessages(['amount' => ['Saldo orang tua tidak mencukupi.']]);
-                }
                 $parentWallet->saldo_sekarang = ((float) $parentWallet->saldo_sekarang) - (float) $withdrawal->amount;
                 $parentWallet->save();
 

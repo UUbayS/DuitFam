@@ -133,7 +133,7 @@ class AiChatController extends Controller
                     "jumlah" => $amount,
                     "persentase" =>
                         $totalPengeluaran > 0
-                            ? ($amount / $totalPengeluaran) * 100
+                            ? round(($amount / $totalPengeluaran) * 100, 2)
                             : 0,
                 ];
             }

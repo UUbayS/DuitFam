@@ -1,5 +1,6 @@
 import api from './api';
 import type * as ReportTypes from '../types/report.types';
+import type { SpendingTipsResponse } from '../types/spending-tips.types';
 
 interface FilterParams {
     month?: string; 
@@ -85,4 +86,12 @@ export const fetchFamilyAnalysisReport = async (params: FilterParams | string = 
     const queryString = buildQueryString(params);
     const response = await api.get<{ message: string, data: ReportTypes.AnalysisReport }>(`/reports/family/analysis${queryString}`);
     return response.data.data;
+};
+
+/**
+ * Mengambil Smart Spending Tips dari AI
+ */
+export const getSpendingTips = async (): Promise<SpendingTipsResponse> => {
+    const response = await api.get<SpendingTipsResponse>('/ai/spending-tips');
+    return response.data;
 };
