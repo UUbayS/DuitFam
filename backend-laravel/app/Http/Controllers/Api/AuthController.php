@@ -7,9 +7,11 @@ use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Models\ParentChildRelation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -20,11 +22,12 @@ class AuthController extends Controller
             $payload = $request->validated();
             $username = strtolower($payload['username']);
             $email = strtolower($payload['email']);
-            
+            $role = $payload['role'] ?? 'parent';
+
             Log::info('AUTH_REGISTER_ATTEMPT', [
                 'email' => $email,
                 'username' => $username,
-                'role' => 'parent',
+                'role' => $role,
             ]);
 
             if (User::where('username', $username)->exists() || User::where('email', $email)->exists()) {
@@ -34,18 +37,32 @@ class AuthController extends Controller
             $user = User::create([
                 'username' => $username,
                 'email' => $email,
-                'role' => config('constants.roles.parent'),
+                'role' => $role,
                 'is_active' => true,
                 'password' => Hash::make((string) $request->input('password')),
             ]);
 
             Wallet::firstOrCreate(['user_id' => (string) $user->id], ['saldo_sekarang' => 0]);
 
-            Log::info('AUTH_REGISTER_SUCCESS', ['user_id' => $user->id, 'email' => $user->email]);
+            Log::info('AUTH_REGISTER_SUCCESS', ['user_id' => $user->id, 'email' => $user->email, 'role' => $role]);
 
-            return response()->json([
+            $response = [
                 'message' => 'Registrasi berhasil. Akun telah dibuat, silakan login untuk melanjutkan.',
-            ], 201);
+                'token' => Str::random(80),
+                'user' => [
+                    'id_user' => (string) $user->id,
+                    'username' => $user->username,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                ],
+            ];
+
+            // Auto-login: save token
+            $user->api_token = hash('sha256', $response['token']);
+            $user->api_token_expires_at = now()->addHours(3);
+            $user->save();
+
+            return response()->json($response, 201);
         } catch (\Throwable $e) {
             Log::error('AUTH_REGISTER_FAILED', [
                 'error' => $e->getMessage(),
@@ -120,5 +137,55 @@ class AuthController extends Controller
         }
 
         return response()->json(['message' => 'Logout berhasil.']);
+    }
+
+    public function generateInvite(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if ($user->role !== 'child') {
+                return response()->json(['message' => 'Hanya akun anak yang dapat menghasilkan kode tautan.'], 403);
+            }
+
+            $existing = ParentChildRelation::where('child_id', (string) $user->id)->exists();
+            if ($existing) {
+                return response()->json(['message' => 'Akun Anda sudah ditautkan ke orang tua.'], 409);
+            }
+
+            $inviteCode = $this->generateInviteCode((string) $user->id);
+
+            return response()->json(['invite_code' => $inviteCode], 201);
+        } catch (\Throwable $e) {
+            Log::error('GENERATE_INVITE_FAILED', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['message' => 'Gagal menghasilkan kode tautan.'], 500);
+        }
+    }
+
+    public function parentStatus(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if ($user->role !== 'child') {
+                return response()->json(['linked' => true]);
+            }
+
+            $linked = ParentChildRelation::where('child_id', (string) $user->id)->exists();
+            return response()->json(['linked' => $linked]);
+        } catch (\Throwable $e) {
+            Log::error('PARENT_STATUS_FAILED', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['linked' => true]); // default safe
+        }
+    }
+
+    /**
+     * Generate invite code untuk anak
+     */
+    protected function generateInviteCode(string $childId): string
+    {
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        // Simpan di cache dengan TTL 5 menit
+        Cache::put("invite_{$code}", $childId, 300);
+        Log::info("Invite code generated", ['code' => $code, 'child_id' => $childId]);
+        return $code;
     }
 }

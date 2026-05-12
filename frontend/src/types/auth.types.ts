@@ -17,10 +17,11 @@ export interface UserPayload {
     role?: 'parent' | 'child';
 }
 
-export interface AuthResponse { 
+export interface AuthResponse {
     message: string;
     token: string;
     user: UserPayload;
+    invite_code?: string;
 }
 
 export interface ProfileUpdateInput {

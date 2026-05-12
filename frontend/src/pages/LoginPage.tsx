@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import Grainient from '../components/Backgrounds/Grainient';
 
 type AuthMode = 'login' | 'register';
+type RegisterMode = 'parent' | 'child';
 
 /* ------------------------------------------------------------------ */
 /*  Small helper – password-strength indicator                        */
@@ -32,6 +33,7 @@ const LoginPage = () => {
 
   const initialMode = (location.pathname === '/register' ? 'register' : 'login') as AuthMode;
   const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [registerMode, setRegisterMode] = useState<RegisterMode>('parent');
 
   // Login form
   const [loginData, setLoginData] = useState<AuthTypes.LoginFormInput>({ email: '', password: '' });
@@ -44,6 +46,7 @@ const LoginPage = () => {
 
   // Common
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Sync URL ↔ mode
@@ -61,7 +64,7 @@ const LoginPage = () => {
     });
   }, [registerData.password]);
 
-  /* ---------- handlers ---------- */
+/* ---------- handlers ---------- */
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
 
@@ -71,6 +74,7 @@ const LoginPage = () => {
   const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setLoading(true);
     try {
       const res = await loginUser(loginData);
@@ -85,6 +89,7 @@ const LoginPage = () => {
     }
   };
 
+
   const handleRegisterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!checks.length || !checks.capital || !checks.number) {
@@ -94,9 +99,16 @@ const LoginPage = () => {
     setError(null);
     setLoading(true);
     try {
-      await registerUser(registerData as AuthTypes.RegisterFormInput);
+      const payload: AuthTypes.RegisterFormInput = {
+        username: registerData.username,
+        email: registerData.email,
+        password: registerData.password,
+        role: registerMode,
+      };
+      await registerUser(payload);
       setMode('login');
       setError(null);
+      setSuccessMessage('Akun berhasil dibuat! Silakan login.');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Registrasi gagal. Coba lagi.');
     } finally {
@@ -104,9 +116,12 @@ const LoginPage = () => {
     }
   };
 
+  /* ---------- switchMode ---------- */
   const switchMode = (to: AuthMode) => {
     setError(null);
+    setSuccessMessage(null);
     setMode(to);
+    setRegisterMode('parent');
     // Reset password visibility when switching modes
     if (to === 'login') {
       setShowRegisterPassword(false);
@@ -145,7 +160,7 @@ const LoginPage = () => {
       overflow: 'hidden' as const,
       width: 820,
       maxWidth: '100%',
-      minHeight: 520,
+      minHeight: 640,
     } as React.CSSProperties,
 
     /* Each form panel (sign-in / sign-up) */
@@ -422,11 +437,11 @@ const LoginPage = () => {
       `}</style>
 
       <div style={S.page}>
-        <Grainient 
-          color1="#dadada" 
-          color2="#44ADE6" 
-          color3="#0E82E8" 
-          noiseScale={1.95} 
+        <Grainient
+          color1="#dadada"
+          color2="#44ADE6"
+          color3="#0E82E8"
+          noiseScale={1.95}
         />
 
         {/* ============ MAIN CONTAINER CARD ============ */}
@@ -439,17 +454,47 @@ const LoginPage = () => {
           >
             <form onSubmit={handleRegisterSubmit} style={S.form}>
               <img src={LogoBiru} alt="DuitFam" style={{ height: 36, marginBottom: 12 }} />
-              <h1 style={S.heading}>Create Account</h1>
+              <h1 style={S.heading}>Daftar Akun</h1>
               <p style={S.subtitle}>Buat akun baru untuk memulai menabung bersama keluarga</p>
 
               {error && mode === 'register' && <div style={S.errorBox}>{error}</div>}
+
+              {/* Tab Pilihan: Parent / Child */}
+              <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderRadius: 10, overflow: 'hidden', border: '2px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  onClick={() => { setRegisterMode('parent'); setError(null); }}
+                  style={{
+                    flex: 1, padding: '10px', fontSize: 13, fontWeight: 600,
+                    border: 'none', cursor: 'pointer',
+                    backgroundColor: registerMode === 'parent' ? '#007bff' : '#f8fafc',
+                    color: registerMode === 'parent' ? '#fff' : '#666',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  Orang Tua
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setRegisterMode('child'); setError(null); }}
+                  style={{
+                    flex: 1, padding: '10px', fontSize: 13, fontWeight: 600,
+                    border: 'none', cursor: 'pointer',
+                    backgroundColor: registerMode === 'child' ? '#007bff' : '#f8fafc',
+                    color: registerMode === 'child' ? '#fff' : '#666',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  Anak
+                </button>
+              </div>
 
               <input
                 className="auth-input"
                 style={S.input}
                 type="text"
                 name="username"
-                placeholder="Name"
+                placeholder="Nama"
                 value={registerData.username}
                 onChange={handleRegisterChange}
                 required
@@ -475,6 +520,9 @@ const LoginPage = () => {
                 required
               />
 
+              {/* Hidden field untuk role */}
+              <input type="hidden" name="role" value={registerMode} />
+
               <div style={{ width: '100%', display: 'flex', alignItems: 'center' }}>
                 <label style={S.checkboxLabel}>
                   <input
@@ -483,24 +531,24 @@ const LoginPage = () => {
                     onChange={() => setShowRegisterPassword(!showRegisterPassword)}
                     style={{ accentColor: '#1aa7ff' }}
                   />
-                  Show password
+                  Tampilkan password
                 </label>
               </div>
 
               {/* Password strength */}
               <div style={{ width: '100%', marginBottom: 4, marginTop: -2 }}>
-                <ValidationItem isPassed={checks.length} text="At least 8 characters" />
-                <ValidationItem isPassed={checks.capital} text="Contains a capital letter" />
-                <ValidationItem isPassed={checks.number} text="Contains a number" />
+                <ValidationItem isPassed={checks.length} text="Minimal 8 karakter" />
+                <ValidationItem isPassed={checks.capital} text="Mengandung huruf kapital" />
+                <ValidationItem isPassed={checks.number} text="Mengandung angka" />
               </div>
 
               <button type="submit" disabled={loading} className="auth-submit-btn" style={S.submitBtn}>
-                {loading ? 'Loading...' : 'SIGN UP'}
+                {loading ? 'Loading...' : `DAFTAR SEBAGAI ${registerMode === 'parent' ? 'ORANG TUA' : 'ANAK'}`}
               </button>
 
-              {/* Mobile-only switch link */}
+{/* Mobile-only switch link */}
               <p className="auth-mobile-switch" style={{ ...S.subtitle, display: 'none', marginTop: 16 }}>
-                Already have an account?<a style={S.link} onClick={() => switchMode('login')}>Sign In</a> 
+                Sudah punya akun?<a style={S.link} onClick={() => switchMode('login')}>Masuk</a>
               </p>
             </form>
           </div>
@@ -517,6 +565,22 @@ const LoginPage = () => {
 
               {error && mode === 'login' && <div style={S.errorBox}>{error}</div>}
 
+              {successMessage && (
+                <div style={{
+                  background: '#f0fff4',
+                  color: '#15803d',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: 10,
+                  padding: '8px 16px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textAlign: 'center' as const,
+                  width: '100%',
+                  marginBottom: 4,
+                }}>
+                  {successMessage}
+                </div>
+              )}
 
               <input
                 className="auth-input"
@@ -605,6 +669,7 @@ const LoginPage = () => {
         </div>
       </div>
     </>
+
   );
 };
 

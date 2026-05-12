@@ -23,9 +23,10 @@ class RegisterRequest extends FormRequest
     {
         return [
             'username' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'ends_with:@gmail.com'],
+            'email' => ['required', 'email'],
             'password' => ['required', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/\d/'],
-            'role' => ['nullable', 'in:parent'],
+            'role' => ['required', 'in:parent,child'],
+            'invite_code' => ['nullable', 'string', 'max:10'],
         ];
     }
 }

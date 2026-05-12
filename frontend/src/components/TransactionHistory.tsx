@@ -73,7 +73,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
     });
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px 20px 24px 20px', backgroundColor: 'var(--bg-history)' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px 20px 24px 20px', backgroundColor: 'var(--bg-history)' }}>
             
         <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: 24, overflow: 'hidden', flexShrink: 0, backgroundColor: '#ffffff' }}>
             <Card.Body className="p-4">

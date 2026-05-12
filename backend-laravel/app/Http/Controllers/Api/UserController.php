@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ResetChildPasswordRequest;
-use App\Models\Mongo\NotificationFeed;
 use App\Models\ParentChildRelation;
 use App\Models\User;
 use App\Models\Wallet;
@@ -15,7 +13,9 @@ use App\Models\WithdrawalRequest;
 use App\Services\MongoAuditService;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -350,7 +350,7 @@ class UserController extends Controller
     {
         try {
             if ($request->user()->role !== config('constants.roles.parent')) {
-                return $this->errorResponse('Hanya akun parent yang dapat menghapus akun anak.', [], 403);
+                return $this->errorResponse('Hanya akun parent yang dapat memutus koneksi anak.', [], 403);
             }
 
             $relation = ParentChildRelation::query()
@@ -358,74 +358,72 @@ class UserController extends Controller
                 ->where('child_id', (string) $id)
                 ->first();
             if (! $relation) {
-                return $this->errorResponse('Akun anak tidak ditemukan.', [], 404);
-            }
-
-            $child = User::where('_id', (string) $id)->where('role', config('constants.roles.child'))->first();
-            if ($child) {
-                // Cleanup child data
-                Wallet::where('user_id', (string) $id)->delete();
-                Transaction::where('user_id', (string) $id)->delete();
-                SavingGoal::where('user_id', (string) $id)->delete();
-                GoalContribution::where('user_id', (string) $id)->delete();
-                NotificationFeed::where('user_id', (string) $id)->delete();
-                WithdrawalRequest::where('child_id', (string) $id)->delete();
-                $child->delete();
+                return $this->errorResponse('Koneksi dengan akun anak tidak ditemukan.', [], 404);
             }
 
             $relation->delete();
 
-            return $this->successResponse(null, 'Akun anak berhasil dihapus.');
+            app(MongoAuditService::class)->log($request, $request->user()->id, 'child.unlink', [
+                'child_id' => (string) $id,
+            ]);
+
+            return $this->successResponse(null, 'Koneksi dengan akun anak berhasil diputus.');
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Gagal menghapus akun anak.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return $this->errorResponse('Gagal menghapus akun anak.', [], 500);
+            \Illuminate\Support\Facades\Log::error('Gagal memutus koneksi anak.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Gagal memutus koneksi anak.', [], 500);
         }
     }
 
-    public function resetChildPassword(ResetChildPasswordRequest $request, string $id)
+    public function linkChildByCode(Request $request)
     {
-        $parent = $request->user();
+        try {
+            if ($request->user()->role !== config('constants.roles.parent')) {
+                return response()->json(['message' => 'Hanya akun parent yang dapat menautkan anak.'], 403);
+            }
 
-        // 1. Cek apakah parent
-        if ($parent->role !== config('constants.roles.parent')) {
-            return response()->json(['message' => 'Hanya akun parent yang dapat mereset password anak.'], 403);
+            $validated = $request->validate([
+                'invite_code' => ['required', 'string', 'max:10'],
+            ]);
+
+            $inviteCode = $validated['invite_code'];
+            $childId = Cache::get("invite_{$inviteCode}");
+
+            if (!$childId) {
+                return response()->json(['message' => 'Kode tautan tidak valid atau sudah kedaluwarsa.'], 422);
+            }
+
+            $child = User::find($childId);
+            if (!$child || $child->role !== 'child') {
+                return response()->json(['message' => 'Akun anak tidak ditemukan.'], 422);
+            }
+
+            $existing = ParentChildRelation::where('parent_id', (string) $request->user()->id)
+                ->where('child_id', (string) $child->id)
+                ->first();
+            if ($existing) {
+                Cache::forget("invite_{$inviteCode}");
+                return response()->json(['message' => 'Anak ini sudah ditautkan sebelumnya.'], 409);
+            }
+
+            ParentChildRelation::firstOrCreate([
+                'parent_id' => (string) $request->user()->id,
+                'child_id' => (string) $child->id,
+            ], ['is_active' => true]);
+
+            Cache::forget("invite_{$inviteCode}");
+
+            return response()->json([
+                'message' => 'Akun anak berhasil ditautkan.',
+                'data' => [
+                    'id' => (string) $child->id,
+                    'username' => $child->username,
+                    'email' => $child->email,
+                ],
+            ], 201);
+        } catch (\Throwable $e) {
+            Log::error('LINK_CHILD_BY_CODE_FAILED', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['message' => 'Gagal menautkan akun anak.'], 500);
         }
-
-        // 2. Cek apakah child terhubung dengan parent ini
-        $relation = ParentChildRelation::query()
-            ->where('parent_id', (string) $parent->id)
-            ->where('child_id', (string) $id)
-            ->first();
-
-        if (!$relation) {
-            return response()->json(['message' => 'Akun anak tidak ditemukan.'], 404);
-        }
-
-        // 3. Ambil data child
-        $child = User::where('_id', (string) $id)->where('role', config('constants.roles.child'))->firstOrFail();
-
-        // 4. Update password (sudah tervalidasi di Form Request)
-        $child->password = Hash::make($request->password);
-        $child->save();
-
-        // 5. Kirim notifikasi ke anak (hanya NotificationFeed)
-        NotificationFeed::create([
-            'user_id' => (string) $child->id,
-            'title' => 'Password Direset',
-            'message' => 'Password akun Anda telah direset oleh orang tua. Silakan gunakan password baru untuk login.',
-            'read_at' => null,
-            'meta' => [
-                'reset_by' => (string) $parent->id,
-                'reset_by_name' => $parent->username,
-            ],
-        ]);
-
-        // 6. Audit log
-        app(MongoAuditService::class)->log($request, $parent->id, 'child.password_reset', [
-            'child_id' => (string) $child->id,
-            'child_username' => $child->username,
-        ]);
-
-        return response()->json(['message' => 'Password anak berhasil direset.']);
     }
+
 }

@@ -37,3 +37,13 @@ export const getCurrentUser = (): AuthTypes.UserPayload | null => {
 export const isAuthenticated = (): boolean => {
     return !!localStorage.getItem('token') && !!localStorage.getItem('user');
 };
+
+export const generateInviteCode = async (): Promise<{ invite_code: string }> => {
+  const response = await api.post<{ invite_code: string }>('/auth/generate-invite');
+  return response.data;
+};
+
+export const checkParentStatus = async (): Promise<{ linked: boolean }> => {
+  const response = await api.get<{ linked: boolean }>('/auth/parent-status');
+  return response.data;
+};

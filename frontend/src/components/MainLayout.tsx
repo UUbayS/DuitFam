@@ -45,7 +45,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     const toggleSidebar = () => setShowSidebar(!showSidebar);
 
     return (
-        <div className="d-flex overflow-hidden" style={{ height: '100vh', backgroundColor: 'var(--primary-color)' }}>
+        <div className="d-flex overflow-hidden" style={{ height: '100dvh', backgroundColor: 'var(--primary-color)' }}>
             {/* Left Sidebar Desktop (Fixed) */}
             <aside className="desktop-only" style={{ width: 'var(--sidebar-width)', minWidth: 'var(--sidebar-width)', height: '100vh' }}>
                 <Sidebar />
@@ -80,7 +80,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                 {/* Inner Layout Container */}
                 <div className="d-flex flex-grow-1 overflow-hidden">
                     {/* Center Content (Scrollable) */}
-                    <main className="flex-grow-1 overflow-hidden h-100 position-relative">
+                    <main className="flex-grow-1 overflow-hidden h-100 position-relative" style={{ minHeight: 0 }}>
                         <div className="content-container overflow-auto h-100">
                             <div className="p-3 p-md-4 p-lg-5">
                                 {children}

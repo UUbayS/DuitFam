@@ -5,14 +5,28 @@ namespace App\Services;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
+use App\Services\AiContentFilter;
 
 class GroqService
 {
+    protected AiContentFilter $filter;
+
+    public function __construct(AiContentFilter $filter = null)
+    {
+        $this->filter = $filter ?? new AiContentFilter();
+    }
+
     /**
      * Main method to generate financial advice using Triple-Tier Hybrid approach
      */
     public function generateFinancialAdvice(array $financialData, string $question, array $history = []): string
     {
+        // Defense in depth: filter check before consuming tokens
+        $filterResult = $this->filter->filter($question);
+        if (!$filterResult->approved) {
+            return $filterResult->message ?? 'Maaf, saya hanya bisa membantu pertanyaan seputar keuangan.';
+        }
+
         // Disable execution time limit for long AI processing (loading large local models)
         set_time_limit(180); // 3 minutes max for AI processing
 

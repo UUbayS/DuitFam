@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Card, Col, Row, Spinner } from "react-bootstrap";
-import { EyeFill, EyeSlashFill, GridFill, Coin, ArrowUpRight, ArrowDownRight } from "react-bootstrap-icons";
+import { Alert, Card, Col, Row, Spinner, Modal, Button } from "react-bootstrap";
+import { EyeFill, EyeSlashFill, GridFill, Coin, ArrowUpRight, ArrowDownRight, PersonPlusFill, Check2Circle } from "react-bootstrap-icons";
 import MainLayout from "../components/MainLayout";
 import DashboardAlertBanner from "../components/DashboardAlertBanner";
 import NotificationBell from "../components/NotificationBell";
@@ -11,6 +11,7 @@ import {
     fetchMonthlySummary,
     fetchHistoricalData,
 } from "../services/report.service";
+import { generateInviteCode, checkParentStatus } from "../services/auth.service";
 import MonthlyBarChart from "../components/MonthlyBarChart";
 import TransactionModal from "../components/TransactionModal";
 import IconBerandaBiru from "../assets/IconBerandaBiru.svg";
@@ -94,6 +95,12 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
 
     const isParent = user?.role === "parent";
 
+    // Invite code state
+    const [parentLinked, setParentLinked] = useState(true);
+    const [parentStatusLoading, setParentStatusLoading] = useState(true);
+    const [generatedInviteCode, setGeneratedInviteCode] = useState<string | null>(null);
+    const [generatingCode, setGeneratingCode] = useState(false);
+
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
@@ -127,6 +134,30 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
         loadData();
     }, [loadData]);
 
+    // Cek status tautan orang tua (untuk child)
+    useEffect(() => {
+        if (!isParent) {
+            setParentStatusLoading(true);
+            checkParentStatus()
+                .then((res) => setParentLinked(res.linked))
+                .catch(() => setParentLinked(true))
+                .finally(() => setParentStatusLoading(false));
+        }
+    }, [isParent]);
+
+    const handleGenerateInvite = async () => {
+        setGeneratingCode(true);
+        setError(null);
+        try {
+            const res = await generateInviteCode();
+            setGeneratedInviteCode(res.invite_code);
+        } catch (e: any) {
+            setError(e.response?.data?.message || 'Gagal menghasilkan kode tautan.');
+        } finally {
+            setGeneratingCode(false);
+        }
+    };
+
     if (loading) {
         return (
             <MainLayout hideAddButton={true}>
@@ -142,6 +173,7 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
             onTransactionAdded={loadData}
             openTransactionModal={() => setShowTransactionModal(true)}
             hideAddButton={false}
+            style={{ overflow: 'hidden' }}
         >
             <div className="d-flex align-items-center justify-content-between mb-4">
                 <div className="d-flex align-items-center gap-2">
@@ -231,6 +263,33 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
                 </Col>
             </Row>
 
+            {!isParent && !parentLinked && !parentStatusLoading && (
+                <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 25, background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)' }}>
+                    <Card.Body className="p-4">
+                        <div className="d-flex align-items-center gap-3">
+                            <div className="bg-warning bg-opacity-10 p-3 rounded-circle d-flex align-items-center justify-content-center" style={{ width: 56, height: 56 }}>
+                                <PersonPlusFill size={28} color="#ea580c" />
+                            </div>
+                            <div className="flex-grow-1">
+                                <div className="fw-bold text-dark" style={{ fontSize: 18 }}>Tautkan ke Orang Tua</div>
+                                <div className="text-muted small mt-1">
+                                    Akun kamu belum terhubung ke orang tua. Minta orang tua untuk memasukkan kode tautan yang akan kamu dapatkan.
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleGenerateInvite}
+                                disabled={generatingCode}
+                                className="btn btn-warning fw-bold px-4 py-2"
+                                style={{ borderRadius: 12, whiteSpace: 'nowrap' }}
+                            >
+                                {generatingCode ? 'Memproses...' : 'Dapatkan Kode'}
+                            </button>
+                        </div>
+                    </Card.Body>
+                </Card>
+            )}
+
             <Card
                 className="border-0 shadow-sm mb-4"
                 style={{ borderRadius: 25 }}
@@ -259,6 +318,35 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
                 handleClose={() => setShowTransactionModal(false)} 
                 onSuccess={loadData} 
             />
+
+            <Modal show={!!generatedInviteCode} onHide={() => setGeneratedInviteCode(null)} centered backdrop="static">
+                <Modal.Header closeButton className="border-0 pt-4 px-4">
+                    <Modal.Title className="fw-bold text-warning">🔑 Kode Tautan Kamu</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="p-4 text-center">
+                    <div className="text-muted small mb-3">
+                        Berikan kode ini ke orang tua kamu. Kode berlaku <strong>5 menit</strong>.
+                    </div>
+                    <div style={{
+                        fontSize: 42,
+                        fontWeight: 900,
+                        color: '#ea580c',
+                        letterSpacing: 8,
+                        backgroundColor: '#fff7ed',
+                        padding: '16px 24px',
+                        borderRadius: 16,
+                        display: 'inline-block',
+                        fontFamily: 'monospace',
+                    }}>
+                        {generatedInviteCode}
+                    </div>
+                </Modal.Body>
+                <Modal.Footer className="border-0 justify-content-center pb-4">
+                    <Button variant="warning" onClick={() => setGeneratedInviteCode(null)} style={{ borderRadius: 12, padding: '10px 32px' }}>
+                        Tutup
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </MainLayout>
     );
 };
