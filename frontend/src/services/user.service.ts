@@ -16,6 +16,11 @@ export const linkChildService = async (child_email: string): Promise<{ message: 
     return response.data;
 };
 
+export const linkChildByCode = async (data: { invite_code: string }): Promise<{ message: string }> => {
+    const response = await api.post('/users/children/link', data);
+    return response.data;
+};
+
 export const createChildService = async (data: { username: string; email: string; password: string; saldo_awal?: number }): Promise<{ message: string; data: { id: string; username: string; email: string; is_active: boolean } }> => {
     const response = await api.post('/users/children/create', data);
     return response.data;
@@ -46,7 +51,4 @@ export const deleteChildService = async (id: string): Promise<{ message: string 
     return response.data;
 };
 
-export const resetChildPasswordService = async (id: string, data: { password: string; password_confirmation: string }): Promise<{ message: string }> => {
-    const response = await api.post(`/users/children/${id}/reset-password`, data);
-    return response.data;
-};
+

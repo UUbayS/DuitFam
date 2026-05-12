@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\AiContentFilter;
 use App\Services\GroqService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -17,10 +18,12 @@ use App\Models\ParentChildRelation;
 class AiChatController extends Controller
 {
     protected GroqService $groqService;
+    protected AiContentFilter $filter;
 
-    public function __construct(GroqService $groqService)
+    public function __construct(GroqService $groqService, AiContentFilter $filter)
     {
         $this->groqService = $groqService;
+        $this->filter = $filter;
     }
 
     public function chat(Request $request)
@@ -32,6 +35,22 @@ class AiChatController extends Controller
             ]);
 
             $userId = (string) $request->user()->id;
+            $message = $request->message;
+
+            // Pre-filter: check content before consuming AI tokens
+            $filterResult = $this->filter->filter($message);
+
+            if (!$filterResult->approved) {
+                return response()->json([
+                    "response" => $filterResult->message,
+                    "context" => [
+                        "summary" => null,
+                        "filtered" => true,
+                        "reason" => $filterResult->reason,
+                    ],
+                ]);
+            }
+
             $financialData = $this->getFinancialContext($userId);
             $history = $request->input("conversationHistory", []);
 
@@ -39,7 +58,7 @@ class AiChatController extends Controller
             // Alerts removed from context - AI uses raw financial data directly
             $response = $this->groqService->generateFinancialAdvice(
                 $financialData,
-                $request->message,
+                $message,
                 $history
             );
 

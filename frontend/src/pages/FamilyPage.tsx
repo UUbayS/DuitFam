@@ -1,15 +1,14 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Form, Button, Alert, Spinner, Modal } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-import { Plus, EyeFill, EyeSlashFill, Trash, ArrowClockwise } from 'react-bootstrap-icons';
+import { Plus, EyeFill, EyeSlashFill, Trash } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
-    import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService, deleteChildService, resetChildPasswordService } from '../services/user.service';
+import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService, deleteChildService } from '../services/user.service';
 import { fetchFamilyMonthlySummary, fetchFamilyHistoricalData } from '../services/report.service';
 import { depositToChild } from '../services/transaction.service';
 import TransactionModal from '../components/TransactionModal';
 import MonthlyBarChart from '../components/MonthlyBarChart';
 import AddChildModal from '../components/AddChildModal';
-import ResetPasswordModal from '../components/ResetPasswordModal';
 import AnggotaBlue from '../assets/IconAnggotaBiru.svg';
 import type * as ReportTypes from '../types/report.types';
 
@@ -46,11 +45,6 @@ const formatRupiah = (amount: number) => {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [childToDelete, setChildToDelete] = useState<{ id: string; username: string } | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
-
-    const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false);
-    const [childToReset, setChildToReset] = useState<{ id: string; username: string } | null>(null);
-    const [resetLoading, setResetLoading] = useState(false);
-    const [resetError, setResetError] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -112,35 +106,6 @@ const formatRupiah = (amount: number) => {
         setDeleteModalOpen(true);
     };
 
-    const openResetPassword = (childId: string, username: string) => {
-        setChildToReset({ id: childId, username });
-        setResetPasswordModalOpen(true);
-    };
-
-    const handleResetPasswordSuccess = () => {
-        setResetPasswordModalOpen(false);
-        setChildToReset(null);
-        setResetError(null);
-    };
-
-    const handleResetPassword = async (password: string, confirmPassword: string) => {
-        if (!childToReset) return;
-        setResetLoading(true);
-        setResetError(null);
-        try {
-            await resetChildPasswordService(childToReset.id, {
-                password,
-                password_confirmation: confirmPassword,
-            });
-            handleResetPasswordSuccess();
-            loadData();
-        } catch (e: any) {
-            setResetError(e.response?.data?.message || e.message || 'Gagal reset password.');
-        } finally {
-            setResetLoading(false);
-        }
-    };
-
     const handleDeleteChild = async () => {
         if (!childToDelete) return;
         setDeleteLoading(true);
@@ -150,7 +115,7 @@ const formatRupiah = (amount: number) => {
             setChildToDelete(null);
             loadData();
         } catch (e: any) {
-            setError(e.response?.data?.message || 'Gagal menghapus akun anak.');
+            setError(e.response?.data?.message || 'Gagal memutus koneksi anak.');
         } finally {
             setDeleteLoading(false);
         }
@@ -167,10 +132,11 @@ const formatRupiah = (amount: number) => {
     }
 
     return (
-        <MainLayout 
-            onTransactionAdded={loadData} 
+        <MainLayout
+            onTransactionAdded={loadData}
             openTransactionModal={() => setShowTransactionModal(true)}
             hideAddButton={false}
+            style={{ overflow: 'hidden' }}
         >
             <div className="d-flex align-items-center gap-2 mb-4">
                 <img src={AnggotaBlue} alt="Ikon Keluarga" style={{ width: 32, height: 32 }} />
@@ -236,13 +202,6 @@ const formatRupiah = (amount: number) => {
                                             style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', backgroundColor: 'rgba(220, 53, 69, 0.1)', color: '#dc3545' }}
                                         >
                                             <Trash size={20} />
-                                        </Button>
-                                        <Button
-                                            variant="warning"
-                                            onClick={() => openResetPassword(c.id, c.username)}
-                                            style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 193, 7, 0.1)', color: '#ffc107', border: 'none' }}
-                                        >
-                                            <ArrowClockwise size={20} />
                                         </Button>
                                         <Button
                                             variant="primary"
@@ -341,12 +300,12 @@ const formatRupiah = (amount: number) => {
 
             <Modal show={deleteModalOpen} onHide={() => setDeleteModalOpen(false)} centered>
                 <Modal.Header closeButton className="border-0 pt-4 px-4">
-                    <Modal.Title className="fw-bold">Hapus Akun Anak</Modal.Title>
+                    <Modal.Title className="fw-bold">Hapus Koneksi Anak</Modal.Title>
                 </Modal.Header>
                 <Modal.Body className="p-4">
                     <p className="text-center mb-4">
-                        Apakah Anda yakin ingin menghapus akun <strong>{childToDelete?.username}</strong>? <br />
-                        Semua data transaksi dan target akan ikut terhapus secara permanen.
+                        Apakah Anda yakin ingin memutus koneksi dengan <strong>{childToDelete?.username}</strong>? <br />
+                        Akun anak tidak akan dihapus, hanya koneksi dengan akun Anda yang diputus.
                     </p>
                     <div className="d-flex gap-3">
                         <Button 
@@ -364,22 +323,13 @@ const formatRupiah = (amount: number) => {
                             className="w-100 py-2 fw-bold"
                             style={{ borderRadius: 12 }}
                         >
-                            {deleteLoading ? <Spinner size="sm" /> : 'Ya, Hapus'}
+                            {deleteLoading ? <Spinner size="sm" /> : 'Ya, Putuskan'}
                         </Button>
                     </div>
                 </Modal.Body>
             </Modal>
 
             <TransactionModal show={showTransactionModal} handleClose={() => setShowTransactionModal(false)} onSuccess={loadData} />
-
-            <ResetPasswordModal 
-                show={resetPasswordModalOpen}
-                handleClose={() => setResetPasswordModalOpen(false)}
-                childUsername={childToReset?.username || ''}
-                onConfirm={handleResetPassword}
-                loading={resetLoading}
-                error={resetError}
-            />
         </MainLayout>
     );
 };

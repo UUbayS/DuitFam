@@ -19,6 +19,8 @@ Route::prefix("auth")->group(function () {
 
 Route::middleware("auth.token")->group(function () {
     Route::post("/auth/logout", [AuthController::class, "logout"]);
+    Route::post("/auth/generate-invite", [AuthController::class, "generateInvite"]);
+    Route::get("/auth/parent-status", [AuthController::class, "parentStatus"]);
 
     Route::post("/transactions", [TransactionController::class, "store"]);
     Route::post("/transactions/deposit", [
@@ -48,6 +50,7 @@ Route::middleware("auth.token")->group(function () {
     Route::put("/users/profile", [UserController::class, "updateProfile"]);
     Route::put("/users/password", [UserController::class, "updatePassword"]);
     Route::post("/users/children", [UserController::class, "linkChild"]);
+    Route::post("/users/children/link", [UserController::class, "linkChildByCode"]);
     Route::post("/users/children/create", [
         UserController::class,
         "createChild",
@@ -61,10 +64,6 @@ Route::middleware("auth.token")->group(function () {
     Route::delete("/users/children/{id}", [
         UserController::class,
         "deleteChild",
-    ]);
-    Route::post("/users/children/{id}/reset-password", [
-        UserController::class,
-        "resetChildPassword"
     ]);
     Route::get("/users/children/balances", [
         UserController::class,
