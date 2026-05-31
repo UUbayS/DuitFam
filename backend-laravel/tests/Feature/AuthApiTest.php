@@ -13,6 +13,7 @@ class AuthApiTest extends TestCase
             'username' => 'anak_satu',
             'email' => 'anak1@gmail.com',
             'password' => 'Password1',
+            'role' => 'parent',
         ])->assertStatus(201);
 
         $this->assertTrue(User::where('email', 'anak1@gmail.com')->where('role', 'parent')->exists());

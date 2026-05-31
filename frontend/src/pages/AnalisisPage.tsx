@@ -48,8 +48,13 @@ const AnalisisPage = () => {
             setError(null);
             
             // Load history separately to not block main UI and avoid rate limit spikes
-            const history = await (isParent ? fetchFamilyTransactionHistory(period.apiParam) : fetchTransactionHistory(period.apiParam));
-            setTransactions(history);
+            try {
+                setHistoryLoading(true);
+                const history = await (isParent ? fetchFamilyTransactionHistory(period.apiParam) : fetchTransactionHistory(period.apiParam));
+                setTransactions(history);
+            } finally {
+                setHistoryLoading(false);
+            }
         } catch (err: any) {
             setError("Gagal memuat data analisis.");
         } finally {
