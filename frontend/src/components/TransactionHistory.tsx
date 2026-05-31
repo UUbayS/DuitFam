@@ -180,7 +180,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                                     {React.createElement((Icons as any)[tx.icon_kategori || 'Tag'] || Tag)}
                                 </div>
                                 <div className="flex-grow-1 d-flex flex-column" style={{ minWidth: 0 }}>
-                                    <div className="fw-bold text-dark text-truncate mb-1" style={{ fontSize: '14px', maxWidth: '100%' }} title={tx.keterangan || ''}>
+                                    <div className="fw-bold text-dark text-truncate" style={{ fontSize: '14px', maxWidth: '100%' }} title={tx.keterangan || ''}>
                                         {(tx.keterangan || '').replace('Kontribusi Target ID:', 'Tabungan #')}
                                     </div>
 

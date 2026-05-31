@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
+import { Row, Col, Card, Button, Spinner, Alert, Form } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
 import { ArrowLeftShort, ArrowRightShort, Tag, PeopleFill, PersonFill, PersonWorkspace } from 'react-bootstrap-icons';
 import * as Icons from 'react-bootstrap-icons';
 import { fetchAnalysisReport, fetchFamilyAnalysisReport, fetchFamilyHistoricalData, fetchHistoricalData, fetchTransactionHistory, fetchFamilyTransactionHistory } from '../services/report.service';
 import { fetchChildrenService } from '../services/user.service';
+import { fetchCategories } from '../services/utility.service';
+import type { Category } from '../types/transaction.types';
 import type * as ReportTypes from '../types/report.types';
 import MonthlyBarChart from '../components/MonthlyBarChart';
 import SmartSpendingTips from '../components/SmartSpendingTips';
@@ -76,6 +78,7 @@ const calculateSummary = (transactions: ReportTypes.TransactionHistoryItem[]): R
 };
 
 type ViewFilter = 'semua' | 'ortu' | 'anak';
+type TypeFilter = 'semua' | 'pemasukan' | 'pengeluaran';
 
 const AnalisisPage = () => {
     const { user } = useAuth();
@@ -90,7 +93,10 @@ const AnalisisPage = () => {
     
     // Filter view state
     const [viewFilter, setViewFilter] = useState<ViewFilter>('semua');
+    const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
+    const [selectedCategory, setSelectedCategory] = useState<string>('');
     const [childrenIds, setChildrenIds] = useState<Set<string>>(new Set());
+    const [categories, setCategories] = useState<Category[]>([]);
     
     const isParent = user?.role === 'parent';
 
@@ -105,22 +111,59 @@ const AnalisisPage = () => {
         }
     }, [isParent]);
 
-    // Apply view filter ke transaksi
+    // Fetch categories untuk filter dropdown
+    useEffect(() => {
+        fetchCategories()
+            .then(cats => setCategories(cats))
+            .catch(() => {});
+    }, []);
+
+    // Reset selected category saat type filter berubah
+    useEffect(() => {
+        setSelectedCategory('');
+    }, [typeFilter]);
+
+    // Apply view filter + type filter + category filter ke transaksi
     const filteredTransactions = useMemo(() => {
-        if (viewFilter === 'semua' || !isParent) return transactions;
+        let result = transactions;
         
-        return transactions.filter(tx => {
-            const isAnak = tx.user_id && childrenIds.has(tx.user_id);
-            if (viewFilter === 'ortu') return !isAnak;
-            if (viewFilter === 'anak') return isAnak;
-            return true;
-        });
-    }, [transactions, viewFilter, childrenIds, isParent]);
+        // Apply view filter (semua/ortu/anak)
+        if (viewFilter !== 'semua' && isParent) {
+            result = result.filter(tx => {
+                const isAnak = tx.user_id && childrenIds.has(tx.user_id);
+                if (viewFilter === 'ortu') return !isAnak;
+                if (viewFilter === 'anak') return isAnak;
+                return true;
+            });
+        }
+        
+        // Apply type filter (semua/pemasukan/pengeluaran)
+        if (typeFilter !== 'semua') {
+            result = result.filter(tx => tx.jenis === typeFilter);
+        }
+        
+        // Apply category filter (by nama_kategori - Opsi B)
+        if (selectedCategory) {
+            result = result.filter(tx => tx.nama_kategori === selectedCategory);
+        }
+        
+        return result;
+    }, [transactions, viewFilter, typeFilter, selectedCategory, childrenIds, isParent]);
 
     // Hitung chart data dan summary dari filtered transactions
     const chartData = useMemo(() => {
-        return aggregateToChart(filteredTransactions, unit);
-    }, [filteredTransactions, unit]);
+        const aggregated = aggregateToChart(filteredTransactions, unit);
+        
+        // Opsi A: Set bar yang tidak dipilih ke 0
+        if (typeFilter === 'pemasukan') {
+            return aggregated.map(d => ({ ...d, pengeluaran: 0 }));
+        }
+        if (typeFilter === 'pengeluaran') {
+            return aggregated.map(d => ({ ...d, pemasukan: 0 }));
+        }
+        
+        return aggregated;
+    }, [filteredTransactions, unit, typeFilter]);
 
     const summary = useMemo(() => {
         return calculateSummary(filteredTransactions);
@@ -225,6 +268,58 @@ const AnalisisPage = () => {
                 </Card>
             )}
 
+            {/* Filter Jenis Transaksi - Untuk Semua */}
+            <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 15, backgroundColor: '#f8f9fa' }}>
+                <Card.Body className="p-3">
+                    <div className="d-flex flex-wrap gap-2 align-items-center">
+                        <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>JENIS:</span>
+                        {([
+                            { key: 'semua', label: 'Semua' },
+                            { key: 'pemasukan', label: 'Pemasukan' },
+                            { key: 'pengeluaran', label: 'Pengeluaran' }
+                        ] as const).map(({ key, label }) => (
+                            <Button
+                                key={key}
+                                variant={typeFilter === key ? 'success' : 'outline-success'}
+                                size="sm"
+                                onClick={() => setTypeFilter(key)}
+                                className="rounded-pill"
+                                style={{ fontSize: 12, fontWeight: 600 }}
+                            >
+                                {label}
+                            </Button>
+                        ))}
+                    </div>
+                    
+                    {/* Dropdown Kategori - Muncul saat jenis dipilih (Pemasukan/Pengeluaran) */}
+                    {typeFilter !== 'semua' && (
+                        <div className="d-flex flex-wrap gap-2 align-items-center mt-3 pt-3 border-top">
+                            <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>KATEGORI:</span>
+                            <Form.Select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                style={{ 
+                                    borderRadius: 10, 
+                                    fontSize: 13, 
+                                    border: '1px solid #dee2e6',
+                                    maxWidth: 250,
+                                    padding: '6px 12px'
+                                }}
+                            >
+                                <option value="">Semua kategori</option>
+                                {categories
+                                    .filter(cat => cat.jenis === typeFilter)
+                                    .map(cat => (
+                                        <option key={cat.id_kategori} value={cat.nama_kategori}>
+                                            {cat.nama_kategori}
+                                        </option>
+                                    ))}
+                            </Form.Select>
+                        </div>
+                    )}
+                </Card.Body>
+            </Card>
+
             <Row className="g-4 mb-5">
                 <Col md={4}>
                     <Card className="border-0 shadow-sm h-100" style={{ borderRadius: 25, borderBottom: '5px solid #28a745' }}>
@@ -272,8 +367,14 @@ const AnalisisPage = () => {
                         <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
                     ) : filteredTransactions.length === 0 ? (
                         <div className="text-center py-5 text-muted">
-                            {viewFilter !== 'semua' 
+                            {selectedCategory
+                                ? `Belum ada transaksi untuk kategori "${selectedCategory}" pada periode ini.`
+                                : viewFilter !== 'semua' && typeFilter !== 'semua'
+                                ? `Belum ada transaksi ${typeFilter} ${viewFilter === 'ortu' ? 'orang tua' : 'anak'} pada periode ini.`
+                                : viewFilter !== 'semua'
                                 ? `Belum ada transaksi ${viewFilter === 'ortu' ? 'orang tua' : 'anak'} pada periode ini.`
+                                : typeFilter !== 'semua'
+                                ? `Belum ada transaksi ${typeFilter} pada periode ini.`
                                 : "Belum ada transaksi pada periode ini."
                             }
                         </div>
