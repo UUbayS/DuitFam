@@ -12,6 +12,7 @@ export interface MonthlySummary {
 export interface TransactionHistoryItem { // <-- TIPE DATA BARU
     id_transaksi: string;
     user_id?: string;
+    username?: string;
     jenis: 'pemasukan' | 'pengeluaran';
     jumlah: number;
     keterangan: string;

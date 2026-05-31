@@ -26,13 +26,33 @@ interface BottomNavProps {
     openTransactionModal: () => void;
 }
 
+interface NavIcon {
+    active: string;
+    inactive: string;
+}
+
+interface LinkNavItem {
+    to: string;
+    icon: NavIcon;
+    label: string;
+}
+
+interface ActionNavItem {
+    type: 'action';
+    icon: React.ReactElement;
+    label: string;
+    onClick: () => void;
+}
+
+type NavItem = LinkNavItem | ActionNavItem;
+
 const BottomNav: React.FC<BottomNavProps> = ({ openTransactionModal }) => {
     const location = useLocation();
     const { user } = useAuth();
     
     const isActive = (path: string) => location.pathname === path;
 
-    const navItems = [
+    const navItems: NavItem[] = [
         { to: "/dashboard", icon: { active: HomeBlue, inactive: HomeWhite }, label: "Beranda" },
         { to: "/analisis", icon: { active: AnalysisBlue, inactive: AnalysisWhite }, label: "Analisis" },
         { type: 'action', icon: <PlusCircleFill size={36} className="text-primary" />, label: "Tambah", onClick: openTransactionModal },
@@ -46,7 +66,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ openTransactionModal }) => {
             style={{ height: '70px', zIndex: 1000, boxShadow: '0 -4px 10px rgba(0,0,0,0.05)' }}
         >
             {navItems.map((item, index) => {
-                if (item.type === 'action') {
+                if ('type' in item && item.type === 'action') {
                     return (
                         <div 
                             key={index}
@@ -61,18 +81,19 @@ const BottomNav: React.FC<BottomNavProps> = ({ openTransactionModal }) => {
                     );
                 }
 
-                const active = isActive(item.to!);
+                const linkItem = item as LinkNavItem;
+                const active = isActive(linkItem.to);
                 return (
                     <Nav.Link 
-                        key={item.to}
+                        key={linkItem.to}
                         as={Link} 
-                        to={item.to!} 
+                        to={linkItem.to} 
                         className="d-flex flex-column align-items-center justify-content-center p-0"
                         style={{ width: '20%', transition: '0.3s' }}
                     >
                         <img 
-                            src={active ? item.icon.active : item.icon.inactive} 
-                            alt={item.label} 
+                            src={active ? linkItem.icon.active : linkItem.icon.inactive} 
+                            alt={linkItem.label} 
                             style={{ 
                                 width: '24px', 
                                 height: '24px',
@@ -87,7 +108,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ openTransactionModal }) => {
                                 marginTop: '4px'
                             }}
                         >
-                            {item.label}
+                            {linkItem.label}
                         </span>
                     </Nav.Link>
                 );
