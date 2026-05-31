@@ -460,16 +460,18 @@ const LoginPage = () => {
               {error && mode === 'register' && <div style={S.errorBox}>{error}</div>}
 
               {/* Tab Pilihan: Parent / Child */}
-              <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderRadius: 10, overflow: 'hidden', border: '2px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderRadius: 999, padding: 4, backgroundColor: '#f1f5f9', width: '100%' }}>
                 <button
                   type="button"
                   onClick={() => { setRegisterMode('parent'); setError(null); }}
                   style={{
-                    flex: 1, padding: '10px', fontSize: 13, fontWeight: 600,
+                    flex: 1, padding: '8px 0', fontSize: 12, fontWeight: 500,
                     border: 'none', cursor: 'pointer',
-                    backgroundColor: registerMode === 'parent' ? '#007bff' : '#f8fafc',
-                    color: registerMode === 'parent' ? '#fff' : '#666',
-                    transition: 'all 0.2s',
+                    borderRadius: 999,
+                    backgroundColor: registerMode === 'parent' ? '#007bff' : 'transparent',
+                    color: registerMode === 'parent' ? '#fff' : '#64748b',
+                    transition: 'all 0.2s ease',
+                    boxShadow: registerMode === 'parent' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                   }}
                 >
                   Orang Tua
@@ -478,11 +480,13 @@ const LoginPage = () => {
                   type="button"
                   onClick={() => { setRegisterMode('child'); setError(null); }}
                   style={{
-                    flex: 1, padding: '10px', fontSize: 13, fontWeight: 600,
+                    flex: 1, padding: '8px 0', fontSize: 12, fontWeight: 500,
                     border: 'none', cursor: 'pointer',
-                    backgroundColor: registerMode === 'child' ? '#007bff' : '#f8fafc',
-                    color: registerMode === 'child' ? '#fff' : '#666',
-                    transition: 'all 0.2s',
+                    borderRadius: 999,
+                    backgroundColor: registerMode === 'child' ? '#007bff' : 'transparent',
+                    color: registerMode === 'child' ? '#fff' : '#64748b',
+                    transition: 'all 0.2s ease',
+                    boxShadow: registerMode === 'child' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                   }}
                 >
                   Anak
@@ -613,7 +617,7 @@ const LoginPage = () => {
                   />
                   Show password
                 </label>
-                <a href="#" style={S.link} onClick={(e) => e.preventDefault()}>Forgot Password?</a>
+                {/*<a href="#" style={S.link} onClick={(e) => e.preventDefault()}>Forgot Password?</a>*/}
               </div>
 
               <button type="submit" disabled={loading} className="auth-submit-btn" style={S.submitBtn}>

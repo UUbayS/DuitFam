@@ -144,7 +144,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
             value={filter}
             onChange={(e) => setFilter(e.target.value as any)}
             className="border-0 shadow-sm mb-4"
-            style={{ borderRadius: 12, fontSize: '13px', backgroundColor: '#fff', padding: '12px' }}
+            style={{ borderRadius: 12, fontSize: '13px', backgroundColor: '#fff', padding: '12px', flexShrink: 0 }}
         >
             <option value="all">Semua Transaksi</option>
             <option value="pemasukan">Pemasukan</option>
@@ -153,7 +153,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
 
         <div className="mb-3 fw-bold text-dark" style={{ flexShrink: 0, fontSize: 18, textAlign: 'center' }}>Riwayat Transaksi</div>
                     
-        <div style={{ flexGrow: 1, overflowY: 'auto' }} className="no-scrollbar px-1">
+        <div style={{ flexGrow: 1, overflowY: 'auto', minHeight: 0 }} className="no-scrollbar px-1">
             {error ? (
                 <div className="text-danger small mb-2 text-center">{error}</div>
             ) : null}
@@ -179,29 +179,29 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                                 >
                                     {React.createElement((Icons as any)[tx.icon_kategori || 'Tag'] || Tag)}
                                 </div>
-                                <div className="flex-grow-1 d-flex flex-column min-width-0">
-                                    <div className="fw-bold text-dark text-truncate mb-1" style={{ fontSize: '14px' }} title={tx.keterangan || ''}>
+                                <div className="flex-grow-1 d-flex flex-column" style={{ minWidth: 0 }}>
+                                    <div className="fw-bold text-dark text-truncate mb-1" style={{ fontSize: '14px', maxWidth: '100%' }} title={tx.keterangan || ''}>
                                         {(tx.keterangan || '').replace('Kontribusi Target ID:', 'Tabungan #')}
                                     </div>
 
                                     <div className="d-flex justify-content-between align-items-center">
-                                        <small className="text-muted text-truncate me-2" style={{ fontSize: '11px' }}>
-                                            {(tx.nama_kategori || 'Lainnya')} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { 
-                                                day: '2-digit', 
+                                        <small className="text-muted text-truncate me-2" style={{ fontSize: '11px', maxWidth: '100%' }}>
+                                            {(tx.nama_kategori || 'Lainnya')} • {new Date(tx.tanggal).toLocaleDateString('id-ID', {
+                                                day: '2-digit',
                                                 month: 'short'
                                             })}
                                         </small>
-                                        <div 
-                                            className="fw-bold flex-shrink-0"
-                                            style={{ 
-                                                color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545', 
-                                                fontSize: '14px',
-                                                whiteSpace: 'nowrap'
-                                            }}
-                                        >
-                                            {tx.jenis === 'pengeluaran' ? '- ' : '+ '}
-                                            {formatRupiah(tx.jumlah)}
-                                        </div>
+                                    </div>
+                                    <div
+                                        className="fw-bold flex-shrink-0"
+                                        style={{
+                                            color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545',
+                                            fontSize: '14px',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        {tx.jenis === 'pengeluaran' ? '- ' : '+ '}
+                                        {formatRupiah(tx.jumlah)}
                                     </div>
                                 </div>
                             </div>
@@ -212,7 +212,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
         </div>
             
         {!hideAddButton && (
-            <div className="pt-4 bg-transparent" style={{ flexShrink: 0, marginTop: 'auto' }}>
+            <div className="pt-3 pb-3" style={{ flexShrink: 0, backgroundColor: 'var(--bg-history)' }}>
                 <Button variant="primary" className="w-100 py-3 fw-bold shadow" style={{ borderRadius: 999, border: 'none', backgroundColor: '#007bff' }} onClick={openTransactionModal}>
                     + Tambah Transaksi
                 </Button>

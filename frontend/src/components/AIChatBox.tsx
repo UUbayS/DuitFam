@@ -35,7 +35,13 @@ interface FinancialData {
     isLoading: boolean;
 }
 
-const AIChatBox: React.FC = () => {
+interface AIChatBoxProps {
+    hidden?: boolean;
+}
+
+const AIChatBox: React.FC<AIChatBoxProps> = ({ hidden }) => {
+    if (hidden) return null;
+
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
