@@ -128,17 +128,7 @@ class ApprovalController extends Controller
                 $childWallet->saldo_sekarang = ((float) $childWallet->saldo_sekarang) + (float) $withdrawal->amount;
                 $childWallet->save();
 
-                // 3. Transaksi untuk Orang Tua (Pengeluaran)
-                Transaction::create([
-                    'user_id' => $withdrawal->parent_id,
-                    'jenis' => config('constants.transaction_types.pengeluaran'),
-                    'status' => config('constants.transaction_status.berhasil'),
-                    'jumlah' => $withdrawal->amount,
-                    'tanggal' => now()->toDateString(),
-                    'keterangan' => 'Permintaan anak disetujui',
-                ]);
-
-                // 4. Transaksi untuk Anak (Pemasukan)
+                // 3. Transaksi untuk Anak (Pemasukan)
                 Transaction::create([
                     'user_id' => $withdrawal->child_id,
                     'jenis' => config('constants.transaction_types.pemasukan'),
@@ -146,6 +136,7 @@ class ApprovalController extends Controller
                     'jumlah' => $withdrawal->amount,
                     'tanggal' => now()->toDateString(),
                     'keterangan' => 'Permintaan disetujui orang tua',
+                    'is_internal' => true,
                 ]);
             }
 
