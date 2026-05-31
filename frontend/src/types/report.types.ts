@@ -21,6 +21,7 @@ export interface TransactionHistoryItem { // <-- TIPE DATA BARU
     nama_kategori: string;
     icon_kategori?: string;
     status?: 'berhasil';
+    is_internal?: boolean;
 }
 
 export interface ReportCategory {

@@ -30,6 +30,8 @@ const aggregateToChart = (transactions: ReportTypes.TransactionHistoryItem[], un
     const grouped = new Map<string, { pemasukan: number; pengeluaran: number }>();
     
     transactions.forEach(tx => {
+        if (tx.is_internal) return;
+
         const date = new Date(tx.tanggal);
         let key: string;
         
@@ -61,11 +63,11 @@ const aggregateToChart = (transactions: ReportTypes.TransactionHistoryItem[], un
 // Helper: Hitung summary dari transaksi
 const calculateSummary = (transactions: ReportTypes.TransactionHistoryItem[]): ReportTypes.MonthlySummary => {
     const totalPemasukan = transactions
-        .filter(t => t.jenis === 'pemasukan')
+        .filter(t => !t.is_internal && t.jenis === 'pemasukan')
         .reduce((sum, t) => sum + t.jumlah, 0);
     
     const totalPengeluaran = transactions
-        .filter(t => t.jenis === 'pengeluaran')
+        .filter(t => !t.is_internal && t.jenis === 'pengeluaran')
         .reduce((sum, t) => sum + t.jumlah, 0);
     
     return {

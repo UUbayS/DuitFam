@@ -265,7 +265,7 @@ class ReportController extends Controller
 
         $rows = $query->orderByDesc('created_at')
             ->limit(50)
-            ->get(['_id', 'user_id', 'jenis', 'jumlah', 'keterangan', 'tanggal', 'created_at', 'status', 'category_id', 'source_id', 'jenis as original_jenis']);
+            ->get(['_id', 'user_id', 'jenis', 'jumlah', 'keterangan', 'tanggal', 'created_at', 'status', 'category_id', 'source_id', 'is_internal', 'jenis as original_jenis']);
 
         $categoryIds = $rows->pluck('category_id')->filter()->unique()->values();
         $categoryMap = [];
@@ -308,6 +308,7 @@ class ReportController extends Controller
                 'status' => $t->status ?? 'berhasil',
                 'nama_kategori' => $categoryName,
                 'icon_kategori' => $categoryIcon,
+                'is_internal' => (bool) ($t->is_internal ?? false),
             ];
         });
 
@@ -604,6 +605,7 @@ class ReportController extends Controller
                 'status' => $t->status ?? 'berhasil',
                 'nama_kategori' => $categoryName,
                 'icon_kategori' => $categoryIcon,
+                'is_internal' => (bool) ($t->is_internal ?? false),
             ];
         });
 
