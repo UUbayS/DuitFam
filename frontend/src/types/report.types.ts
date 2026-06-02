@@ -12,6 +12,7 @@ export interface MonthlySummary {
 export interface TransactionHistoryItem { // <-- TIPE DATA BARU
     id_transaksi: string;
     user_id?: string;
+    username?: string;
     jenis: 'pemasukan' | 'pengeluaran';
     jumlah: number;
     keterangan: string;
@@ -20,6 +21,7 @@ export interface TransactionHistoryItem { // <-- TIPE DATA BARU
     nama_kategori: string;
     icon_kategori?: string;
     status?: 'berhasil';
+    is_internal?: boolean;
 }
 
 export interface ReportCategory {

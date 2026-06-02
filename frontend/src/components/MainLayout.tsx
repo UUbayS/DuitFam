@@ -15,7 +15,7 @@ interface MainLayoutProps {
     children: ReactNode;
     onTransactionAdded?: () => void;
     openTransactionModal?: () => void;
-    hideAddButton?: boolean;
+    hideAddButton?: boolean; 
     style?: React.CSSProperties;
 }
 
@@ -88,11 +88,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                                 {children}
                             </div>
                         </div>
-                        <AIChatBox />
+                        <AIChatBox hidden={showHistory} />
                     </main>
 
                     {/* Right Sidebar Desktop (Fixed) */}
-                    <aside className="desktop-only h-100" style={{ width: 'var(--history-width)', minWidth: 'var(--history-width)', backgroundColor: 'var(--bg-history)' }}>
+                    <aside className="desktop-only h-100 d-flex flex-column" style={{ width: 'var(--history-width)', minWidth: 'var(--history-width)', backgroundColor: 'var(--bg-history)' }}>
                         <TransactionHistory
                             onTransactionAdded={handleAdded}
                             openTransactionModal={handleOpenModal}
@@ -115,7 +115,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                 <Offcanvas.Header closeButton className="pb-0">
                     <Offcanvas.Title className="fw-bold">Riwayat Transaksi</Offcanvas.Title>
                 </Offcanvas.Header>
-                <Offcanvas.Body className="p-0">
+                <Offcanvas.Body className="p-0 d-flex flex-column overflow-hidden">
                     <TransactionHistory
                         onTransactionAdded={handleAdded}
                         openTransactionModal={handleOpenModal}

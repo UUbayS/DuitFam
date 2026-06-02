@@ -36,8 +36,10 @@ class ReportController extends Controller
         
         $base = $this->applyTimeFilter($base, $request);
 
-        $income = (float) (clone $base)->where('jenis', config('constants.transaction_types.pemasukan'))->sum('jumlah');
-        $expense = (float) (clone $base)->where('jenis', config('constants.transaction_types.pengeluaran'))->sum('jumlah');
+        $income = (float) (clone $base)->where('jenis', config('constants.transaction_types.pemasukan'))
+            ->where('is_internal', '!=', true)->sum('jumlah');
+        $expense = (float) (clone $base)->where('jenis', config('constants.transaction_types.pengeluaran'))
+            ->where('is_internal', '!=', true)->sum('jumlah');
         $wallet = Wallet::firstOrCreate(['user_id' => $userId], ['saldo_sekarang' => 0]);
 
         $selectedMonth = $request->query('month', now()->format('Y-m'));
@@ -51,6 +53,7 @@ class ReportController extends Controller
         $transactionsAfterSelected = Transaction::query()
             ->where('user_id', $userId)
             ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('is_internal', '!=', true)
             ->where('tanggal', '>', $endOfSelectedMonth)
             ->get(['jenis', 'jumlah']);
         
@@ -68,6 +71,7 @@ class ReportController extends Controller
         $transactionsAfterPrev = Transaction::query()
             ->where('user_id', $userId)
             ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('is_internal', '!=', true)
             ->where('tanggal', '>', $endOfPrevMonth)
             ->get(['jenis', 'jumlah']);
         
@@ -181,7 +185,8 @@ class ReportController extends Controller
 
         $query = Transaction::query()
             ->where('user_id', $userId)
-            ->where('status', config('constants.transaction_status.berhasil'));
+            ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('is_internal', '!=', true);
         
         $query = $this->applyTimeFilter($query, $request);
         $transactions = $query->get(['jenis', 'jumlah']);
@@ -207,6 +212,7 @@ class ReportController extends Controller
         $transactionsAfterSelected = Transaction::query()
             ->where('user_id', $userId)
             ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('is_internal', '!=', true)
             ->where('tanggal', '>', $endOfSelectedMonth)
             ->get(['jenis', 'jumlah']);
         
@@ -224,6 +230,7 @@ class ReportController extends Controller
         $transactionsAfterPrev = Transaction::query()
             ->where('user_id', $userId)
             ->where('status', config('constants.transaction_status.berhasil'))
+            ->where('is_internal', '!=', true)
             ->where('tanggal', '>', $endOfPrevMonth)
             ->get(['jenis', 'jumlah']);
         
@@ -258,7 +265,7 @@ class ReportController extends Controller
 
         $rows = $query->orderByDesc('created_at')
             ->limit(50)
-            ->get(['_id', 'user_id', 'jenis', 'jumlah', 'keterangan', 'tanggal', 'created_at', 'status', 'category_id', 'source_id', 'jenis as original_jenis']);
+            ->get(['_id', 'user_id', 'jenis', 'jumlah', 'keterangan', 'tanggal', 'created_at', 'status', 'category_id', 'source_id', 'is_internal', 'jenis as original_jenis']);
 
         $categoryIds = $rows->pluck('category_id')->filter()->unique()->values();
         $categoryMap = [];
@@ -301,6 +308,7 @@ class ReportController extends Controller
                 'status' => $t->status ?? 'berhasil',
                 'nama_kategori' => $categoryName,
                 'icon_kategori' => $categoryIcon,
+                'is_internal' => (bool) ($t->is_internal ?? false),
             ];
         });
 
@@ -315,7 +323,8 @@ class ReportController extends Controller
         $result = Transaction::raw(function ($collection) use ($userId, $unit, $request) {
             $match = [
                 'user_id' => $userId,
-                'status' => config('constants.transaction_status.berhasil')
+                'status' => config('constants.transaction_status.berhasil'),
+                'is_internal' => ['$ne' => true]
             ];
 
             // Apply specific period filtering if provided
@@ -596,6 +605,7 @@ class ReportController extends Controller
                 'status' => $t->status ?? 'berhasil',
                 'nama_kategori' => $categoryName,
                 'icon_kategori' => $categoryIcon,
+                'is_internal' => (bool) ($t->is_internal ?? false),
             ];
         });
 
