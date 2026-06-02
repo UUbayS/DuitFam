@@ -36,10 +36,8 @@ class ReportController extends Controller
         
         $base = $this->applyTimeFilter($base, $request);
 
-        $income = (float) (clone $base)->where('jenis', config('constants.transaction_types.pemasukan'))
-            ->where('is_internal', '!=', true)->sum('jumlah');
-        $expense = (float) (clone $base)->where('jenis', config('constants.transaction_types.pengeluaran'))
-            ->where('is_internal', '!=', true)->sum('jumlah');
+        $income = (float) (clone $base)->where('jenis', config('constants.transaction_types.pemasukan'))->sum('jumlah');
+        $expense = (float) (clone $base)->where('jenis', config('constants.transaction_types.pengeluaran'))->sum('jumlah');
         $wallet = Wallet::firstOrCreate(['user_id' => $userId], ['saldo_sekarang' => 0]);
 
         $selectedMonth = $request->query('month', now()->format('Y-m'));
@@ -53,7 +51,6 @@ class ReportController extends Controller
         $transactionsAfterSelected = Transaction::query()
             ->where('user_id', $userId)
             ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('is_internal', '!=', true)
             ->where('tanggal', '>', $endOfSelectedMonth)
             ->get(['jenis', 'jumlah']);
         
@@ -71,7 +68,6 @@ class ReportController extends Controller
         $transactionsAfterPrev = Transaction::query()
             ->where('user_id', $userId)
             ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('is_internal', '!=', true)
             ->where('tanggal', '>', $endOfPrevMonth)
             ->get(['jenis', 'jumlah']);
         
@@ -106,39 +102,54 @@ class ReportController extends Controller
 
         $allUserIds = collect([$parentId])->merge($childIds)->unique()->values();
 
+        $group = $request->query('group', 'semua');
+        if ($group === 'ortu') {
+            $allUserIds = collect([$parentId]);
+        } elseif ($group === 'anak') {
+            $allUserIds = $childIds;
+        }
+
         $txBase = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('status', config('constants.transaction_status.berhasil'));
         
         $txBase = $this->applyTimeFilter($txBase, $request);
 
-        $income = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pemasukan'))
-            ->where('is_internal', '!=', true)
-            ->sum('jumlah');
-        $expense = (float) (clone $txBase)->where('jenis', config('constants.transaction_types.pengeluaran'))
-            ->where('is_internal', '!=', true)
-            ->sum('jumlah');
-        
-        // Calculate current family wallet total
-        $childWalletTotal = 0;
-        if ($childIds->isNotEmpty()) {
-            $childWalletTotal = (float) Wallet::query()->whereIn('user_id', $childIds->all())->sum('saldo_sekarang');
+        $incomeQuery = (clone $txBase)->where('jenis', config('constants.transaction_types.pemasukan'));
+        $expenseQuery = (clone $txBase)->where('jenis', config('constants.transaction_types.pengeluaran'));
+
+        if ($group === 'semua') {
+            $income = (float) $incomeQuery->where('is_internal', '!=', true)->sum('jumlah');
+            $expense = (float) $expenseQuery->where('is_internal', '!=', true)->sum('jumlah');
+        } else {
+            $income = (float) $incomeQuery->sum('jumlah');
+            $expense = (float) $expenseQuery->sum('jumlah');
         }
         
-        $parentWallet = Wallet::firstOrCreate(['user_id' => $parentId], ['saldo_sekarang' => 0]);
-        $currentSaldoTotal = $childWalletTotal + (float) $parentWallet->saldo_sekarang;
+        $childWalletTotal = 0;
+        if ($group !== 'ortu' && $childIds->isNotEmpty()) {
+            $groupChildIds = ($group === 'anak') ? $childIds : $childIds;
+            $childWalletTotal = (float) Wallet::query()->whereIn('user_id', $groupChildIds->all())->sum('saldo_sekarang');
+        }
+        
+        $parentWallet = ($group !== 'anak') ? Wallet::firstOrCreate(['user_id' => $parentId], ['saldo_sekarang' => 0]) : null;
+        $currentSaldoTotal = $childWalletTotal + (($parentWallet) ? (float) $parentWallet->saldo_sekarang : 0);
 
         $selectedMonth = $request->query('month', now()->format('Y-m'));
         $endOfSelectedMonth = now()->createFromFormat('Y-m', $selectedMonth)->endOfMonth()->toDateString();
         $endOfPrevMonth = now()->createFromFormat('Y-m', $selectedMonth)->subMonth()->endOfMonth()->toDateString();
 
         // Calculate saldoAkhir (closing balance of selected month)
-        $transactionsAfterSelected = Transaction::query()
+        $afterQuery = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('is_internal', '!=', true)
-            ->where('tanggal', '>', $endOfSelectedMonth)
-            ->get(['jenis', 'jumlah']);
+            ->where('tanggal', '>', $endOfSelectedMonth);
+
+        if ($group === 'semua') {
+            $afterQuery->where('is_internal', '!=', true);
+        }
+
+        $transactionsAfterSelected = $afterQuery->get(['jenis', 'jumlah']);
         
         $netAfterSelected = 0;
         foreach ($transactionsAfterSelected as $t) {
@@ -151,12 +162,16 @@ class ReportController extends Controller
         $saldoAkhir = $currentSaldoTotal + $netAfterSelected;
 
         // Calculate saldoBulanLalu (closing balance of previous month)
-        $transactionsAfterPrev = Transaction::query()
+        $prevQuery = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('is_internal', '!=', true)
-            ->where('tanggal', '>', $endOfPrevMonth)
-            ->get(['jenis', 'jumlah']);
+            ->where('tanggal', '>', $endOfPrevMonth);
+
+        if ($group === 'semua') {
+            $prevQuery->where('is_internal', '!=', true);
+        }
+
+        $transactionsAfterPrev = $prevQuery->get(['jenis', 'jumlah']);
         
         $netAfterPrev = 0;
         foreach ($transactionsAfterPrev as $t) {
@@ -185,8 +200,7 @@ class ReportController extends Controller
 
         $query = Transaction::query()
             ->where('user_id', $userId)
-            ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('is_internal', '!=', true);
+            ->where('status', config('constants.transaction_status.berhasil'));
         
         $query = $this->applyTimeFilter($query, $request);
         $transactions = $query->get(['jenis', 'jumlah']);
@@ -212,7 +226,6 @@ class ReportController extends Controller
         $transactionsAfterSelected = Transaction::query()
             ->where('user_id', $userId)
             ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('is_internal', '!=', true)
             ->where('tanggal', '>', $endOfSelectedMonth)
             ->get(['jenis', 'jumlah']);
         
@@ -230,7 +243,6 @@ class ReportController extends Controller
         $transactionsAfterPrev = Transaction::query()
             ->where('user_id', $userId)
             ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('is_internal', '!=', true)
             ->where('tanggal', '>', $endOfPrevMonth)
             ->get(['jenis', 'jumlah']);
         
@@ -324,7 +336,6 @@ class ReportController extends Controller
             $match = [
                 'user_id' => $userId,
                 'status' => config('constants.transaction_status.berhasil'),
-                'is_internal' => ['$ne' => true]
             ];
 
             // Apply specific period filtering if provided
@@ -479,16 +490,26 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
-        // Include parent's ID for transaction queries
-        $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+        $group = $request->query('group', 'semua');
+        if ($group === 'ortu') {
+            $allUserIds = collect([(string) $parent->id]);
+        } elseif ($group === 'anak') {
+            $allUserIds = $childIds;
+        } else {
+            $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+        }
+
         $unit = $request->query('unit', 'tahunan');
 
-        $result = Transaction::raw(function ($collection) use ($allUserIds, $unit, $request) {
+        $result = Transaction::raw(function ($collection) use ($allUserIds, $unit, $request, $group) {
             $match = [
                 'user_id' => ['$in' => $allUserIds->all()],
                 'status' => config('constants.transaction_status.berhasil'),
-                'is_internal' => ['$ne' => true]
             ];
+
+            if ($group === 'semua') {
+                $match['is_internal'] = ['$ne' => true];
+            }
 
             if ($unit === 'mingguan' && $request->has('start_date') && $request->has('end_date')) {
                 $match['tanggal'] = ['$gte' => $request->start_date, '$lte' => $request->end_date];
@@ -551,8 +572,14 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
-        // Include parent's ID for transaction queries
-        $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+        $group = $request->query('group', 'semua');
+        if ($group === 'ortu') {
+            $allUserIds = collect([(string) $parent->id]);
+        } elseif ($group === 'anak') {
+            $allUserIds = $childIds;
+        } else {
+            $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+        }
 
         $query = Transaction::query()->whereIn('user_id', $allUserIds->all());
         $query = $this->applyTimeFilter($query, $request);
@@ -574,9 +601,11 @@ class ReportController extends Controller
 
         $familyMemberMap = \App\Models\User::whereIn('_id', $allUserIds->all())->get(['_id', 'username'])->keyBy(fn($u) => (string) $u->id);
 
-        $data = $rows->filter(function ($t) {
-            // To avoid double entry in family history, we hide the "Expense" side of internal transfers (deposits)
-            return !($t->is_internal && $t->jenis === config('constants.transaction_types.pengeluaran'));
+        $data = $rows->filter(function ($t) use ($group) {
+            if ($group === 'semua') {
+                return !($t->is_internal && $t->jenis === config('constants.transaction_types.pengeluaran'));
+            }
+            return true;
         })->map(function ($t) use ($categoryMap, $familyMemberMap) {
             $cat = $t->category_id ? ($categoryMap[(string) $t->category_id] ?? null) : null;
             $categoryName = $cat ? $cat['nama'] : 'Lainnya';
@@ -627,13 +656,23 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
-        $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+        $group = $request->query('group', 'semua');
+        if ($group === 'ortu') {
+            $allUserIds = collect([(string) $parent->id]);
+        } elseif ($group === 'anak') {
+            $allUserIds = $childIds;
+        } else {
+            $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+        }
 
         $expenseQuery = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('jenis', config('constants.transaction_types.pengeluaran'))
-            ->where('status', config('constants.transaction_status.berhasil'))
-            ->where('is_internal', '!=', true);
+            ->where('status', config('constants.transaction_status.berhasil'));
+
+        if ($group === 'semua') {
+            $expenseQuery->where('is_internal', '!=', true);
+        }
         
         $expenseQuery = $this->applyTimeFilter($expenseQuery, $request);
         

@@ -8,6 +8,7 @@ interface FilterParams {
     start_date?: string;
     end_date?: string;   
     unit?: string; 
+    group?: string;
 }
 
 const getCurrentMonth = (): string => {

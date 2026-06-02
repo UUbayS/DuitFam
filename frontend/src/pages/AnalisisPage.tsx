@@ -25,12 +25,16 @@ const formatRupiah = (amount: number) => {
     return formatted.replace('Rp', 'Rp ');
 };
 
+type ViewFilter = 'semua' | 'ortu' | 'anak';
+type TypeFilter = 'semua' | 'pemasukan' | 'pengeluaran';
+
 // Helper: Agregasi transaksi menjadi chart data
-const aggregateToChart = (transactions: ReportTypes.TransactionHistoryItem[], unit: string): ReportTypes.AnalysisReport['chartData'] => {
+const aggregateToChart = (transactions: ReportTypes.TransactionHistoryItem[], unit: string, viewFilter: ViewFilter, isParent: boolean): ReportTypes.AnalysisReport['chartData'] => {
     const grouped = new Map<string, { pemasukan: number; pengeluaran: number }>();
+    const skipInternal = isParent && viewFilter === 'semua';
     
     transactions.forEach(tx => {
-        if (tx.is_internal) return;
+        if (skipInternal && tx.is_internal) return;
 
         const date = new Date(tx.tanggal);
         let key: string;
@@ -61,13 +65,18 @@ const aggregateToChart = (transactions: ReportTypes.TransactionHistoryItem[], un
 };
 
 // Helper: Hitung summary dari transaksi
-const calculateSummary = (transactions: ReportTypes.TransactionHistoryItem[]): ReportTypes.MonthlySummary => {
-    const totalPemasukan = transactions
-        .filter(t => !t.is_internal && t.jenis === 'pemasukan')
+const calculateSummary = (transactions: ReportTypes.TransactionHistoryItem[], viewFilter: ViewFilter, isParent: boolean): ReportTypes.MonthlySummary => {
+    const skipInternal = isParent && viewFilter === 'semua';
+    const filteredTxs = skipInternal 
+        ? transactions.filter(t => !t.is_internal)
+        : transactions;
+
+    const totalPemasukan = filteredTxs
+        .filter(t => t.jenis === 'pemasukan')
         .reduce((sum, t) => sum + t.jumlah, 0);
     
-    const totalPengeluaran = transactions
-        .filter(t => !t.is_internal && t.jenis === 'pengeluaran')
+    const totalPengeluaran = filteredTxs
+        .filter(t => t.jenis === 'pengeluaran')
         .reduce((sum, t) => sum + t.jumlah, 0);
     
     return {
@@ -78,9 +87,6 @@ const calculateSummary = (transactions: ReportTypes.TransactionHistoryItem[]): R
         saldoAkhir: 0,
     };
 };
-
-type ViewFilter = 'semua' | 'ortu' | 'anak';
-type TypeFilter = 'semua' | 'pemasukan' | 'pengeluaran';
 
 const AnalisisPage = () => {
     const { user } = useAuth();
@@ -93,7 +99,6 @@ const AnalisisPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
     
-    // Filter view state
     const [viewFilter, setViewFilter] = useState<ViewFilter>('semua');
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -102,7 +107,6 @@ const AnalisisPage = () => {
     
     const isParent = user?.role === 'parent';
 
-    // Fetch children list untuk identifikasi transaksi anak
     useEffect(() => {
         if (isParent) {
             fetchChildrenService()
@@ -113,23 +117,19 @@ const AnalisisPage = () => {
         }
     }, [isParent]);
 
-    // Fetch categories untuk filter dropdown
     useEffect(() => {
         fetchCategories()
             .then(cats => setCategories(cats))
             .catch(() => {});
     }, []);
 
-    // Reset selected category saat type filter berubah
     useEffect(() => {
         setSelectedCategory('');
     }, [typeFilter]);
 
-    // Apply view filter + type filter + category filter ke transaksi
     const filteredTransactions = useMemo(() => {
         let result = transactions;
         
-        // Apply view filter (semua/ortu/anak)
         if (viewFilter !== 'semua' && isParent) {
             result = result.filter(tx => {
                 const isAnak = tx.user_id && childrenIds.has(tx.user_id);
@@ -139,12 +139,10 @@ const AnalisisPage = () => {
             });
         }
         
-        // Apply type filter (semua/pemasukan/pengeluaran)
         if (typeFilter !== 'semua') {
             result = result.filter(tx => tx.jenis === typeFilter);
         }
         
-        // Apply category filter (by nama_kategori - Opsi B)
         if (selectedCategory) {
             result = result.filter(tx => tx.nama_kategori === selectedCategory);
         }
@@ -152,11 +150,9 @@ const AnalisisPage = () => {
         return result;
     }, [transactions, viewFilter, typeFilter, selectedCategory, childrenIds, isParent]);
 
-    // Hitung chart data dan summary dari filtered transactions
     const chartData = useMemo(() => {
-        const aggregated = aggregateToChart(filteredTransactions, unit);
+        const aggregated = aggregateToChart(filteredTransactions, unit, viewFilter, isParent);
         
-        // Opsi A: Set bar yang tidak dipilih ke 0
         if (typeFilter === 'pemasukan') {
             return aggregated.map(d => ({ ...d, pengeluaran: 0 }));
         }
@@ -165,27 +161,29 @@ const AnalisisPage = () => {
         }
         
         return aggregated;
-    }, [filteredTransactions, unit, typeFilter]);
+    }, [filteredTransactions, unit, typeFilter, viewFilter]);
 
     const summary = useMemo(() => {
-        return calculateSummary(filteredTransactions);
-    }, [filteredTransactions]);
+        return calculateSummary(filteredTransactions, viewFilter, isParent);
+    }, [filteredTransactions, viewFilter, isParent]);
 
     const loadData = useCallback(async () => {
         setLoading(true);
         setHistoryLoading(true);
         try {
+            const groupParam = viewFilter !== 'semua' ? { group: viewFilter } : {};
+
             const [analysisRes, historical] = await Promise.all([
-                isParent ? fetchFamilyAnalysisReport(period.apiParam) : fetchAnalysisReport(period.apiParam),
+                isParent ? fetchFamilyAnalysisReport({ ...period.apiParam, ...groupParam }) : fetchAnalysisReport(period.apiParam),
                 isParent 
-                    ? fetchFamilyHistoricalData({ unit: unit === 'bulan' ? 'bulan' : unit, ...period.apiParam }) 
+                    ? fetchFamilyHistoricalData({ unit: unit === 'bulan' ? 'bulan' : unit, ...period.apiParam, ...groupParam }) 
                     : fetchHistoricalData({ unit: unit === 'bulan' ? 'bulan' : unit, ...period.apiParam })
             ]);
             setReport(analysisRes);
             setHistoricalData(historical);
             setError(null);
             
-            const history = await (isParent ? fetchFamilyTransactionHistory() : fetchTransactionHistory(period.apiParam));
+            const history = await (isParent ? fetchFamilyTransactionHistory({ ...groupParam }) : fetchTransactionHistory(period.apiParam));
             setTransactions(history);
         } catch (err: any) {
             setError("Gagal memuat data analisis.");
@@ -193,7 +191,7 @@ const AnalisisPage = () => {
             setLoading(false);
             setHistoryLoading(false);
         }
-    }, [period.apiParam, unit, isParent]);
+    }, [period.apiParam, unit, isParent, viewFilter]);
 
     useEffect(() => {
         loadData();
@@ -242,7 +240,6 @@ const AnalisisPage = () => {
 
             {error ? <Alert variant="danger" style={{ borderRadius: 15 }}>{error}</Alert> : null}
 
-            {/* Filter View Toggle - Hanya untuk Orang Tua */}
             {isParent && (
                 <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 15, backgroundColor: '#f8f9fa' }}>
                     <Card.Body className="p-3">
@@ -270,7 +267,6 @@ const AnalisisPage = () => {
                 </Card>
             )}
 
-            {/* Filter Jenis Transaksi - Untuk Semua */}
             <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 15, backgroundColor: '#f8f9fa' }}>
                 <Card.Body className="p-3">
                     <div className="d-flex flex-wrap gap-2 align-items-center">
@@ -293,7 +289,6 @@ const AnalisisPage = () => {
                         ))}
                     </div>
                     
-                    {/* Dropdown Kategori - Muncul saat jenis dipilih (Pemasukan/Pengeluaran) */}
                     {typeFilter !== 'semua' && (
                         <div className="d-flex flex-wrap gap-2 align-items-center mt-3 pt-3 border-top">
                             <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>KATEGORI:</span>

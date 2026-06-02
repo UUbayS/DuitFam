@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Button, Spinner, Form } from 'react-bootstrap';
 import * as Icons from 'react-bootstrap-icons';
-import { EyeFill, EyeSlashFill, Tag } from 'react-bootstrap-icons';
+import { EyeFill, EyeSlashFill, Tag, PeopleFill, PersonFill, PersonWorkspace } from 'react-bootstrap-icons';
 import { fetchTransactionHistory, fetchMonthlySummary, fetchFamilyTransactionHistory, fetchFamilyMonthlySummary } from '../services/report.service';
 import type { TransactionHistoryItem, MonthlySummary } from '../types/report.types';
 import { useTimeFilter } from '../hooks/useTimeFilter';
@@ -22,6 +22,8 @@ const formatRupiah = (amount: number) => {
     return formatted.replace('Rp', 'Rp. ');
 };
 
+type ViewFilter = 'semua' | 'ortu' | 'anak';
+
 const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAdded, openTransactionModal, hideAddButton = false }) => {
     const { unit, period, changeUnit } = useTimeFilter('bulan'); 
 
@@ -32,22 +34,34 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
     const [filter, setFilter] = useState<'all' | 'pemasukan' | 'pengeluaran'>('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [viewFilter, setViewFilter] = useState<ViewFilter>('semua');
 
     const periodKey = useMemo(() => JSON.stringify(period.apiParam), [period.apiParam]);
+
+    const isParent = useMemo(() => {
+        const userStr = localStorage.getItem('user');
+        return userStr ? (JSON.parse(userStr).role === 'parent') : false;
+    }, []);
 
     const loadHistoryData = useCallback(async () => {
         setLoading(true);
         try {
-            const userStr = localStorage.getItem('user');
-            const isParent = userStr ? (JSON.parse(userStr).role === 'parent') : false;
-            
-            const [history, monthlySummary] = await Promise.all([
-                isParent ? fetchFamilyTransactionHistory(period.apiParam) : fetchTransactionHistory(period.apiParam),
-                isParent ? fetchFamilyMonthlySummary(period.apiParam) : fetchMonthlySummary(period.apiParam)
-            ]);
-            
-            setTransactions(history); 
-            setSummary(monthlySummary);
+            if (isParent) {
+                const params = { ...period.apiParam, group: viewFilter !== 'semua' ? viewFilter : undefined };
+                const [history, monthlySummary] = await Promise.all([
+                    fetchFamilyTransactionHistory(params),
+                    fetchFamilyMonthlySummary(params)
+                ]);
+                setTransactions(history); 
+                setSummary(monthlySummary);
+            } else {
+                const [history, monthlySummary] = await Promise.all([
+                    fetchTransactionHistory(period.apiParam),
+                    fetchMonthlySummary(period.apiParam)
+                ]);
+                setTransactions(history); 
+                setSummary(monthlySummary);
+            }
             setError(null);
         } catch (err) {
             console.error(err);
@@ -55,7 +69,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
         } finally {
             setLoading(false);
         }
-    }, [periodKey]);
+    }, [periodKey, viewFilter, isParent]);
 
     useEffect(() => {
         loadHistoryData();
@@ -138,7 +152,33 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                 </div>
             </Card.Body>
         </Card>
-        
+
+        {isParent && (
+            <Card className="border-0 shadow-sm mb-3" style={{ borderRadius: 15, backgroundColor: '#f8f9fa', flexShrink: 0 }}>
+                <Card.Body className="p-2">
+                    <div className="d-flex gap-2 justify-content-center">
+                        {([
+                            { key: 'semua', label: 'Semua', icon: PeopleFill },
+                            { key: 'ortu', label: 'Orang Tua', icon: PersonWorkspace },
+                            { key: 'anak', label: 'Anak', icon: PersonFill }
+                        ] as const).map(({ key, label, icon: Icon }) => (
+                            <Button
+                                key={key}
+                                variant={viewFilter === key ? 'primary' : 'outline-secondary'}
+                                size="sm"
+                                onClick={() => setViewFilter(key)}
+                                className="rounded-pill d-flex align-items-center gap-1 px-3"
+                                style={{ fontSize: 11, fontWeight: 600 }}
+                            >
+                                <Icon size={12} />
+                                {label}
+                            </Button>
+                        ))}
+                    </div>
+                </Card.Body>
+            </Card>
+        )}
+
         <Form.Select
             size="sm"
             value={filter}
@@ -186,6 +226,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
 
                                     <div className="d-flex justify-content-between align-items-center">
                                         <small className="text-muted text-truncate me-2" style={{ fontSize: '11px', maxWidth: '100%' }}>
+                                            {tx.username && <span className="fw-medium text-primary me-1">{tx.username}</span>}
                                             {(tx.nama_kategori || 'Lainnya')} • {new Date(tx.tanggal).toLocaleDateString('id-ID', {
                                                 day: '2-digit',
                                                 month: 'short'
