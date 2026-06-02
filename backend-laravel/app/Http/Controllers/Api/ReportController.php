@@ -737,6 +737,16 @@ class ReportController extends Controller
 
         $month = $request->input('month', Carbon::now()->format('Y-m'));
 
+        $monthStart = $month . '-01';
+        $monthEnd = Carbon::createFromFormat('Y-m', $month)->endOfMonth()->toDateString();
+        $request->merge([
+            'start_date' => $monthStart,
+            'end_date' => $monthEnd,
+        ]);
+
+        // TODO: This block (childIds + group + expenseByCategory + topExpense) duplicates
+        // the equivalent block in familyAnalysis(). If a third caller appears (e.g. CSV export,
+        // scheduled email), extract into a private buildFamilyAnalysisContext() helper.
         $summary = $this->buildFamilySummary((string) $parent->id, $request);
         $childIds = ParentChildRelation::query()
             ->where('parent_id', $parent->id)
@@ -762,7 +772,7 @@ class ReportController extends Controller
             $expenseQuery->where('is_internal', '!=', true);
         }
 
-        $expenseQuery->where('tanggal', 'like', $month . '%');
+        $expenseQuery = $this->applyTimeFilter($expenseQuery, $request);
 
         $expenseByCategory = $expenseQuery->get()
             ->groupBy('category_id')
