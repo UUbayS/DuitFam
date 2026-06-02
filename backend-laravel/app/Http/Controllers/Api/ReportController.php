@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ReportPeriodRequest;
 use App\Models\Category;
 use App\Models\Mongo\AnalyticsSnapshot;
 use App\Models\Mongo\SmartInsight;
@@ -10,7 +11,11 @@ use App\Models\ParentChildRelation;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Models\WithdrawalRequest;
+use App\Services\GroqService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ReportController extends Controller
 {
@@ -721,5 +726,186 @@ class ReportController extends Controller
             'smartRecommendation' => $smartRecommendation,
             'recommendation' => $recommendation,
         ]]);
+    }
+
+    public function familyAnalysisPdf(ReportPeriodRequest $request, GroqService $groqService)
+    {
+        $parent = $request->user();
+        if ($parent->role !== config('constants.roles.parent')) {
+            return response()->json(['message' => 'Hanya akun parent yang dapat mengunduh laporan keluarga.'], 403);
+        }
+
+        $month = $request->input('month', Carbon::now()->format('Y-m'));
+
+        $summary = $this->buildFamilySummary((string) $parent->id, $request);
+        $childIds = ParentChildRelation::query()
+            ->where('parent_id', $parent->id)
+            ->where('is_active', true)
+            ->pluck('child_id')
+            ->map(fn ($id) => (string) $id)
+            ->values();
+        $group = $request->query('group', 'semua');
+        if ($group === 'ortu') {
+            $allUserIds = collect([(string) $parent->id]);
+        } elseif ($group === 'anak') {
+            $allUserIds = $childIds;
+        } else {
+            $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
+        }
+
+        $expenseQuery = Transaction::query()
+            ->whereIn('user_id', $allUserIds->all())
+            ->where('jenis', config('constants.transaction_types.pengeluaran'))
+            ->where('status', config('constants.transaction_status.berhasil'));
+
+        if ($group === 'semua') {
+            $expenseQuery->where('is_internal', '!=', true);
+        }
+
+        $expenseQuery->where('tanggal', 'like', $month . '%');
+
+        $expenseByCategory = $expenseQuery->get()
+            ->groupBy('category_id')
+            ->map(fn ($items) => (float) $items->sum('jumlah'));
+
+        $categoryIds = $expenseByCategory->keys()->filter()->all();
+        $categoryMap = Category::whereIn('_id', $categoryIds)->get()->keyBy(fn ($c) => (string) $c->id);
+
+        $topExpense = null;
+        if ($expenseByCategory->isNotEmpty()) {
+            $topCategoryId = $expenseByCategory->sortDesc()->keys()->first();
+            $topAmount = (float) $expenseByCategory->max();
+            $topName = $topCategoryId ? ($categoryMap[(string) $topCategoryId]?->nama_kategori ?? 'Lainnya') : 'Lainnya';
+            $topExpense = [
+                'categoryId' => $topCategoryId,
+                'namaKategori' => $topName,
+                'jumlah' => $topAmount,
+                'persentase' => $summary['totalPengeluaran'] > 0
+                    ? round(($topAmount / $summary['totalPengeluaran']) * 100, 2)
+                    : 0,
+            ];
+        }
+
+        $income = (float) $summary['totalPemasukan'];
+        $allocation = [
+            'need' => round($income * 0.5, 0),
+            'want' => round($income * 0.3, 0),
+            'save' => round($income * 0.2, 0),
+        ];
+
+        $smartRecommendation = $summary['totalPengeluaran'] > $summary['totalPemasukan']
+            ? 'Pengeluaran keluarga melebihi pemasukan. Buat batas kategori keluarga dan kurangi pos terbesar.'
+            : 'Arus kas keluarga sehat. Terapkan alokasi 50/30/20 dan tingkatkan porsi tabungan.';
+
+        $familyContext = [
+            'summary' => [
+                'bulan' => $month,
+                'totalPemasukan' => $summary['totalPemasukan'],
+                'totalPengeluaran' => $summary['totalPengeluaran'],
+                'neto' => $summary['neto'],
+                'saldoAkhir' => $summary['saldoAkhir'],
+            ],
+            'spendingByCategory' => $expenseByCategory->map(function ($amount, $categoryId) use ($summary, $categoryMap) {
+                $name = $categoryId ? ($categoryMap[(string) $categoryId]?->nama_kategori ?? 'Lainnya') : 'Lainnya';
+                return [
+                    'categoryId' => $categoryId,
+                    'namaKategori' => $name,
+                    'jumlah' => (float) $amount,
+                    'persentase' => $summary['totalPengeluaran'] > 0
+                        ? round(((float) $amount / $summary['totalPengeluaran']) * 100, 2)
+                        : 0,
+                ];
+            })->values()->all(),
+            'user' => ['role' => 'parent', 'username' => $parent->username],
+            'saving_goals' => [],
+            'family' => ['children_count' => $childIds->count()],
+        ];
+
+        try {
+            $tips = $groqService->generateSpendingTips($familyContext);
+        } catch (\Throwable $e) {
+            Log::error('Family PDF narrative failed', ['error' => $e->getMessage()]);
+            $tips = [];
+        }
+
+        $narrativeParagraphs = $this->flattenTipsToParagraphs($tips);
+
+        $bulanIndo = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+        ];
+        [$year, $monthNum] = explode('-', $month);
+        $bulanLabel = $bulanIndo[(int) $monthNum] . ' ' . $year;
+
+        $generatedAt = Carbon::now()->translatedFormat('d F Y H:i');
+
+        $pdf = Pdf::loadView('reports.family-analysis-pdf', [
+            'summary' => $summary,
+            'allocation' => $allocation,
+            'topExpense' => $topExpense,
+            'smartRecommendation' => $smartRecommendation,
+            'narrativeParagraphs' => $narrativeParagraphs,
+            'parentName' => $parent->username,
+            'bulanLabel' => $bulanLabel,
+            'generatedAt' => $generatedAt,
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'Laporan-Keluarga-' . $month . '.pdf';
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, $filename, ['Content-Type' => 'application/pdf']);
+    }
+
+    private function flattenTipsToParagraphs(array $tips): array
+    {
+        if (empty($tips)) {
+            return [];
+        }
+
+        $paragraphs = [];
+
+        $budget = $tips['budget_tips'] ?? [];
+        if (!empty($budget)) {
+            $lines = array_map(function ($tip) {
+                $title = $tip['title'] ?? 'Tips';
+                $msg = $tip['message'] ?? '';
+                return '• ' . $title . ' — ' . $msg;
+            }, $budget);
+            $paragraphs[] = 'Tips Anggaran: ' . implode(' | ', $lines);
+        }
+
+        $category = $tips['category_tips'] ?? [];
+        if (!empty($category)) {
+            $lines = array_map(function ($tip) {
+                $title = $tip['title'] ?? 'Tips';
+                $msg = $tip['message'] ?? '';
+                return '• ' . $title . ' — ' . $msg;
+            }, $category);
+            $paragraphs[] = 'Tips per Kategori: ' . implode(' | ', $lines);
+        }
+
+        $saving = $tips['saving_tips'] ?? [];
+        if (!empty($saving)) {
+            $lines = array_map(function ($tip) {
+                $title = $tip['title'] ?? 'Tips';
+                $msg = $tip['message'] ?? '';
+                return '• ' . $title . ' — ' . $msg;
+            }, $saving);
+            $paragraphs[] = 'Tips Menabung: ' . implode(' | ', $lines);
+        }
+
+        $warnings = $tips['warnings'] ?? [];
+        if (!empty($warnings)) {
+            $lines = array_map(function ($tip) {
+                $title = $tip['title'] ?? 'Peringatan';
+                $msg = $tip['message'] ?? '';
+                return '• ' . $title . ' — ' . $msg;
+            }, $warnings);
+            $paragraphs[] = 'Peringatan: ' . implode(' | ', $lines);
+        }
+
+        return $paragraphs;
     }
 }

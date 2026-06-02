@@ -95,6 +95,10 @@ Route::middleware("auth.token")->group(function () {
         ReportController::class,
         "familyAnalysis",
     ]);
+    Route::get("/reports/family/analysis/pdf", [
+        ReportController::class,
+        "familyAnalysisPdf",
+    ]);
 
     Route::get("/notifications", [NotificationController::class, "index"]);
     Route::patch("/notifications/{id}/read", [
