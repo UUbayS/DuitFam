@@ -97,3 +97,11 @@ export const getSpendingTips = async (): Promise<SpendingTipsResponse> => {
     const response = await api.get<SpendingTipsResponse>('/ai/spending-tips');
     return response.data;
 };
+
+export const fetchFamilyAnalysisPdf = async (month: string): Promise<Blob> => {
+    const response = await api.get('/reports/family/analysis/pdf', {
+        params: { month },
+        responseType: 'blob',
+    });
+    return response.data as Blob;
+};
