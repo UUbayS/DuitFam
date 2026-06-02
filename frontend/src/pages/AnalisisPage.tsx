@@ -3,7 +3,7 @@ import { Row, Col, Card, Button, Spinner, Alert, Form } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
 import { ArrowLeftShort, ArrowRightShort, Tag, PeopleFill, PersonFill, PersonWorkspace } from 'react-bootstrap-icons';
 import * as Icons from 'react-bootstrap-icons';
-import { fetchAnalysisReport, fetchFamilyAnalysisReport, fetchFamilyHistoricalData, fetchHistoricalData, fetchTransactionHistory, fetchFamilyTransactionHistory } from '../services/report.service';
+import { fetchAnalysisReport, fetchFamilyAnalysisPdf, fetchFamilyAnalysisReport, fetchFamilyHistoricalData, fetchHistoricalData, fetchTransactionHistory, fetchFamilyTransactionHistory } from '../services/report.service';
 import { fetchChildrenService } from '../services/user.service';
 import { fetchCategories } from '../services/utility.service';
 import type { Category } from '../types/transaction.types';
@@ -104,7 +104,9 @@ const AnalisisPage = () => {
     const [selectedCategory, setSelectedCategory] = useState<string>('');
     const [childrenIds, setChildrenIds] = useState<Set<string>>(new Set());
     const [categories, setCategories] = useState<Category[]>([]);
-    
+    const [pdfLoading, setPdfLoading] = useState(false);
+    const [pdfError, setPdfError] = useState<string | null>(null);
+
     const isParent = user?.role === 'parent';
 
     useEffect(() => {
@@ -193,6 +195,29 @@ const AnalisisPage = () => {
         }
     }, [period.apiParam, unit, isParent, viewFilter]);
 
+    const handleDownloadPdf = async () => {
+        const month = period.apiParam.month;
+        if (!month) return;
+        setPdfError(null);
+        setPdfLoading(true);
+        try {
+            const blob = await fetchFamilyAnalysisPdf(month);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Laporan-Keluarga-${month}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err: any) {
+            console.error('PDF download failed', err);
+            setPdfError('Gagal mengunduh PDF. Silakan coba lagi.');
+        } finally {
+            setPdfLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadData();
     }, [loadData]);
@@ -236,6 +261,25 @@ const AnalisisPage = () => {
                     <div className="px-2 px-md-3 fw-bold text-dark text-nowrap" style={{ fontSize: 13 }}>{period.display}</div>
                     <Button variant="link" onClick={() => navigate('next')} className="text-primary p-1"><ArrowRightShort size={24} /></Button>
                 </div>
+
+                {user?.role === 'parent' && (
+                    <Button
+                        variant="outline-primary"
+                        onClick={handleDownloadPdf}
+                        disabled={pdfLoading}
+                        className="ms-2"
+                    >
+                        {pdfLoading ? (
+                            <>
+                                <Spinner animation="border" size="sm" className="me-2" />
+                                Menyiapkan PDF...
+                            </>
+                        ) : (
+                            'Unduh PDF'
+                        )}
+                    </Button>
+                )}
+                {pdfError && <div className="text-danger small mt-2">{pdfError}</div>}
             </div>
 
             {error ? <Alert variant="danger" style={{ borderRadius: 15 }}>{error}</Alert> : null}
