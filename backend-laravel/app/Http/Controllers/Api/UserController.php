@@ -30,14 +30,11 @@ class UserController extends Controller
                 'profile_photo' => ['nullable', 'string', 'max:2048', 'regex:/^(https?:\/\/|data:image\/(jpeg|png|webp|gif);base64,)/i'],
             ]);
             
-            if (!empty($validated['username'])) {
-                $validated['username'] = strtolower($validated['username']);
-            }
             if (!empty($validated['email'])) {
                 $validated['email'] = strtolower($validated['email']);
             }
             
-            if (! empty($validated['username']) && User::where('username', $validated['username'])->where('_id', '!=', (string) $request->user()->id)->exists()) {
+            if (! empty($validated['username']) && User::where('username_lower', strtolower($validated['username']))->where('_id', '!=', (string) $request->user()->id)->exists()) {
                 return $this->errorResponse('Username sudah dipakai.', [], 409);
             }
             if (! empty($validated['email']) && User::where('email', $validated['email'])->where('_id', '!=', (string) $request->user()->id)->exists()) {
@@ -117,10 +114,9 @@ class UserController extends Controller
                 'saldo_awal' => ['nullable', 'numeric', 'min:0'],
             ]);
             
-            $validated['username'] = strtolower($validated['username']);
             $validated['email'] = strtolower($validated['email']);
             
-            if (User::where('username', $validated['username'])->exists()) {
+            if (User::where('username_lower', strtolower($validated['username']))->exists()) {
                 return $this->errorResponse('Username sudah dipakai.', [], 409);
             }
             if (User::where('email', $validated['email'])->exists()) {
@@ -178,14 +174,11 @@ class UserController extends Controller
                 'is_active' => ['sometimes', 'boolean'],
             ]);
 
-            if (isset($validated['username'])) {
-                $validated['username'] = strtolower($validated['username']);
-            }
             if (isset($validated['email'])) {
                 $validated['email'] = strtolower($validated['email']);
             }
             
-            if (isset($validated['username']) && User::where('username', $validated['username'])->where('_id', '!=', (string) $child->id)->exists()) {
+            if (isset($validated['username']) && User::where('username_lower', strtolower($validated['username']))->where('_id', '!=', (string) $child->id)->exists()) {
                 return $this->errorResponse('Username sudah dipakai.', [], 409);
             }
             if (isset($validated['email']) && User::where('email', $validated['email'])->where('_id', '!=', (string) $child->id)->exists()) {

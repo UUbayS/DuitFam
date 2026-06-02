@@ -15,7 +15,7 @@ const formatRupiah = (amount: number) => {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
     }).format(Math.floor(amount));
-    return formatted.replace('Rp', 'Rp. ');
+    return formatted.replace('Rp', 'Rp ');
 };
 
 // RequestCard Component
@@ -161,7 +161,6 @@ const ApprovalPage = () => {
     const onSubmitRequest = async () => {
         const numericAmount = parseFloat(amount.replace(/\./g, ''));
         if (!numericAmount || numericAmount <= 0) return;
-        setLoading(true);
         try {
             await createWithdrawalRequest({ amount: numericAmount, reason });
             setAmount('');
@@ -169,7 +168,6 @@ const ApprovalPage = () => {
             loadData();
         } catch (e: any) {
             setError(e.response?.data?.message || 'Gagal membuat pengajuan.');
-            setLoading(false);
         }
     };
 

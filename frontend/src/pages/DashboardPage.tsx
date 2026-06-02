@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Card, Col, Row, Spinner, Modal, Button } from "react-bootstrap";
-import { EyeFill, EyeSlashFill, GridFill, Coin, ArrowUpRight, ArrowDownRight, PersonPlusFill, Check2Circle } from "react-bootstrap-icons";
+import { EyeFill, EyeSlashFill, GridFill, Coin, ArrowUpRight, ArrowDownRight, PersonPlusFill, Check2Circle, PeopleFill, PersonFill, PersonWorkspace } from "react-bootstrap-icons";
 import MainLayout from "../components/MainLayout";
 import DashboardAlertBanner from "../components/DashboardAlertBanner";
 import NotificationBell from "../components/NotificationBell";
@@ -95,6 +95,8 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
 
     const isParent = user?.role === "parent";
 
+    const [chartViewFilter, setChartViewFilter] = useState<'semua' | 'ortu' | 'anak'>('semua');
+
     // Invite code state
     const [parentLinked, setParentLinked] = useState(true);
     const [parentStatusLoading, setParentStatusLoading] = useState(true);
@@ -105,10 +107,11 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
         setLoading(true);
         try {
             if (isParent) {
+                const groupParam = chartViewFilter !== 'semua' ? { group: chartViewFilter } : {};
                 const [s, ps, hist] = await Promise.all([
-                    fetchFamilyMonthlySummary(),
-                    fetchMonthlySummary(),
-                    fetchFamilyHistoricalData({ unit: 'tahunan', year: new Date().getFullYear().toString() }),
+                    fetchFamilyMonthlySummary({ ...groupParam, month: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') }),
+                    chartViewFilter === 'ortu' ? fetchMonthlySummary() : fetchFamilyMonthlySummary(groupParam),
+                    fetchFamilyHistoricalData({ unit: 'tahunan', year: new Date().getFullYear().toString(), ...groupParam }),
                 ]);
                 setSummary(s);
                 setParentSummary(ps);
@@ -128,7 +131,7 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
         } finally {
             setLoading(false);
         }
-    }, [isParent]);
+    }, [isParent, chartViewFilter]);
 
     useEffect(() => {
         loadData();
@@ -199,6 +202,7 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
             <DashboardAlertBanner />
 
             <Row className="g-4 mb-4">
+                {isParent && (
                 <Col md={6}>
                     <Card
                         className="border-0 shadow-sm h-100"
@@ -230,7 +234,8 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
                         </Card.Body>
                     </Card>
                 </Col>
-                <Col md={6}>
+                )}
+                <Col md={isParent ? 6 : 12}>
                     <Card
                         className="border-0 shadow-sm h-100"
                         style={{ borderRadius: 25 }}
@@ -285,6 +290,33 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
                             >
                                 {generatingCode ? 'Memproses...' : 'Dapatkan Kode'}
                             </button>
+                        </div>
+                    </Card.Body>
+                </Card>
+            )}
+
+            {/* View Filter Toggle untuk Chart - Hanya untuk Parent */}
+            {isParent && (
+                <Card className="border-0 shadow-sm mb-3" style={{ borderRadius: 15, backgroundColor: '#f8f9fa' }}>
+                    <Card.Body className="p-2">
+                        <div className="d-flex gap-2 justify-content-center">
+                            {([
+                                { key: 'semua', label: 'Semua Keluarga', icon: PeopleFill },
+                                { key: 'ortu', label: 'Orang Tua', icon: PersonWorkspace },
+                                { key: 'anak', label: 'Anak-anak', icon: PersonFill }
+                            ] as const).map(({ key, label, icon: Icon }) => (
+                                <Button
+                                    key={key}
+                                    variant={chartViewFilter === key ? 'primary' : 'outline-secondary'}
+                                    size="sm"
+                                    onClick={() => setChartViewFilter(key)}
+                                    className="rounded-pill d-flex align-items-center gap-1 px-3"
+                                    style={{ fontSize: 12, fontWeight: 600 }}
+                                >
+                                    <Icon size={14} />
+                                    {label}
+                                </Button>
+                            ))}
                         </div>
                     </Card.Body>
                 </Card>

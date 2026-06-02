@@ -138,6 +138,17 @@ class ApprovalController extends Controller
                     'keterangan' => 'Permintaan disetujui orang tua',
                     'is_internal' => true,
                 ]);
+
+                // 4. Transaksi untuk Orang Tua (Pengeluaran)
+                Transaction::create([
+                    'user_id' => $withdrawal->parent_id,
+                    'jenis' => config('constants.transaction_types.pengeluaran'),
+                    'status' => config('constants.transaction_status.berhasil'),
+                    'jumlah' => $withdrawal->amount,
+                    'tanggal' => now()->toDateString(),
+                    'keterangan' => 'Permintaan disetujui untuk anak',
+                    'is_internal' => true,
+                ]);
             }
 
             NotificationFeed::create([

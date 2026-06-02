@@ -24,6 +24,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'username',
+        'username_lower',
         'email',
         'role',
         'profile_photo',
@@ -63,8 +64,12 @@ class User extends Authenticatable
         $this->attributes['email'] = strtolower($value);
     }
 
-    public function setUsernameAttribute($value)
+    protected static function booted()
     {
-        $this->attributes['username'] = strtolower($value);
+        static::saving(function ($user) {
+            if ($user->username) {
+                $user->username_lower = strtolower($user->username);
+            }
+        });
     }
 }

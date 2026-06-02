@@ -89,10 +89,6 @@ const SettingsPage = () => {
             return;
         }
 
-        if (passwordData.newPassword.length < 6) {
-             setPasswordMessage({ type: 'danger', text: 'Password baru minimal 6 karakter.' });
-             return;
-        }
         setPasswordLoading(true);
         try {
             const { message } = await updatePasswordService(passwordData);

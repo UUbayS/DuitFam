@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNotification } from '../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BellFill } from 'react-bootstrap-icons';
+import { BellFill } from 'react-bootstrap-icons';
 import MainLayout from '../components/MainLayout';
 import type { AppNotification } from '../types/notification.types';
 
@@ -14,7 +14,7 @@ const NotificationPage: React.FC = () => {
       await markRead(notif.id);
     }
     if (notif.meta?.transaction_id) {
-      navigate('/');
+      navigate('/dashboard');
     }
   };
 
