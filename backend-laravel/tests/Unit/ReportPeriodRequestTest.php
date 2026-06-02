@@ -31,4 +31,19 @@ class ReportPeriodRequestTest extends TestCase
         $this->assertFalse($this->validate(['month' => '06-2026']));
         $this->assertFalse($this->validate(['month' => 'not-a-month']));
     }
+
+    public function test_invalid_month_message_is_localized(): void
+    {
+        $request = new ReportPeriodRequest();
+        $validator = Validator::make(
+            ['month' => '2026-13'],
+            $request->rules(),
+            $request->messages()
+        );
+        $this->assertFalse($validator->passes());
+        $this->assertSame(
+            'Format month harus YYYY-MM (contoh: 2026-06).',
+            $validator->errors()->first('month')
+        );
+    }
 }
