@@ -136,4 +136,47 @@ class ReportChildFilterTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_history_with_child_id_returns_200(): void
+    {
+        $parent = $this->makeUser('parent');
+        $child = $this->makeUser('child');
+        $this->linkChild($parent, $child);
+
+        Transaction::create([
+            'user_id' => (string) $parent->id,
+            'jenis' => 'pemasukan',
+            'jumlah' => 999,
+            'status' => 'berhasil',
+            'tanggal' => now()->format('Y-m-d'),
+            'is_internal' => false,
+        ]);
+
+        Transaction::create([
+            'user_id' => (string) $child->id,
+            'jenis' => 'pemasukan',
+            'jumlah' => 100,
+            'status' => 'berhasil',
+            'tanggal' => now()->format('Y-m-d'),
+            'is_internal' => false,
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders($parent))
+            ->getJson('/api/reports/family/history?child_id=' . $child->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.jumlah', 100);
+    }
+
+    public function test_history_with_unowned_child_id_returns_403(): void
+    {
+        $parent = $this->makeUser('parent');
+        $stranger = $this->makeUser('child');
+
+        $response = $this->withHeaders($this->authHeaders($parent))
+            ->getJson('/api/reports/family/history?child_id=' . $stranger->id);
+
+        $response->assertStatus(403);
+    }
 }

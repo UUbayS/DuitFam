@@ -587,21 +587,8 @@ class ReportController extends Controller
             return response()->json(['message' => 'Hanya akun parent yang dapat melihat laporan keluarga.'], 403);
         }
 
-        $childIds = ParentChildRelation::query()
-            ->where('parent_id', $parent->id)
-            ->where('is_active', true)
-            ->pluck('child_id')
-            ->map(fn ($id) => (string) $id)
-            ->values();
-
-        $group = $request->query('group', 'semua');
-        if ($group === 'ortu') {
-            $allUserIds = collect([(string) $parent->id]);
-        } elseif ($group === 'anak') {
-            $allUserIds = $childIds;
-        } else {
-            $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
-        }
+        $allUserIds = collect($this->resolveTargetUserIds($request, (string) $parent->id));
+        $effectiveGroup = $request->query('child_id') ? 'anak' : $request->query('group', 'semua');
 
         $query = Transaction::query()->whereIn('user_id', $allUserIds->all());
         $query = $this->applyTimeFilter($query, $request);
@@ -623,8 +610,8 @@ class ReportController extends Controller
 
         $familyMemberMap = \App\Models\User::whereIn('_id', $allUserIds->all())->get(['_id', 'username'])->keyBy(fn($u) => (string) $u->id);
 
-        $data = $rows->filter(function ($t) use ($group) {
-            if ($group === 'semua') {
+        $data = $rows->filter(function ($t) use ($effectiveGroup) {
+            if ($effectiveGroup === 'semua') {
                 return !($t->is_internal && $t->jenis === config('constants.transaction_types.pengeluaran'));
             }
             return true;
