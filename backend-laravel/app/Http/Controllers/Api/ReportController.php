@@ -320,7 +320,7 @@ class ReportController extends Controller
         $rows = $query->orderByDesc('created_at')
             ->skip($offset)
             ->take($perPage)
-            ->get(['_id', 'user_id', 'jenis', 'jumlah', 'keterangan', 'tanggal', 'created_at', 'status', 'category_id', 'source_id', 'is_internal', 'jenis as original_jenis']);
+            ->get(['_id', 'user_id', 'jenis', 'jumlah', 'keterangan', 'tanggal', 'created_at', 'status', 'category_id', 'source_id', 'is_internal', 'is_recurring', 'jenis as original_jenis']);
 
         $categoryIds = $rows->pluck('category_id')->filter()->unique()->values();
         $categoryMap = [];
@@ -364,6 +364,7 @@ class ReportController extends Controller
                 'nama_kategori' => $categoryName,
                 'icon_kategori' => $categoryIcon,
                 'is_internal' => (bool) ($t->is_internal ?? false),
+                'is_recurring' => (bool) ($t->is_recurring ?? false),
             ];
         });
 
@@ -377,6 +378,115 @@ class ReportController extends Controller
                 'total_pages' => $perPage > 0 ? (int) ceil($total / $perPage) : 0,
             ],
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        $user = $request->user();
+
+        $isParent = $user->role === config('constants.roles.parent');
+
+        if ($isParent) {
+            $userIds = $this->resolveTargetUserIds($request, (string) $user->id);
+            $usernameMap = \App\Models\User::whereIn('_id', $userIds)->get(['_id', 'username'])->keyBy(fn($u) => (string) $u->id)->all();
+        } else {
+            $userIds = [(string) $user->id];
+            $usernameMap = [(string) $user->id => $user];
+        }
+
+        $query = Transaction::query()->whereIn('user_id', $userIds);
+        $query = $this->applyTimeFilter($query, $request);
+        $rows = $query->orderBy('tanggal', 'asc')->orderBy('created_at', 'asc')->get();
+
+        if ($isParent) {
+            $rows = $rows->filter(function ($t) {
+                return !($t->is_internal && $t->jenis === config('constants.transaction_types.pengeluaran'));
+            });
+        }
+
+        $categoryIds = $rows->pluck('category_id')->filter()->unique()->values();
+        $categoryMap = [];
+        if ($categoryIds->isNotEmpty()) {
+            $categoryMap = Category::query()
+                ->whereIn('_id', $categoryIds->all())
+                ->get(['_id', 'nama_kategori', 'icon'])
+                ->keyBy(fn ($c) => (string) $c->id)
+                ->map(fn ($c) => ['nama' => $c->nama_kategori, 'icon' => $c->icon ?? 'Tag'])
+                ->all();
+        }
+
+        $data = $rows->map(function ($t) use ($categoryMap, $usernameMap, $isParent) {
+            $cat = $t->category_id ? ($categoryMap[(string) $t->category_id] ?? null) : null;
+            $categoryName = $cat ? $cat['nama'] : 'Lainnya';
+
+            if ($t->jenis === config('constants.transaction_types.menabung')) {
+                $categoryName = 'Menabung';
+            } else if ($t->jenis === config('constants.transaction_types.refund')) {
+                $categoryName = 'Refund';
+            } else if ($t->source_id) {
+                $categoryName = 'Tabungan';
+            }
+
+            $username = '';
+            if ($isParent) {
+                $u = $usernameMap[(string) $t->user_id] ?? null;
+                $username = $u?->username ?? '';
+            }
+
+            return [
+                'tanggal' => (string) ($t->tanggal ?? ''),
+                'jenis' => (string) $t->jenis,
+                'nama_kategori' => $categoryName,
+                'jumlah' => (float) $t->jumlah,
+                'keterangan' => (string) ($t->keterangan ?? ''),
+                'status' => (string) ($t->status ?? 'berhasil'),
+                'username' => $username,
+                'is_recurring' => (bool) ($t->is_recurring ?? false),
+            ];
+        })->values()->all();
+
+        $filename = 'transaksi_' . date('Ymd_His');
+        if ($request->query('start_date') && $request->query('end_date')) {
+            $filename .= '_' . $request->query('start_date') . '_' . $request->query('end_date');
+        } elseif ($request->query('month')) {
+            $filename .= '_' . $request->query('month');
+        } elseif ($request->query('year')) {
+            $filename .= '_' . $request->query('year');
+        }
+
+        return $this->streamCsv($data, $filename . '.csv');
+    }
+
+    protected function streamCsv(array $data, string $filename)
+    {
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        $callback = function () use ($data) {
+            $out = fopen('php://output', 'w');
+            fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fputcsv($out, ['Tanggal', 'Jenis', 'Kategori', 'Jumlah (Rp)', 'Keterangan', 'Status', 'Anggota', 'Otomatis'], ';');
+            foreach ($data as $row) {
+                fputcsv($out, [
+                    $row['tanggal'],
+                    $row['jenis'],
+                    $row['nama_kategori'],
+                    number_format((float) $row['jumlah'], 0, ',', '.'),
+                    $row['keterangan'],
+                    $row['status'],
+                    $row['username'],
+                    ! empty($row['is_recurring']) ? 'Ya' : 'Tidak',
+                ], ';');
+            }
+            fclose($out);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function historical(Request $request)
@@ -668,6 +778,7 @@ class ReportController extends Controller
                 'nama_kategori' => $categoryName,
                 'icon_kategori' => $categoryIcon,
                 'is_internal' => (bool) ($t->is_internal ?? false),
+                'is_recurring' => (bool) ($t->is_recurring ?? false),
             ];
         });
 

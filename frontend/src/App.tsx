@@ -9,6 +9,7 @@ import PrivateRoute from "./routes/PrivateRoute";
 import ApprovalPage from "./pages/ApprovalPage";
 import FamilyPage from "./pages/FamilyPage";
 import NotificationPage from "./pages/NotificationPage";
+import RecurringTransactionPage from "./pages/RecurringTransactionPage";
 import { NotificationProvider } from "./context/NotificationContext";
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
                         <Route path="/target" element={<TargetPage />} />
                         <Route path="/approval" element={<ApprovalPage />} />
                         <Route path="/family" element={<FamilyPage />} />
+                        <Route path="/recurring" element={<RecurringTransactionPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/notifications" element={<NotificationPage />} />
                     </Route>

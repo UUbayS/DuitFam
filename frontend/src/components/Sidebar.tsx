@@ -1,14 +1,14 @@
 import React from 'react';
-import { Nav, Button } from 'react-bootstrap'; 
+import { Nav, Button } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
-import { BoxArrowLeft, PersonFill } from 'react-bootstrap-icons';
+import { BoxArrowLeft, PersonFill, ArrowRepeat } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
 // Logo
 import LogoPutih from '../assets/Logo Putih.svg';
 
 // Beranda
 import HomeWhite from '../assets/IconBeranda.svg';
-import HomeBlue from '../assets/IconBerandaBiru.svg'; 
+import HomeBlue from '../assets/IconBerandaBiru.svg';
 
 // Analisis Keuangan
 import AnalysisWhite from '../assets/IconAnalisis.svg';
@@ -17,11 +17,11 @@ import AnalysisBlue from '../assets/IconAnalisisBiru.svg';
 // Target Menabung
 import TargetWhite from '../assets/IconTarget.svg';
 import TargetBlue from '../assets/IconTargetBiru.svg';
-    
+
     // Pengaturan
     import SettingsWhite from '../assets/IconPengaturan.svg';
     import SettingsBlue from '../assets/IconPengaturanBiru.svg';
-    
+
 import AnggotaWhite from '../assets/IconAnggota.svg';
 import AnggotaBlue from '../assets/IconAnggotaBiru.svg';
 
@@ -35,12 +35,13 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ onItemClick }) => {
   const location = useLocation();
   const { user, handleLogout } = useAuth();
-  
+
   // Array untuk menu navigasi
   const navItems = [
     { to: "/dashboard", icon: { active: HomeBlue, inactive: HomeWhite }, label: "Beranda" },
     { to: "/analisis", icon: { active: AnalysisBlue, inactive: AnalysisWhite }, label: "Analisis Keuangan" },
     { to: "/target", icon: { active: TargetBlue, inactive: TargetWhite }, label: "Target Menabung" },
+    { to: "/recurring", icon: { active: ArrowRepeat, inactive: ArrowRepeat }, label: "Transaksi Berulang" },
     ...(user?.role === 'parent'
       ? [
           { to: "/family", icon: { active: AnggotaBlue, inactive: AnggotaWhite }, label: "Anggota Keluarga" },
@@ -106,12 +107,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick }) => {
                 borderRadius: '12px'
             }}
           >
-           <img 
-                src={isActive(item.to) ? item.icon.active : item.icon.inactive} 
-                alt={`${item.label} Icon`} 
-                className="me-3" 
-                style={{ width: '20px', height: '20px', filter: 'none' }}
-            />
+           {typeof (isActive(item.to) ? item.icon.active : item.icon.inactive) === 'string' ? (
+             <img
+                 src={isActive(item.to) ? (item.icon.active as string) : (item.icon.inactive as string)}
+                 alt={`${item.label} Icon`}
+                 className="me-3"
+                 style={{ width: '20px', height: '20px', filter: 'none' }}
+             />
+           ) : (
+             <span
+                 className="me-3 d-flex align-items-center justify-content-center"
+                 style={{ width: 20, height: 20, color: isActive(item.to) ? '#0d6efd' : '#fff' }}
+             >
+                 {React.createElement((isActive(item.to) ? item.icon.active : item.icon.inactive) as React.ComponentType<{ size?: number }>, { size: 18 })}
+             </span>
+           )}
             <span className={isActive(item.to) ? 'text-primary' : 'text-white'}>
                 {item.label}
             </span>

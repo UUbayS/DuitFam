@@ -4,7 +4,9 @@ use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\ApprovalController;
 use App\Http\Controllers\Api\SpendingTipsController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\RecurringTransactionController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\TargetController;
 use App\Http\Controllers\Api\TransactionController;
@@ -82,6 +84,19 @@ Route::middleware("auth.token")->group(function () {
         "categories",
     ]);
 
+    Route::get("/budgets", [BudgetController::class, "index"]);
+    Route::post("/budgets", [BudgetController::class, "store"]);
+    Route::put("/budgets/{id}", [BudgetController::class, "update"]);
+    Route::delete("/budgets/{id}", [BudgetController::class, "destroy"]);
+    Route::get("/budgets/summary", [BudgetController::class, "summary"]);
+
+    Route::get("/recurring-transactions", [RecurringTransactionController::class, "index"]);
+    Route::post("/recurring-transactions", [RecurringTransactionController::class, "store"]);
+    Route::put("/recurring-transactions/{id}", [RecurringTransactionController::class, "update"]);
+    Route::delete("/recurring-transactions/{id}", [RecurringTransactionController::class, "destroy"]);
+    Route::post("/recurring-transactions/generate-all", [RecurringTransactionController::class, "generateAll"]);
+    Route::post("/recurring-transactions/{id}/generate", [RecurringTransactionController::class, "generate"]);
+
     Route::get("/reports/summary", [ReportController::class, "summary"]);
     Route::get("/reports/history", [ReportController::class, "history"]);
     Route::get("/reports/analysis", [ReportController::class, "analysis"]);
@@ -106,6 +121,8 @@ Route::middleware("auth.token")->group(function () {
         ReportController::class,
         "familyAnalysisPdf",
     ]);
+
+    Route::get("/reports/export", [ReportController::class, "export"]);
 
     Route::get("/notifications", [NotificationController::class, "index"]);
     Route::patch("/notifications/{id}/read", [

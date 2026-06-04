@@ -23,6 +23,7 @@ export interface TransactionHistoryItem { // <-- TIPE DATA BARU
     icon_kategori?: string;
     status?: 'berhasil' | 'dibatalkan' | 'pending' | 'approved' | 'rejected';
     is_internal?: boolean;
+    is_recurring?: boolean;
 }
 
 export interface ReportCategory {

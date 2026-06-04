@@ -30,6 +30,7 @@ export interface TransactionItem {
     icon_kategori?: string | null;
     source_id?: string | null;
     is_internal?: boolean;
+    is_recurring?: boolean;
 }
 
 export interface Category {

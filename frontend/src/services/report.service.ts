@@ -121,3 +121,24 @@ export const fetchFamilyAnalysisPdf = async (month: string): Promise<Blob> => {
     });
     return response.data as Blob;
 };
+
+export const downloadTransactionsExport = async (
+    params: Omit<FilterParams, 'unit' | 'page' | 'per_page'> = {},
+): Promise<Blob> => {
+    const response = await api.get('/reports/export', {
+        params,
+        responseType: 'blob',
+    });
+    return response.data as Blob;
+};
+
+export const triggerExportDownload = (blob: Blob, filename: string): void => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Button, Spinner, Form, Dropdown, Modal } from 'react-bootstrap';
 import * as Icons from 'react-bootstrap-icons';
-import { EyeFill, EyeSlashFill, Tag, PeopleFill, PersonFill, PersonWorkspace, ThreeDotsVertical, PencilSquare, Trash, Lock, Printer, XCircleFill, CheckCircleFill } from 'react-bootstrap-icons';
+import { EyeFill, EyeSlashFill, Tag, PeopleFill, PersonFill, PersonWorkspace, ThreeDotsVertical, PencilSquare, Trash, Lock, Printer, XCircleFill, CheckCircleFill, Download } from 'react-bootstrap-icons';
 import { fetchTransactionHistory, fetchMonthlySummary, fetchFamilyTransactionHistory, fetchFamilyMonthlySummary } from '../services/report.service';
 import { bulkCancelTransactions } from '../services/transaction.service';
 import type { TransactionHistoryItem, MonthlySummary } from '../types/report.types';
@@ -174,7 +174,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
     const manageableTransactions = useMemo(
         () => filteredTransactions.filter((tx) => {
             const isCancelled = tx.status === 'dibatalkan';
-            return !tx.is_internal && !isCancelled && Boolean(onEditTransaction || onDeleteTransaction);
+            return !tx.is_internal && !tx.is_recurring && !isCancelled && Boolean(onEditTransaction || onDeleteTransaction);
         }),
         [filteredTransactions, onEditTransaction, onDeleteTransaction]
     );
@@ -210,6 +210,9 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                     <div className="d-flex align-items-center gap-2 no-print">
                         <Button variant="link" className="p-1 text-secondary shadow-none" onClick={() => window.print()} title="Cetak daftar transaksi">
                             <Printer size={18} />
+                        </Button>
+                        <Button variant="link" className="p-1 text-secondary shadow-none" onClick={() => window.location.assign('/analisis')} title="Buka halaman analisis untuk export CSV">
+                            <Download size={18} />
                         </Button>
                         <Button variant="link" className="p-0 text-secondary shadow-none" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
                             {isBalanceVisible ? <EyeFill size={18} /> : <EyeSlashFill size={18} />}
@@ -365,7 +368,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
             ) : (
                 filteredTransactions.map((tx) => {
                     const isCancelled = tx.status === 'dibatalkan';
-                    const canManage = !tx.is_internal && !isCancelled && Boolean(onEditTransaction || onDeleteTransaction);
+                    const canManage = !tx.is_internal && !tx.is_recurring && !isCancelled && Boolean(onEditTransaction || onDeleteTransaction);
                     return (
                     <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0 transition-all hover-shadow" style={{ borderRadius: '18px', opacity: isCancelled ? 0.55 : 1 }}>
                         <Card.Body className="p-3">
@@ -406,6 +409,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                                                 month: 'short'
                                             })}
                                             {isCancelled && <span className="ms-2 badge bg-secondary" style={{ fontSize: 9 }}>DIBATALKAN</span>}
+                                            {tx.is_recurring && !isCancelled && <span className="ms-2 badge bg-info text-dark" style={{ fontSize: 9 }} title="Transaksi otomatis dari pengulangan">OTOMATIS</span>}
                                         </small>
                                     </div>
                                     <div
@@ -454,6 +458,10 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                                     </Dropdown>
                                 ) : tx.is_internal ? (
                                     <span className="text-muted flex-shrink-0" title="Transaksi internal tidak dapat diedit/dihapus">
+                                        <Lock size={14} />
+                                    </span>
+                                ) : tx.is_recurring && !isCancelled ? (
+                                    <span className="text-muted flex-shrink-0" title="Transaksi otomatis (recurring) tidak dapat dibatalkan manual">
                                         <Lock size={14} />
                                     </span>
                                 ) : null}

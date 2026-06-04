@@ -11,6 +11,7 @@ use App\Models\ParentChildRelation;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\BudgetAlertService;
 use App\Services\MongoAuditService;
 use App\Traits\HasSafeMongoTransaction;
 use Illuminate\Http\Request;
@@ -21,7 +22,10 @@ class TransactionController extends Controller
 {
     use HasSafeMongoTransaction;
 
-    public function __construct(private readonly MongoAuditService $mongoAuditService) {}
+    public function __construct(
+        private readonly MongoAuditService $mongoAuditService,
+        private readonly BudgetAlertService $budgetAlertService,
+    ) {}
 
     public function store(StoreTransactionRequest $request)
     {
@@ -82,11 +86,30 @@ class TransactionController extends Controller
                 'jenis' => $transaction->jenis,
             ]);
 
+            $this->fireBudgetAlertIfNeeded($transaction);
+
             return response()->json([
                 'message' => 'Transaksi berhasil dicatat dan saldo diperbarui.',
                 'transactionId' => $transaction->id,
             ], 201);
         });
+    }
+
+    protected function fireBudgetAlertIfNeeded(Transaction $transaction): void
+    {
+        if ($transaction->jenis !== config('constants.transaction_types.pengeluaran')) {
+            return;
+        }
+        if ($transaction->status !== config('constants.transaction_status.berhasil')) {
+            return;
+        }
+        $tanggal = (string) $transaction->tanggal;
+        $periode = substr($tanggal, 0, 7);
+        $this->budgetAlertService->check(
+            (string) $transaction->user_id,
+            (string) $transaction->category_id,
+            $periode,
+        );
     }
 
     public function deposit(Request $request)
@@ -400,6 +423,10 @@ class TransactionController extends Controller
 
                     if ($tx->is_internal) {
                         throw new \RuntimeException("Transaksi internal tidak dapat dibatalkan: {$id}");
+                    }
+
+                    if (! empty($tx->is_recurring)) {
+                        throw new \RuntimeException("Transaksi otomatis (recurring) tidak dapat dibatalkan manual: {$id}");
                     }
 
                     if (in_array($tx->jenis, [

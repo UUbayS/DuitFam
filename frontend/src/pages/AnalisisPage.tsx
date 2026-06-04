@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Row, Col, Card, Button, Spinner, Alert, Form, Modal, Dropdown } from 'react-bootstrap';
+import { Row, Col, Card, Button, Spinner, Alert, Form, Modal, Dropdown, ProgressBar } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-import { ArrowLeftShort, ArrowRightShort, Tag, PeopleFill, PersonFill, PersonWorkspace, ThreeDotsVertical, PencilSquare, Trash, Lock } from 'react-bootstrap-icons';
+import { ArrowLeftShort, ArrowRightShort, Tag, PeopleFill, PersonFill, PersonWorkspace, ThreeDotsVertical, PencilSquare, Trash, Lock, PlusCircleFill, PiggyBankFill, ExclamationTriangleFill, CheckCircleFill } from 'react-bootstrap-icons';
 import * as Icons from 'react-bootstrap-icons';
-import { fetchAnalysisReport, fetchFamilyAnalysisPdf, fetchFamilyAnalysisReport, fetchFamilyHistoricalData, fetchHistoricalData, fetchTransactionHistory, fetchFamilyTransactionHistory } from '../services/report.service';
+import { fetchAnalysisReport, fetchFamilyAnalysisPdf, fetchFamilyAnalysisReport, fetchFamilyHistoricalData, fetchHistoricalData, fetchTransactionHistory, fetchFamilyTransactionHistory, downloadTransactionsExport, triggerExportDownload } from '../services/report.service';
 import { fetchChildrenService } from '../services/user.service';
 import { fetchCategories } from '../services/utility.service';
 import { fetchTransactionById, deleteTransaction } from '../services/transaction.service';
+import { fetchBudgets, fetchBudgetSummary, upsertBudget, deleteBudget } from '../services/budget.service';
+import type { Budget, BudgetSummaryItem, BudgetInput } from '../types/budget.types';
 import type { Category, TransactionItem } from '../types/transaction.types';
 import type * as ReportTypes from '../types/report.types';
 import MonthlyBarChart from '../components/MonthlyBarChart';
 import SmartSpendingTips from '../components/SmartSpendingTips';
+import BudgetCard from '../components/BudgetCard';
 import { useAuth } from '../context/AuthContext';
 import { useTimeFilter } from '../hooks/useTimeFilter';
 import TransactionModal from '../components/TransactionModal';
@@ -113,13 +116,136 @@ const AnalisisPage = () => {
     const [categories, setCategories] = useState<Category[]>([]);
     const [pdfLoading, setPdfLoading] = useState(false);
     const [pdfError, setPdfError] = useState<string | null>(null);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exportLoading, setExportLoading] = useState(false);
+    const [exportError, setExportError] = useState<string | null>(null);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage, setPerPage] = useState(20);
     const [historyTotal, setHistoryTotal] = useState(0);
     const [historyTotalPages, setHistoryTotalPages] = useState(0);
 
+    const [budgets, setBudgets] = useState<Budget[]>([]);
+    const [budgetSummary, setBudgetSummary] = useState<BudgetSummaryItem[]>([]);
+    const [budgetLoading, setBudgetLoading] = useState(false);
+    const [budgetActionMessage, setBudgetActionMessage] = useState<{ type: 'success' | 'danger', text: string } | null>(null);
+    const [showBudgetModal, setShowBudgetModal] = useState(false);
+    const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+    const [budgetForm, setBudgetForm] = useState<BudgetInput>({
+        user_id: '',
+        category_id: '',
+        jumlah: 0,
+        periode_bulan: '',
+    });
+    const [budgetSaving, setBudgetSaving] = useState(false);
+    const [budgetDeleteTarget, setBudgetDeleteTarget] = useState<Budget | null>(null);
+    const [children, setChildren] = useState<{ id: string; username: string }[]>([]);
+
     const isParent = user?.role === 'parent';
+
+    const budgetPeriode = useMemo(() => {
+        if (unit === 'bulan' && period.apiParam.month) return period.apiParam.month;
+        return new Date().toISOString().slice(0, 7);
+    }, [unit, period.apiParam.month]);
+
+    const loadBudgets = useCallback(async () => {
+        setBudgetLoading(true);
+        try {
+            const [list, summary] = await Promise.all([
+                fetchBudgets(budgetPeriode),
+                fetchBudgetSummary(budgetPeriode),
+            ]);
+            setBudgets(list.data);
+            setBudgetSummary(summary.data);
+        } catch {
+            setBudgetActionMessage({ type: 'danger', text: 'Gagal memuat data anggaran.' });
+        } finally {
+            setBudgetLoading(false);
+        }
+    }, [budgetPeriode]);
+
+    useEffect(() => {
+        loadBudgets();
+    }, [loadBudgets]);
+
+    useEffect(() => {
+        if (isParent) {
+            fetchChildrenService()
+                .then((data) => setChildren(data.map(c => ({ id: c.id, username: c.username }))))
+                .catch(() => {});
+        }
+    }, [isParent]);
+
+    const openAddBudgetModal = () => {
+        setEditingBudget(null);
+        setBudgetForm({
+            user_id: user?.id_user ?? '',
+            category_id: '',
+            jumlah: 0,
+            periode_bulan: budgetPeriode,
+        });
+        setShowBudgetModal(true);
+    };
+
+    const openEditBudgetModal = (b: Budget) => {
+        setEditingBudget(b);
+        setBudgetForm({
+            user_id: b.user_id,
+            category_id: b.category_id,
+            jumlah: b.jumlah,
+            periode_bulan: b.periode_bulan,
+        });
+        setShowBudgetModal(true);
+    };
+
+    const handleSaveBudget = async () => {
+        if (!budgetForm.user_id || !budgetForm.category_id || !budgetForm.periode_bulan) {
+            setBudgetActionMessage({ type: 'danger', text: 'Lengkapi semua field.' });
+            return;
+        }
+        if (budgetForm.jumlah < 0) {
+            setBudgetActionMessage({ type: 'danger', text: 'Anggaran tidak boleh negatif.' });
+            return;
+        }
+        setBudgetSaving(true);
+        setBudgetActionMessage(null);
+        try {
+            const res = await upsertBudget(budgetForm);
+            setBudgetActionMessage({ type: 'success', text: res.message });
+            setShowBudgetModal(false);
+            loadBudgets();
+        } catch (err: any) {
+            setBudgetActionMessage({
+                type: 'danger',
+                text: err.response?.data?.message || 'Gagal menyimpan anggaran.',
+            });
+        } finally {
+            setBudgetSaving(false);
+        }
+    };
+
+    const handleDeleteBudget = async () => {
+        if (!budgetDeleteTarget) return;
+        setBudgetSaving(true);
+        try {
+            const res = await deleteBudget(budgetDeleteTarget.id);
+            setBudgetActionMessage({ type: 'success', text: res.message });
+            setBudgetDeleteTarget(null);
+            loadBudgets();
+        } catch (err: any) {
+            setBudgetActionMessage({
+                type: 'danger',
+                text: err.response?.data?.message || 'Gagal menghapus anggaran.',
+            });
+        } finally {
+            setBudgetSaving(false);
+        }
+    };
+
+    const totalBudget = budgets.reduce((s, b) => s + b.jumlah, 0);
+    const totalUsed = budgets.reduce((s, b) => s + b.used, 0);
+    const totalRemaining = Math.max(0, totalBudget - totalUsed);
+    const overallPercent = totalBudget > 0 ? Math.min(999, (totalUsed / totalBudget) * 100) : 0;
 
     useEffect(() => {
         if (isParent) {
@@ -238,6 +364,27 @@ const AnalisisPage = () => {
         }
     };
 
+    const handleDownloadExport = async () => {
+        setExportError(null);
+        setExportLoading(true);
+        try {
+            const params = { ...period.apiParam } as Record<string, string | undefined>;
+            Object.keys(params).forEach((k) => params[k] === undefined && delete params[k]);
+            const blob = await downloadTransactionsExport(params);
+            const periodLabel = params.start_date && params.end_date
+                ? `${params.start_date}_${params.end_date}`
+                : (params.month ?? params.year ?? new Date().toISOString().slice(0, 10));
+            const filename = `transaksi_${periodLabel}.csv`;
+            triggerExportDownload(blob, filename);
+            setShowExportModal(false);
+        } catch (err: any) {
+            console.error('Export download failed', err);
+            setExportError(err.response?.data?.message || 'Gagal mengunduh export. Silakan coba lagi.');
+        } finally {
+            setExportLoading(false);
+        }
+    };
+
     const handleEditTransaction = async (tx: ReportTypes.TransactionHistoryItem) => {
         setEditLoading(true);
         setActionMessage(null);
@@ -340,6 +487,18 @@ const AnalisisPage = () => {
                         )}
                     </Button>
                 )}
+
+                <Button
+                    variant="outline-success"
+                    onClick={() => {
+                        setExportError(null);
+                        setShowExportModal(true);
+                    }}
+                    className="ms-2"
+                    title="Export daftar transaksi ke CSV"
+                >
+                    ⬇ Export
+                </Button>
                 {pdfError && <div className="text-danger small mt-2">{pdfError}</div>}
             </div>
 
@@ -487,6 +646,159 @@ const AnalisisPage = () => {
             </Card>
 
             <SmartSpendingTips />
+
+            <Card className="border-0 shadow-sm mb-5" style={{ borderRadius: 25 }}>
+                <Card.Body className="p-4">
+                    <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                        <div>
+                            <div className="fw-bold text-dark d-flex align-items-center gap-2" style={{ fontSize: 22 }}>
+                                <PiggyBankFill className="text-primary" size={24} />
+                                Anggaran
+                            </div>
+                            <small className="text-muted">Periode {budgetPeriode}</small>
+                        </div>
+                        <Button variant="primary" onClick={openAddBudgetModal} className="d-flex align-items-center gap-2" style={{ borderRadius: 15 }}>
+                            <PlusCircleFill size={16} /> Tambah Anggaran
+                        </Button>
+                    </div>
+
+                    {budgetActionMessage && (
+                        <Alert variant={budgetActionMessage.type} dismissible onClose={() => setBudgetActionMessage(null)} style={{ borderRadius: 12 }}>
+                            {budgetActionMessage.text}
+                        </Alert>
+                    )}
+
+                    {budgetLoading ? (
+                        <div className="text-center py-3"><Spinner animation="border" size="sm" /></div>
+                    ) : budgets.length === 0 ? (
+                        <div className="text-center py-4 text-muted">
+                            <PiggyBankFill size={32} className="mb-2 opacity-50" />
+                            <p className="mb-0">Belum ada anggaran. Klik "Tambah Anggaran" untuk mulai.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <Row className="g-3 mb-3">
+                                <Col md={4}>
+                                    <div className="p-3 rounded-3" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                                        <small className="text-muted fw-semibold">Total Anggaran</small>
+                                        <div className="fw-bold text-dark" style={{ fontSize: 20 }}>{formatRupiah(totalBudget)}</div>
+                                    </div>
+                                </Col>
+                                <Col md={4}>
+                                    <div className="p-3 rounded-3" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                                        <small className="text-muted fw-semibold">Total Terpakai</small>
+                                        <div className="fw-bold text-danger" style={{ fontSize: 20 }}>{formatRupiah(totalUsed)}</div>
+                                    </div>
+                                </Col>
+                                <Col md={4}>
+                                    <div className="p-3 rounded-3" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                                        <small className="text-muted fw-semibold">Sisa</small>
+                                        <div className="fw-bold text-success" style={{ fontSize: 20 }}>{formatRupiah(totalRemaining)}</div>
+                                    </div>
+                                </Col>
+                            </Row>
+                            <ProgressBar
+                                now={Math.min(100, overallPercent)}
+                                variant={overallPercent >= 100 ? 'danger' : overallPercent >= 80 ? 'warning' : 'success'}
+                                style={{ height: 10, borderRadius: 5, marginBottom: 16 }}
+                            />
+                            <div>
+                                {budgets.map(b => (
+                                    <BudgetCard
+                                        key={b.id}
+                                        budget={b}
+                                        showUsername={isParent}
+                                        onEdit={openEditBudgetModal}
+                                        onDelete={setBudgetDeleteTarget}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </Card.Body>
+            </Card>
+
+            <Modal show={showBudgetModal} onHide={() => !budgetSaving && setShowBudgetModal(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>{editingBudget ? 'Edit Anggaran' : 'Tambah Anggaran'}</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form>
+                        <Form.Group className="mb-3">
+                            <Form.Label className="fw-semibold small text-muted">Pengguna</Form.Label>
+                            <Form.Select
+                                value={budgetForm.user_id}
+                                onChange={(e) => setBudgetForm({ ...budgetForm, user_id: e.target.value })}
+                                disabled={!!editingBudget}
+                                style={{ borderRadius: 10 }}
+                            >
+                                <option value={user?.id_user ?? ''}>{user?.username ?? 'Saya'} (Saya)</option>
+                                {isParent && children.map(c => (
+                                    <option key={c.id} value={c.id}>{c.username} (Anak)</option>
+                                ))}
+                            </Form.Select>
+                            {editingBudget && <Form.Text className="text-muted">User tidak dapat diubah.</Form.Text>}
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label className="fw-semibold small text-muted">Kategori</Form.Label>
+                            <Form.Select
+                                value={budgetForm.category_id}
+                                onChange={(e) => setBudgetForm({ ...budgetForm, category_id: e.target.value })}
+                                style={{ borderRadius: 10 }}
+                            >
+                                <option value="">Pilih kategori</option>
+                                {categories
+                                    .filter(c => c.jenis === 'pengeluaran')
+                                    .map(c => (
+                                        <option key={c.id_kategori} value={c.id_kategori}>{c.nama_kategori}</option>
+                                    ))}
+                            </Form.Select>
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label className="fw-semibold small text-muted">Jumlah Anggaran (Rp)</Form.Label>
+                            <Form.Control
+                                type="number"
+                                min={0}
+                                value={budgetForm.jumlah || ''}
+                                onChange={(e) => setBudgetForm({ ...budgetForm, jumlah: Number(e.target.value) || 0 })}
+                                style={{ borderRadius: 10 }}
+                            />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label className="fw-semibold small text-muted">Periode</Form.Label>
+                            <Form.Control
+                                type="month"
+                                value={budgetForm.periode_bulan}
+                                onChange={(e) => setBudgetForm({ ...budgetForm, periode_bulan: e.target.value })}
+                                style={{ borderRadius: 10 }}
+                            />
+                        </Form.Group>
+                    </Form>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="light" onClick={() => setShowBudgetModal(false)} disabled={budgetSaving}>Batal</Button>
+                    <Button variant="primary" onClick={handleSaveBudget} disabled={budgetSaving}>
+                        {budgetSaving ? <Spinner size="sm" /> : 'Simpan'}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+
+            <Modal show={Boolean(budgetDeleteTarget)} onHide={() => !budgetSaving && setBudgetDeleteTarget(null)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title className="text-danger">Hapus Anggaran?</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {budgetDeleteTarget && (
+                        <p>Anggaran <strong>{budgetDeleteTarget.nama_kategori}</strong> sebesar <strong>{formatRupiah(budgetDeleteTarget.jumlah)}</strong> akan dihapus.</p>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="light" onClick={() => setBudgetDeleteTarget(null)} disabled={budgetSaving}>Batal</Button>
+                    <Button variant="danger" onClick={handleDeleteBudget} disabled={budgetSaving}>
+                        {budgetSaving ? <Spinner size="sm" /> : 'Ya, Hapus'}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
 
             <TransactionModal
                 show={showModal}
@@ -640,6 +952,26 @@ const AnalisisPage = () => {
                     )}
                 </Card.Body>
             </Card>
+
+            <Modal show={showExportModal} onHide={() => !exportLoading && setShowExportModal(false)} centered>
+                <Modal.Header closeButton={!exportLoading} className="border-0 pt-4 px-4">
+                    <Modal.Title className="fw-bold">Export Daftar Transaksi</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="px-4">
+                    {exportError && <div className="alert alert-danger py-2 small mb-3" style={{ borderRadius: 12 }}>{exportError}</div>}
+                    <p className="text-muted small mb-3">
+                        Periode saat ini: <strong>{period.display}</strong>. Semua transaksi pada periode aktif akan di-export ke file <strong>CSV</strong> (UTF-8 dengan BOM, delimiter titik-koma, dapat dibuka di Excel/Google Sheets).
+                    </p>
+                </Modal.Body>
+                <Modal.Footer className="border-0 px-4 pb-4">
+                    <Button variant="light" onClick={() => setShowExportModal(false)} disabled={exportLoading} style={{ borderRadius: 12 }}>
+                        Batal
+                    </Button>
+                    <Button variant="success" onClick={handleDownloadExport} disabled={exportLoading} style={{ borderRadius: 12 }}>
+                        {exportLoading ? <><Spinner size="sm" className="me-2" /> Menyiapkan...</> : 'Unduh CSV'}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </MainLayout>
     );
 };
