@@ -186,11 +186,30 @@ class ReportChildFilterTest extends TestCase
         $child = $this->makeUser('child');
         $this->linkChild($parent, $child);
 
+        Transaction::create([
+            'user_id' => (string) $parent->id,
+            'jenis' => config('constants.transaction_types.pemasukan'),
+            'jumlah' => 999,
+            'status' => config('constants.transaction_status.berhasil'),
+            'tanggal' => '2026-06-15',
+            'is_internal' => false,
+        ]);
+
+        Transaction::create([
+            'user_id' => (string) $child->id,
+            'jenis' => config('constants.transaction_types.pemasukan'),
+            'jumlah' => 100,
+            'status' => config('constants.transaction_status.berhasil'),
+            'tanggal' => '2026-06-15',
+            'is_internal' => false,
+        ]);
+
         $response = $this->withHeaders($this->authHeaders($parent))
             ->getJson('/api/reports/family/analysis?month=2026-06&child_id=' . $child->id);
 
         $response->assertStatus(200);
         $response->assertJsonStructure(['message', 'data' => ['summary', 'chartData']]);
+        $response->assertJsonPath('data.summary.totalPemasukan', 100);
     }
 
     public function test_analysis_with_unowned_child_id_returns_403(): void
@@ -215,5 +234,16 @@ class ReportChildFilterTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertStringContainsString('application/pdf', $response->headers->get('content-type'));
+    }
+
+    public function test_pdf_with_unowned_child_id_returns_403(): void
+    {
+        $parent = $this->makeUser('parent');
+        $stranger = $this->makeUser('child');
+
+        $response = $this->withHeaders($this->authHeaders($parent))
+            ->getJson('/api/reports/family/analysis/pdf?month=2026-06&child_id=' . $stranger->id);
+
+        $response->assertStatus(403);
     }
 }
