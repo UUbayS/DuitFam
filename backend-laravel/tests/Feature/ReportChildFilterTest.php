@@ -94,4 +94,28 @@ class ReportChildFilterTest extends TestCase
         $response->assertJsonPath('data.username', $child->username);
         $response->assertJsonPath('data.totalPemasukan', 100);
     }
+
+    public function test_historical_with_child_id_returns_200(): void
+    {
+        $parent = $this->makeUser('parent');
+        $child = $this->makeUser('child');
+        $this->linkChild($parent, $child);
+
+        $response = $this->withHeaders($this->authHeaders($parent))
+            ->getJson('/api/reports/family/historical?unit=tahunan&year=2026&child_id=' . $child->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure(['message', 'data' => []]);
+    }
+
+    public function test_historical_with_unowned_child_id_returns_403(): void
+    {
+        $parent = $this->makeUser('parent');
+        $stranger = $this->makeUser('child');
+
+        $response = $this->withHeaders($this->authHeaders($parent))
+            ->getJson('/api/reports/family/historical?unit=tahunan&year=2026&child_id=' . $stranger->id);
+
+        $response->assertStatus(403);
+    }
 }

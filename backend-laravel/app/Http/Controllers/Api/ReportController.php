@@ -519,31 +519,17 @@ class ReportController extends Controller
             return response()->json(['message' => 'Hanya akun parent yang dapat melihat laporan keluarga.'], 403);
         }
 
-        $childIds = ParentChildRelation::query()
-            ->where('parent_id', $parent->id)
-            ->where('is_active', true)
-            ->pluck('child_id')
-            ->map(fn ($id) => (string) $id)
-            ->values();
-
-        $group = $request->query('group', 'semua');
-        if ($group === 'ortu') {
-            $allUserIds = collect([(string) $parent->id]);
-        } elseif ($group === 'anak') {
-            $allUserIds = $childIds;
-        } else {
-            $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
-        }
-
+        $allUserIds = collect($this->resolveTargetUserIds($request, (string) $parent->id));
         $unit = $request->query('unit', 'tahunan');
+        $effectiveGroup = $request->query('child_id') ? 'anak' : $request->query('group', 'semua');
 
-        $result = Transaction::raw(function ($collection) use ($allUserIds, $unit, $request, $group) {
+        $result = Transaction::raw(function ($collection) use ($allUserIds, $unit, $request, $effectiveGroup) {
             $match = [
                 'user_id' => ['$in' => $allUserIds->all()],
                 'status' => config('constants.transaction_status.berhasil'),
             ];
 
-            if ($group === 'semua') {
+            if ($effectiveGroup === 'semua') {
                 $match['is_internal'] = ['$ne' => true];
             }
 
