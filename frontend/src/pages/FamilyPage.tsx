@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Form, Button, Alert, Spinner, Modal } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-import { Plus, EyeFill, EyeSlashFill, Trash } from 'react-bootstrap-icons';
+import * as Icons from 'react-bootstrap-icons';
+import { Plus, EyeFill, EyeSlashFill, Trash, Tag } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
 import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService, deleteChildService } from '../services/user.service';
-import { fetchFamilyMonthlySummary, fetchFamilyHistoricalData } from '../services/report.service';
+import { fetchFamilyMonthlySummary, fetchFamilyHistoricalData, fetchFamilyTransactionHistory } from '../services/report.service';
 import { depositToChild } from '../services/transaction.service';
 import TransactionModal from '../components/TransactionModal';
 import MonthlyBarChart from '../components/MonthlyBarChart';
@@ -34,6 +35,7 @@ const formatRupiah = (amount: number) => {
     const [historicalData, setHistoricalData] = useState<ReportTypes.AnalysisReport['chartData']>([]);
     const [children, setChildren] = useState<Array<{ id: string; username: string; email: string; is_active: boolean; saldo: number; percentage_change: number }>>([]);
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+    const [transactions, setTransactions] = useState<ReportTypes.TransactionHistoryItem[]>([]);
 
     const [createChildModalOpen, setCreateChildModalOpen] = useState(false);
 
@@ -51,14 +53,16 @@ const formatRupiah = (amount: number) => {
         setLoading(true);
         try {
             const params = { child_id: selectedChildId ?? undefined };
-            const [s, hist, kids] = await Promise.all([
+            const [s, hist, kids, history] = await Promise.all([
                 fetchFamilyMonthlySummary(params),
                 fetchFamilyHistoricalData(params),
                 fetchChildrenBalancesService(),
+                fetchFamilyTransactionHistory(params),
             ]);
             setSummary(s);
             setHistoricalData(hist);
             setChildren(kids.filter((k) => k.is_active));
+            setTransactions(history);
             setError(null);
         } catch (e: any) {
             setError(e.response?.data?.message || 'Gagal memuat data anggota keluarga.');
@@ -282,6 +286,91 @@ const formatRupiah = (amount: number) => {
                     </div>
                 </Card.Body>
             </Card>
+
+            {children.length > 0 && (
+                <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 25 }}>
+                    <Card.Body className="p-4">
+                        <div className="fw-bold mb-3 text-dark" style={{ fontSize: 20 }}>
+                            Riwayat Transaksi - {summary?.username || 'Semua Anak'}
+                        </div>
+                        <div className="d-flex justify-content-between mb-3 px-2">
+                            <div className="text-center flex-fill">
+                                <div className="text-muted small">Pemasukan</div>
+                                <div className="fw-bold text-success" style={{ fontSize: 16 }}>
+                                    {formatRupiah(summary?.totalPemasukan || 0)}
+                                </div>
+                            </div>
+                            <div className="text-center flex-fill" style={{ borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0' }}>
+                                <div className="text-muted small">Pengeluaran</div>
+                                <div className="fw-bold text-danger" style={{ fontSize: 16 }}>
+                                    {formatRupiah(summary?.totalPengeluaran || 0)}
+                                </div>
+                            </div>
+                            <div className="text-center flex-fill">
+                                <div className="text-muted small">Neto</div>
+                                <div
+                                    className="fw-bold"
+                                    style={{
+                                        fontSize: 16,
+                                        color: (summary?.neto || 0) >= 0 ? '#28a745' : '#dc3545',
+                                    }}
+                                >
+                                    {(summary?.neto || 0) >= 0 ? '+' : ''}{formatRupiah(summary?.neto || 0)}
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ maxHeight: 400, overflowY: 'auto' }} className="no-scrollbar px-1">
+                            {transactions.length === 0 ? (
+                                <div className="text-center p-4 text-muted">
+                                    <p className="mb-0">Belum ada transaksi.</p>
+                                </div>
+                            ) : (
+                                transactions.slice(0, 20).map((tx) => (
+                                    <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0" style={{ borderRadius: '18px', overflow: 'hidden' }}>
+                                        <Card.Body className="p-3">
+                                            <div className="d-flex align-items-center gap-3">
+                                                <div
+                                                    className="d-flex align-items-center justify-content-center flex-shrink-0"
+                                                    style={{
+                                                        width: '45px',
+                                                        height: '45px',
+                                                        borderRadius: '14px',
+                                                        backgroundColor: tx.jenis === 'pemasukan' ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)',
+                                                        color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545',
+                                                        fontSize: '20px',
+                                                    }}
+                                                >
+                                                    {React.createElement((Icons as any)[tx.icon_kategori || 'Tag'] || Tag)}
+                                                </div>
+                                                <div className="flex-grow-1 d-flex flex-column" style={{ minWidth: 0 }}>
+                                                    <div className="fw-bold text-dark text-truncate" style={{ fontSize: '14px', maxWidth: '100%' }} title={tx.keterangan || ''}>
+                                                        {(tx.keterangan || '').replace('Kontribusi Target ID:', 'Tabungan #') || 'Tanpa keterangan'}
+                                                    </div>
+                                                    <small className="text-muted text-truncate" style={{ fontSize: '11px' }}>
+                                                        {tx.username && <span className="fw-medium text-primary me-1">{tx.username}</span>}
+                                                        {tx.nama_kategori || 'Lainnya'} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                                                    </small>
+                                                </div>
+                                                <div
+                                                    className="fw-bold flex-shrink-0"
+                                                    style={{
+                                                        color: tx.jenis === 'pemasukan' ? '#28a745' : '#dc3545',
+                                                        fontSize: '14px',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                >
+                                                    {tx.jenis === 'pengeluaran' ? '- ' : '+ '}
+                                                    {formatRupiah(tx.jumlah)}
+                                                </div>
+                                            </div>
+                                        </Card.Body>
+                                    </Card>
+                                ))
+                            )}
+                        </div>
+                    </Card.Body>
+                </Card>
+            )}
 
             <AddChildModal 
                 show={createChildModalOpen} 
