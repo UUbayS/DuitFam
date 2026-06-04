@@ -72,10 +72,6 @@ const formatRupiah = (amount: number) => {
     }, [loadData]);
 
     useEffect(() => {
-        loadData();
-    }, [selectedChildId, loadData]);
-
-    useEffect(() => {
         if (selectedChildId && !children.some(c => c.id === selectedChildId)) {
             setSelectedChildId(null);
         }
