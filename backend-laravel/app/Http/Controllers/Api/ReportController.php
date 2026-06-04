@@ -665,21 +665,15 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
-        $group = $request->query('group', 'semua');
-        if ($group === 'ortu') {
-            $allUserIds = collect([(string) $parent->id]);
-        } elseif ($group === 'anak') {
-            $allUserIds = $childIds;
-        } else {
-            $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
-        }
+        $allUserIds = collect($this->resolveTargetUserIds($request, (string) $parent->id));
+        $effectiveGroup = $request->query('child_id') ? 'anak' : $request->query('group', 'semua');
 
         $expenseQuery = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('jenis', config('constants.transaction_types.pengeluaran'))
             ->where('status', config('constants.transaction_status.berhasil'));
 
-        if ($group === 'semua') {
+        if ($effectiveGroup === 'semua') {
             $expenseQuery->where('is_internal', '!=', true);
         }
         
@@ -758,21 +752,15 @@ class ReportController extends Controller
             ->pluck('child_id')
             ->map(fn ($id) => (string) $id)
             ->values();
-        $group = $request->query('group', 'semua');
-        if ($group === 'ortu') {
-            $allUserIds = collect([(string) $parent->id]);
-        } elseif ($group === 'anak') {
-            $allUserIds = $childIds;
-        } else {
-            $allUserIds = collect([(string) $parent->id])->merge($childIds)->unique()->values();
-        }
+        $allUserIds = collect($this->resolveTargetUserIds($request, (string) $parent->id));
+        $effectiveGroup = $request->query('child_id') ? 'anak' : $request->query('group', 'semua');
 
         $expenseQuery = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('jenis', config('constants.transaction_types.pengeluaran'))
             ->where('status', config('constants.transaction_status.berhasil'));
 
-        if ($group === 'semua') {
+        if ($effectiveGroup === 'semua') {
             $expenseQuery->where('is_internal', '!=', true);
         }
 
