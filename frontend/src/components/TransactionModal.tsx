@@ -11,9 +11,9 @@ import {
     ArrowDown
 } from 'react-bootstrap-icons';
 import { fetchCategories } from '../services/utility.service';
-import { createTransaction } from '../services/transaction.service';
+import { createTransaction, updateTransaction } from '../services/transaction.service';
 import { fetchActiveTargets } from '../services/target.service';
-import type { TransactionInput, Category, TransactionType } from '../types/transaction.types'; 
+import type { TransactionInput, TransactionItem, Category, TransactionType } from '../types/transaction.types'; 
 import type { TargetMenabung } from '../types/target.types';
 import type { AxiosError } from 'axios'; 
 
@@ -26,6 +26,7 @@ interface TransactionModalProps {
     show: boolean;
     handleClose: () => void;
     onSuccess: () => void;
+    editingTransaction?: TransactionItem | null;
 }
 
 const initialFormState: Omit<TransactionInput, 'jumlah'> & { jumlah: string } = {
@@ -46,7 +47,9 @@ const getErrorMessage = (err: unknown): string => {
 };
 
 
-const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, onSuccess }) => {
+const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, onSuccess, editingTransaction }) => {
+    const isEdit = Boolean(editingTransaction);
+    const isReadOnlyJenis = isEdit;
     const [formData, setFormData] = useState(initialFormState);
     const [categories, setCategories] = useState<Category[]>([]);
     const [targets, setTargets] = useState<TargetMenabung[]>([]);
@@ -70,12 +73,6 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
             ]);
             setCategories(cats);
             setTargets(activeTargets);
-            if (cats.length > 0) {
-                setFormData(prev => ({ 
-                    ...prev, 
-                    id_kategori: prev.id_kategori === '' ? cats[0].id_kategori : prev.id_kategori
-                }));
-            }
         } catch (err: unknown) {
             setMessage({ type: 'danger', text: getErrorMessage(err) });
         } finally {
@@ -84,12 +81,34 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
     }, []); 
 
     useEffect(() => {
-        if (show) {
-             loadCategoriesAndTargets();
-             setFormData(initialFormState);
-             setMessage(null);
+        if (!show) return;
+
+        loadCategoriesAndTargets();
+        setMessage(null);
+
+        if (editingTransaction) {
+            setFormData({
+                jenis: editingTransaction.jenis === 'menabung' || editingTransaction.jenis === 'refund'
+                    ? 'pemasukan'
+                    : editingTransaction.jenis,
+                jumlah: Number(editingTransaction.jumlah).toLocaleString('id-ID'),
+                tanggal: (editingTransaction.tanggal || '').toString().split('T')[0] || new Date().toISOString().split('T')[0],
+                keterangan: editingTransaction.keterangan ?? '',
+                id_kategori: editingTransaction.id_kategori ?? '',
+                source_id: editingTransaction.source_id ?? '',
+            });
+        } else {
+            setFormData(initialFormState);
         }
-    }, [show, loadCategoriesAndTargets]); 
+    }, [show, editingTransaction, loadCategoriesAndTargets]); 
+
+    useEffect(() => {
+        if (!show || isEdit || catLoading) return;
+        if (categories.length > 0 && formData.id_kategori === '') {
+            const first = categories.find(c => c.jenis === formData.jenis) ?? categories[0];
+            setFormData(prev => ({ ...prev, id_kategori: first.id_kategori }));
+        }
+    }, [catLoading, categories, isEdit, show, formData.jenis, formData.id_kategori]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -107,6 +126,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
     };
 
     const handleTypeChange = (type: TransactionType) => {
+        if (isReadOnlyJenis) return;
         setFormData(prev => ({ ...prev, jenis: type, id_kategori: '' }));
         setMessage(null);
     };
@@ -126,9 +146,20 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
 
         setLoading(true);
         try {
-            const dataToSend: TransactionInput = { ...formData, jumlah: numericJumlah };
-            const res = await createTransaction(dataToSend);
-            setMessage({ type: 'success', text: res.message });
+            if (isEdit && editingTransaction) {
+                const res = await updateTransaction(editingTransaction.id_transaksi, {
+                    jumlah: numericJumlah,
+                    tanggal: formData.tanggal,
+                    keterangan: formData.keterangan || null,
+                    id_kategori: formData.id_kategori || null,
+                    source_id: formData.source_id || null,
+                });
+                setMessage({ type: 'success', text: res.message });
+            } else {
+                const dataToSend: TransactionInput = { ...formData, jumlah: numericJumlah };
+                const res = await createTransaction(dataToSend);
+                setMessage({ type: 'success', text: res.message });
+            }
             setTimeout(() => {
                 handleClose();
                 onSuccess();
@@ -146,7 +177,9 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
         <Modal show={show} onHide={handleClose} centered backdrop="static" className="transaction-modal">
             <div className="bg-white" style={{ borderRadius: '5px', overflow: 'hidden', border: 'none' }}>
                 <div className="bg-primary p-3 d-flex justify-content-between align-items-center">
-                    <h5 className="modal-title text-white fw-bold mb-0">Catat Transaksi Baru</h5>
+                    <h5 className="modal-title text-white fw-bold mb-0">
+                        {isEdit ? 'Edit Transaksi' : 'Catat Transaksi Baru'}
+                    </h5>
                     <Button variant="link" className="text-white p-0" onClick={handleClose}>
                         <span style={{ fontSize: '24px', lineHeight: '1' }}>&times;</span>
                     </Button>
@@ -188,6 +221,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
                                     checked={formData.jenis === 'pemasukan'}
                                     onChange={() => handleTypeChange('pemasukan')}
                                     className="fw-medium"
+                                    disabled={isReadOnlyJenis}
                                 />
                                 <Form.Check
                                     type="radio"
@@ -197,8 +231,14 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
                                     checked={formData.jenis === 'pengeluaran'}
                                     onChange={() => handleTypeChange('pengeluaran')}
                                     className="fw-medium"
+                                    disabled={isReadOnlyJenis}
                                 />
                             </div>
+                            {isReadOnlyJenis && (
+                                <small className="text-muted d-block mt-1">
+                                    Jenis transaksi tidak dapat diubah. Hapus dan buat ulang bila perlu.
+                                </small>
+                            )}
                         </Form.Group>
 
                         <Form.Group className="mb-3">
@@ -334,7 +374,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ show, handleClose, 
                                 <Spinner animation="border" size="sm" />
                             ) : (
                                 <>
-                                    <CheckCircleFill className="me-2" /> Simpan Transaksi
+                                    <CheckCircleFill className="me-2" /> {isEdit ? 'Simpan Perubahan' : 'Simpan Transaksi'}
                                 </>
                             )}
                         </Button>

@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Row, Col, Card, Button, Spinner, Alert, Form } from 'react-bootstrap';
+import { Row, Col, Card, Button, Spinner, Alert, Form, Modal, Dropdown } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-import { ArrowLeftShort, ArrowRightShort, Tag, PeopleFill, PersonFill, PersonWorkspace } from 'react-bootstrap-icons';
+import { ArrowLeftShort, ArrowRightShort, Tag, PeopleFill, PersonFill, PersonWorkspace, ThreeDotsVertical, PencilSquare, Trash, Lock } from 'react-bootstrap-icons';
 import * as Icons from 'react-bootstrap-icons';
 import { fetchAnalysisReport, fetchFamilyAnalysisPdf, fetchFamilyAnalysisReport, fetchFamilyHistoricalData, fetchHistoricalData, fetchTransactionHistory, fetchFamilyTransactionHistory } from '../services/report.service';
 import { fetchChildrenService } from '../services/user.service';
 import { fetchCategories } from '../services/utility.service';
-import type { Category } from '../types/transaction.types';
+import { fetchTransactionById, deleteTransaction } from '../services/transaction.service';
+import type { Category, TransactionItem } from '../types/transaction.types';
 import type * as ReportTypes from '../types/report.types';
 import MonthlyBarChart from '../components/MonthlyBarChart';
 import SmartSpendingTips from '../components/SmartSpendingTips';
 import { useAuth } from '../context/AuthContext';
 import { useTimeFilter } from '../hooks/useTimeFilter';
 import TransactionModal from '../components/TransactionModal';
+import Pagination from '../components/Pagination';
 import IconAnalisisBiru from '../assets/IconAnalisisBiru.svg';
 
 const formatRupiah = (amount: number) => {
@@ -90,7 +92,7 @@ const calculateSummary = (transactions: ReportTypes.TransactionHistoryItem[], vi
 
 const AnalisisPage = () => {
     const { user } = useAuth();
-    const { unit, period, navigate, changeUnit } = useTimeFilter('bulan');
+    const { unit, period, navigate, changeUnit, customRange, setCustomRange } = useTimeFilter('bulan');
     const [report, setReport] = useState<any>(null);
     const [historicalData, setHistoricalData] = useState<ReportTypes.AnalysisReport['chartData']>([]);
     const [loading, setLoading] = useState(true);
@@ -98,7 +100,12 @@ const AnalisisPage = () => {
     const [transactions, setTransactions] = useState<ReportTypes.TransactionHistoryItem[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
-    
+    const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
+    const [editLoading, setEditLoading] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<ReportTypes.TransactionHistoryItem | null>(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'danger', text: string } | null>(null);
+
     const [viewFilter, setViewFilter] = useState<ViewFilter>('semua');
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -106,6 +113,11 @@ const AnalisisPage = () => {
     const [categories, setCategories] = useState<Category[]>([]);
     const [pdfLoading, setPdfLoading] = useState(false);
     const [pdfError, setPdfError] = useState<string | null>(null);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(20);
+    const [historyTotal, setHistoryTotal] = useState(0);
+    const [historyTotalPages, setHistoryTotalPages] = useState(0);
 
     const isParent = user?.role === 'parent';
 
@@ -177,23 +189,31 @@ const AnalisisPage = () => {
 
             const [analysisRes, historical] = await Promise.all([
                 isParent ? fetchFamilyAnalysisReport({ ...period.apiParam, ...groupParam }) : fetchAnalysisReport(period.apiParam),
-                isParent 
-                    ? fetchFamilyHistoricalData({ unit: unit === 'bulan' ? 'bulan' : unit, ...period.apiParam, ...groupParam }) 
+                isParent
+                    ? fetchFamilyHistoricalData({ unit: unit === 'bulan' ? 'bulan' : unit, ...period.apiParam, ...groupParam })
                     : fetchHistoricalData({ unit: unit === 'bulan' ? 'bulan' : unit, ...period.apiParam })
             ]);
             setReport(analysisRes);
             setHistoricalData(historical);
             setError(null);
-            
-            const history = await (isParent ? fetchFamilyTransactionHistory({ ...groupParam }) : fetchTransactionHistory(period.apiParam));
-            setTransactions(history);
+
+            const historyParams = {
+                ...period.apiParam,
+                ...groupParam,
+                page: currentPage,
+                per_page: perPage,
+            };
+            const history = await (isParent ? fetchFamilyTransactionHistory(historyParams) : fetchTransactionHistory(historyParams));
+            setTransactions(history.data);
+            setHistoryTotal(history.meta?.total ?? 0);
+            setHistoryTotalPages(history.meta?.total_pages ?? 0);
         } catch (err: any) {
             setError("Gagal memuat data analisis.");
         } finally {
             setLoading(false);
             setHistoryLoading(false);
         }
-    }, [period.apiParam, unit, isParent, viewFilter]);
+    }, [period.apiParam, unit, isParent, viewFilter, currentPage, perPage]);
 
     const handleDownloadPdf = async () => {
         const month = period.apiParam.month;
@@ -215,6 +235,47 @@ const AnalisisPage = () => {
             setPdfError('Gagal mengunduh PDF. Silakan coba lagi.');
         } finally {
             setPdfLoading(false);
+        }
+    };
+
+    const handleEditTransaction = async (tx: ReportTypes.TransactionHistoryItem) => {
+        setEditLoading(true);
+        setActionMessage(null);
+        try {
+            const res = await fetchTransactionById(tx.id_transaksi);
+            setEditingTransaction(res.data);
+            setShowModal(true);
+        } catch (err: any) {
+            setActionMessage({
+                type: 'danger',
+                text: err.response?.data?.message || 'Gagal memuat detail transaksi.',
+            });
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setEditingTransaction(null);
+    };
+
+    const handleDeleteTransaction = async () => {
+        if (!deleteTarget) return;
+        setDeleteLoading(true);
+        setActionMessage(null);
+        try {
+            const res = await deleteTransaction(deleteTarget.id_transaksi);
+            setActionMessage({ type: 'success', text: res.message });
+            setDeleteTarget(null);
+            loadData();
+        } catch (err: any) {
+            setActionMessage({
+                type: 'danger',
+                text: err.response?.data?.message || 'Gagal menghapus transaksi.',
+            });
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -243,30 +304,30 @@ const AnalisisPage = () => {
 
             <div className="d-flex mb-4 align-items-center flex-wrap gap-3 justify-content-between">
                 <div className="d-flex gap-2 bg-white p-1 rounded-pill shadow-sm border overflow-auto no-scrollbar" style={{ maxWidth: '100%' }}>
-                    {['mingguan', 'bulan', 'tahunan'].map((u) => (
-                        <Button 
+                    {(['mingguan', 'bulan', 'tahunan', 'custom'] as const).map((u) => (
+                        <Button
                             key={u}
-                            variant={unit === u ? 'primary' : 'link'} 
-                            onClick={() => changeUnit(u as any)} 
+                            variant={unit === u ? 'primary' : 'link'}
+                            onClick={() => { changeUnit(u); setCurrentPage(1); }}
                             className={`rounded-pill px-3 px-md-4 fw-bold text-decoration-none ${unit === u ? '' : 'text-muted'}`}
                             style={{ fontSize: 12, whiteSpace: 'nowrap' }}
                         >
-                            {u === 'mingguan' ? 'Mingguan' : u === 'bulan' ? 'Bulanan' : 'Tahunan'}
+                            {u === 'mingguan' ? 'Mingguan' : u === 'bulan' ? 'Bulanan' : u === 'tahunan' ? 'Tahunan' : 'Rentang'}
                         </Button>
                     ))}
                 </div>
 
                 <div className="d-flex align-items-center bg-white p-1 rounded-pill shadow-sm border">
-                    <Button variant="link" onClick={() => navigate('prev')} className="text-primary p-1"><ArrowLeftShort size={24} /></Button>
+                    <Button variant="link" onClick={() => navigate('prev')} className="text-primary p-1" disabled={unit === 'custom'}><ArrowLeftShort size={24} /></Button>
                     <div className="px-2 px-md-3 fw-bold text-dark text-nowrap" style={{ fontSize: 13 }}>{period.display}</div>
-                    <Button variant="link" onClick={() => navigate('next')} className="text-primary p-1"><ArrowRightShort size={24} /></Button>
+                    <Button variant="link" onClick={() => navigate('next')} className="text-primary p-1" disabled={unit === 'custom'}><ArrowRightShort size={24} /></Button>
                 </div>
 
                 {user?.role === 'parent' && (
                     <Button
                         variant="outline-primary"
                         onClick={handleDownloadPdf}
-                        disabled={pdfLoading}
+                        disabled={pdfLoading || unit === 'custom'}
                         className="ms-2"
                     >
                         {pdfLoading ? (
@@ -282,7 +343,35 @@ const AnalisisPage = () => {
                 {pdfError && <div className="text-danger small mt-2">{pdfError}</div>}
             </div>
 
+            {unit === 'custom' && (
+                <div className="d-flex gap-2 mb-4 align-items-center flex-wrap bg-white p-3 shadow-sm" style={{ borderRadius: 15 }}>
+                    <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>RENTANG:</span>
+                    <Form.Control
+                        type="date"
+                        size="sm"
+                        value={customRange.start}
+                        max={customRange.end}
+                        onChange={(e) => { setCustomRange(e.target.value, customRange.end); setCurrentPage(1); }}
+                        style={{ fontSize: 13, borderRadius: 8, maxWidth: 180 }}
+                    />
+                    <span className="text-muted">–</span>
+                    <Form.Control
+                        type="date"
+                        size="sm"
+                        value={customRange.end}
+                        min={customRange.start}
+                        onChange={(e) => { setCustomRange(customRange.start, e.target.value); setCurrentPage(1); }}
+                        style={{ fontSize: 13, borderRadius: 8, maxWidth: 180 }}
+                    />
+                </div>
+            )}
+
             {error ? <Alert variant="danger" style={{ borderRadius: 15 }}>{error}</Alert> : null}
+            {actionMessage && (
+                <Alert variant={actionMessage.type} style={{ borderRadius: 15 }} dismissible onClose={() => setActionMessage(null)}>
+                    {actionMessage.text}
+                </Alert>
+            )}
 
             {isParent && (
                 <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 15, backgroundColor: '#f8f9fa' }}>
@@ -399,7 +488,32 @@ const AnalisisPage = () => {
 
             <SmartSpendingTips />
 
-            <TransactionModal show={showModal} handleClose={() => setShowModal(false)} onSuccess={loadData} />
+            <TransactionModal
+                show={showModal}
+                handleClose={handleCloseModal}
+                onSuccess={() => { handleCloseModal(); loadData(); }}
+                editingTransaction={editingTransaction}
+            />
+
+            <Modal show={Boolean(deleteTarget)} onHide={() => setDeleteTarget(null)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title className="text-danger fw-bold">Batalkan Transaksi?</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {deleteTarget && (
+                        <div>
+                            <p>Transaksi <strong>{deleteTarget.jenis === 'pemasukan' ? 'pemasukan' : 'pengeluaran'}</strong> sebesar <strong>{formatRupiah(deleteTarget.jumlah)}</strong> akan dibatalkan dan saldonya akan dikembalikan.</p>
+                            <p className="text-muted small mb-0">Aksi ini tidak dapat diurungkan. Data transaksi tetap tersimpan untuk audit dengan status "dibatalkan".</p>
+                        </div>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="light" onClick={() => setDeleteTarget(null)} disabled={deleteLoading}>Batal</Button>
+                    <Button variant="danger" onClick={handleDeleteTransaction} disabled={deleteLoading}>
+                        {deleteLoading ? <Spinner size="sm" /> : 'Ya, Batalkan'}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
 
             <Card className="border-0 shadow-sm mb-5" style={{ borderRadius: 25 }}>
                 <Card.Body className="p-4">
@@ -421,8 +535,18 @@ const AnalisisPage = () => {
                         </div>
                     ) : (
                         <div className="px-1">
-                            {filteredTransactions.map((tx) => (
-                                <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0 transition-all" style={{ borderRadius: '18px', overflow: 'hidden' }}>
+                            {filteredTransactions.map((tx) => {
+                                const isCancelled = tx.status === 'dibatalkan';
+                                const canManage = !tx.is_internal && !isCancelled;
+                                return (
+                                <Card
+                                    key={tx.id_transaksi}
+                                    className="mb-3 shadow-sm border-0 transition-all"
+                                    style={{
+                                        borderRadius: '18px',
+                                        opacity: isCancelled ? 0.55 : 1,
+                                    }}
+                                >
                                     <Card.Body className="p-3">
                                         <div className="d-flex align-items-center gap-3">
                                             <div 
@@ -449,6 +573,7 @@ const AnalisisPage = () => {
                                                         {tx.username && <span className="fw-bold text-primary me-1">{tx.username}</span>}
                                                         {tx.username && ' • '}
                                                         {tx.nama_kategori || 'Lainnya'} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                                                        {isCancelled && <span className="ms-2 badge bg-secondary" style={{ fontSize: 9 }}>DIBATALKAN</span>}
                                                     </small>
                                                     <div 
                                                         className="fw-bold" 
@@ -462,11 +587,56 @@ const AnalisisPage = () => {
                                                     </div>
                                                 </div>
                                             </div>
+                                            {canManage ? (
+                                                <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                                                    <Dropdown.Toggle
+                                                        variant="link"
+                                                        id={`tx-actions-${tx.id_transaksi}`}
+                                                        className="p-1 text-secondary shadow-none border-0"
+                                                        style={{ background: 'transparent' }}
+                                                        disabled={editLoading}
+                                                    >
+                                                        <ThreeDotsVertical size={18} />
+                                                    </Dropdown.Toggle>
+                                                    <Dropdown.Menu
+                                                        popperConfig={{ modifiers: [{ name: 'preventOverflow', options: { boundary: 'viewport' } }] }}
+                                                        style={{ borderRadius: 12, fontSize: 13 }}
+                                                    >
+                                                        <Dropdown.Item
+                                                            onClick={() => handleEditTransaction(tx)}
+                                                            className="d-flex align-items-center gap-2"
+                                                        >
+                                                            <PencilSquare size={14} /> Edit
+                                                        </Dropdown.Item>
+                                                        <Dropdown.Item
+                                                            onClick={() => setDeleteTarget(tx)}
+                                                            className="d-flex align-items-center gap-2 text-danger"
+                                                        >
+                                                            <Trash size={14} /> Batalkan
+                                                        </Dropdown.Item>
+                                                    </Dropdown.Menu>
+                                                </Dropdown>
+                                            ) : tx.is_internal ? (
+                                                <span className="text-muted flex-shrink-0" title="Transaksi internal tidak dapat diedit/dihapus">
+                                                    <Lock size={14} />
+                                                </span>
+                                            ) : null}
                                         </div>
                                     </Card.Body>
                                 </Card>
-                            ))}
+                                );
+                            })}
                         </div>
+                    )}
+                    {!historyLoading && (historyTotalPages > 0 || historyTotal > 0) && (
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={historyTotalPages}
+                            onPageChange={setCurrentPage}
+                            perPage={perPage}
+                            onPerPageChange={(n) => { setPerPage(n); setCurrentPage(1); }}
+                            total={historyTotal}
+                        />
                     )}
                 </Card.Body>
             </Card>

@@ -1,15 +1,18 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Row, Col, Card, Form, Button, Alert, Spinner, Modal } from 'react-bootstrap';
+import { Row, Col, Card, Form, Button, Alert, Spinner, Modal, Dropdown } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
 import * as Icons from 'react-bootstrap-icons';
-import { Plus, EyeFill, EyeSlashFill, Trash, Tag } from 'react-bootstrap-icons';
+import { Plus, EyeFill, EyeSlashFill, Trash, Tag, ThreeDotsVertical, PencilSquare, Lock } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
 import { createChildService, fetchChildrenService, toggleChildService, updateChildService, fetchChildrenBalancesService, deleteChildService } from '../services/user.service';
 import { fetchFamilyMonthlySummary, fetchFamilyHistoricalData, fetchFamilyTransactionHistory } from '../services/report.service';
-import { depositToChild } from '../services/transaction.service';
+import { depositToChild, fetchTransactionById, deleteTransaction } from '../services/transaction.service';
+import type { TransactionItem } from '../types/transaction.types';
 import TransactionModal from '../components/TransactionModal';
 import MonthlyBarChart from '../components/MonthlyBarChart';
 import AddChildModal from '../components/AddChildModal';
+import Pagination from '../components/Pagination';
+import { useTimeFilter } from '../hooks/useTimeFilter';
 import AnggotaBlue from '../assets/IconAnggotaBiru.svg';
 import type * as ReportTypes from '../types/report.types';
 
@@ -26,16 +29,22 @@ const formatRupiah = (amount: number) => {
 
     const FamilyPage = () => {
         const { user } = useAuth();
+        const { unit, period, changeUnit, customRange, setCustomRange } = useTimeFilter('bulan');
         const [loading, setLoading] = useState(true);
         const [error, setError] = useState<string | null>(null);
         const [showSaldo, setShowSaldo] = useState(true);
         const [showTransactionModal, setShowTransactionModal] = useState(false);
-    
+
     const [summary, setSummary] = useState<ReportTypes.MonthlySummary | null>(null);
     const [historicalData, setHistoricalData] = useState<ReportTypes.AnalysisReport['chartData']>([]);
     const [children, setChildren] = useState<Array<{ id: string; username: string; email: string; is_active: boolean; saldo: number; percentage_change: number }>>([]);
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
     const [transactions, setTransactions] = useState<ReportTypes.TransactionHistoryItem[]>([]);
+    const [historyTotal, setHistoryTotal] = useState(0);
+    const [historyTotalPages, setHistoryTotalPages] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(20);
+    const [periodKey, setPeriodKey] = useState(0);
 
     const [createChildModalOpen, setCreateChildModalOpen] = useState(false);
 
@@ -44,32 +53,50 @@ const formatRupiah = (amount: number) => {
     const [depositAmount, setDepositAmount] = useState<string>('');
     const [depositKeterangan, setDepositKeterangan] = useState<string>('');
     const [depositLoading, setDepositLoading] = useState(false);
-    
+
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [childToDelete, setChildToDelete] = useState<{ id: string; username: string } | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
 
+    const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
+    const [editLoading, setEditLoading] = useState(false);
+    const [deleteTargetTx, setDeleteTargetTx] = useState<ReportTypes.TransactionHistoryItem | null>(null);
+    const [deleteTxLoading, setDeleteTxLoading] = useState(false);
+    const [txActionMessage, setTxActionMessage] = useState<{ type: 'success' | 'danger', text: string } | null>(null);
+
+    const apiParam = useMemo(() => {
+        const base: Record<string, any> = { ...period.apiParam, child_id: selectedChildId ?? undefined };
+        base.page = currentPage;
+        base.per_page = perPage;
+        return base;
+    }, [period.apiParam, selectedChildId, currentPage, perPage]);
+
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const params = { child_id: selectedChildId ?? undefined };
             const [s, hist, kids, history] = await Promise.all([
-                fetchFamilyMonthlySummary(params),
-                fetchFamilyHistoricalData(params),
+                fetchFamilyMonthlySummary({ child_id: selectedChildId ?? undefined, ...period.apiParam }),
+                fetchFamilyHistoricalData({ child_id: selectedChildId ?? undefined, ...period.apiParam }),
                 fetchChildrenBalancesService(),
-                fetchFamilyTransactionHistory(params),
+                fetchFamilyTransactionHistory(apiParam),
             ]);
             setSummary(s);
             setHistoricalData(hist);
             setChildren(kids.filter((k) => k.is_active));
-            setTransactions(history);
+            setTransactions(history.data);
+            setHistoryTotal(history.meta?.total ?? 0);
+            setHistoryTotalPages(history.meta?.total_pages ?? 0);
             setError(null);
         } catch (e: any) {
             setError(e.response?.data?.message || 'Gagal memuat data anggota keluarga.');
         } finally {
             setLoading(false);
         }
-    }, [selectedChildId]);
+    }, [apiParam, period.apiParam, selectedChildId]);
+
+    useEffect(() => {
+        setPeriodKey((k) => k + 1);
+    }, [unit]);
 
     useEffect(() => {
         loadData();
@@ -133,6 +160,41 @@ const formatRupiah = (amount: number) => {
         }
     };
 
+    const handleEditTransaction = async (tx: ReportTypes.TransactionHistoryItem) => {
+        setEditLoading(true);
+        setTxActionMessage(null);
+        try {
+            const res = await fetchTransactionById(tx.id_transaksi);
+            setEditingTransaction(res.data);
+            setShowTransactionModal(true);
+        } catch (e: any) {
+            setTxActionMessage({ type: 'danger', text: e.response?.data?.message || 'Gagal memuat detail transaksi.' });
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const closeTransactionModal = () => {
+        setShowTransactionModal(false);
+        setEditingTransaction(null);
+    };
+
+    const handleDeleteTransaction = async () => {
+        if (!deleteTargetTx) return;
+        setDeleteTxLoading(true);
+        setTxActionMessage(null);
+        try {
+            const res = await deleteTransaction(deleteTargetTx.id_transaksi);
+            setTxActionMessage({ type: 'success', text: res.message });
+            setDeleteTargetTx(null);
+            loadData();
+        } catch (e: any) {
+            setTxActionMessage({ type: 'danger', text: e.response?.data?.message || 'Gagal menghapus transaksi.' });
+        } finally {
+            setDeleteTxLoading(false);
+        }
+    };
+
     if (loading) {
         return (
             <MainLayout hideAddButton={true}>
@@ -158,6 +220,11 @@ const formatRupiah = (amount: number) => {
             </div>
 
             {error ? <Alert variant="danger" style={{ borderRadius: 15 }}>{error}</Alert> : null}
+            {txActionMessage && (
+                <Alert variant={txActionMessage.type} style={{ borderRadius: 15 }} dismissible onClose={() => setTxActionMessage(null)}>
+                    {txActionMessage.text}
+                </Alert>
+            )}
 
             <Card
                 className="border-0 shadow-sm mb-4"
@@ -319,14 +386,64 @@ const formatRupiah = (amount: number) => {
                                 </div>
                             </div>
                         </div>
+                        <div className="d-flex bg-primary bg-opacity-10 p-1 mb-3" style={{ borderRadius: 12, overflow: 'hidden' }}>
+                            {(['mingguan', 'bulan', 'tahunan', 'custom'] as const).map((u) => {
+                                const active = unit === u;
+                                return (
+                                    <Button
+                                        key={u}
+                                        variant="link"
+                                        size="sm"
+                                        onClick={() => { changeUnit(u); setCurrentPage(1); }}
+                                        className={`flex-fill border-0 ${active ? 'bg-primary text-white shadow-sm' : 'text-primary'}`}
+                                        style={{ textDecoration: 'none', fontWeight: 'bold', fontSize: '11px', padding: '6px 0', borderRadius: 10, transition: '0.3s' }}
+                                    >
+                                        {u === 'mingguan' ? 'Minggu' : u === 'bulan' ? 'Bulan' : u === 'tahunan' ? 'Tahun' : 'Rentang'}
+                                    </Button>
+                                );
+                            })}
+                        </div>
+                        {unit === 'custom' && (
+                            <div className="d-flex gap-2 mb-3 align-items-center flex-wrap">
+                                <Form.Control
+                                    type="date"
+                                    size="sm"
+                                    value={customRange.start}
+                                    max={customRange.end}
+                                    onChange={(e) => { setCustomRange(e.target.value, customRange.end); setCurrentPage(1); }}
+                                    style={{ fontSize: 12, borderRadius: 8, flex: '1 1 140px' }}
+                                />
+                                <span className="text-muted" style={{ fontSize: 12 }}>–</span>
+                                <Form.Control
+                                    type="date"
+                                    size="sm"
+                                    value={customRange.end}
+                                    min={customRange.start}
+                                    onChange={(e) => { setCustomRange(customRange.start, e.target.value); setCurrentPage(1); }}
+                                    style={{ fontSize: 12, borderRadius: 8, flex: '1 1 140px' }}
+                                />
+                            </div>
+                        )}
+                        <div className="mb-3">
+                        </div>
                         <div style={{ maxHeight: 400, overflowY: 'auto' }} className="no-scrollbar px-1">
                             {transactions.length === 0 ? (
                                 <div className="text-center p-4 text-muted">
                                     <p className="mb-0">Belum ada transaksi.</p>
                                 </div>
                             ) : (
-                                transactions.slice(0, 20).map((tx) => (
-                                    <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0" style={{ borderRadius: '18px', overflow: 'hidden' }}>
+                                transactions.map((tx) => {
+                                    const isCancelled = tx.status === 'dibatalkan';
+                                    const canManage = !tx.is_internal && !isCancelled;
+                                    return (
+                                    <Card
+                                        key={tx.id_transaksi}
+                                        className="mb-3 shadow-sm border-0"
+                                        style={{
+                                            borderRadius: '18px',
+                                            opacity: isCancelled ? 0.55 : 1,
+                                        }}
+                                    >
                                         <Card.Body className="p-3">
                                             <div className="d-flex align-items-center gap-3">
                                                 <div
@@ -349,6 +466,7 @@ const formatRupiah = (amount: number) => {
                                                     <small className="text-muted text-truncate" style={{ fontSize: '11px' }}>
                                                         {tx.username && <span className="fw-medium text-primary me-1">{tx.username}</span>}
                                                         {tx.nama_kategori || 'Lainnya'} • {new Date(tx.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                                                        {isCancelled && <span className="ms-2 badge bg-secondary" style={{ fontSize: 9 }}>DIBATALKAN</span>}
                                                     </small>
                                                 </div>
                                                 <div
@@ -362,12 +480,57 @@ const formatRupiah = (amount: number) => {
                                                     {tx.jenis === 'pengeluaran' ? '- ' : '+ '}
                                                     {formatRupiah(tx.jumlah)}
                                                 </div>
+                                                {canManage ? (
+                                                    <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                                                        <Dropdown.Toggle
+                                                            variant="link"
+                                                            id={`family-tx-actions-${tx.id_transaksi}`}
+                                                            className="p-1 text-secondary shadow-none border-0"
+                                                            style={{ background: 'transparent' }}
+                                                            disabled={editLoading}
+                                                        >
+                                                            <ThreeDotsVertical size={18} />
+                                                        </Dropdown.Toggle>
+                                                        <Dropdown.Menu
+                                                            popperConfig={{ modifiers: [{ name: 'preventOverflow', options: { boundary: 'viewport' } }] }}
+                                                            style={{ borderRadius: 12, fontSize: 13 }}
+                                                        >
+                                                            <Dropdown.Item
+                                                                onClick={() => handleEditTransaction(tx)}
+                                                                className="d-flex align-items-center gap-2"
+                                                            >
+                                                                <PencilSquare size={14} /> Edit
+                                                            </Dropdown.Item>
+                                                            <Dropdown.Item
+                                                                onClick={() => setDeleteTargetTx(tx)}
+                                                                className="d-flex align-items-center gap-2 text-danger"
+                                                            >
+                                                                <Trash size={14} /> Batalkan
+                                                            </Dropdown.Item>
+                                                        </Dropdown.Menu>
+                                                    </Dropdown>
+                                                ) : tx.is_internal ? (
+                                                    <span className="text-muted flex-shrink-0" title="Transaksi internal tidak dapat diedit/dihapus">
+                                                        <Lock size={14} />
+                                                    </span>
+                                                ) : null}
                                             </div>
                                         </Card.Body>
                                     </Card>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
+                        {!loading && (historyTotalPages > 0 || historyTotal > 0) && (
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={historyTotalPages}
+                                onPageChange={setCurrentPage}
+                                perPage={perPage}
+                                onPerPageChange={(n) => { setPerPage(n); setCurrentPage(1); }}
+                                total={historyTotal}
+                            />
+                        )}
                     </Card.Body>
                 </Card>
             )}
@@ -448,7 +611,32 @@ const formatRupiah = (amount: number) => {
                 </Modal.Body>
             </Modal>
 
-            <TransactionModal show={showTransactionModal} handleClose={() => setShowTransactionModal(false)} onSuccess={loadData} />
+            <TransactionModal
+                show={showTransactionModal}
+                handleClose={closeTransactionModal}
+                onSuccess={() => { closeTransactionModal(); loadData(); }}
+                editingTransaction={editingTransaction}
+            />
+
+            <Modal show={Boolean(deleteTargetTx)} onHide={() => setDeleteTargetTx(null)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title className="text-danger fw-bold">Batalkan Transaksi?</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {deleteTargetTx && (
+                        <div>
+                            <p>Transaksi <strong>{deleteTargetTx.jenis === 'pemasukan' ? 'pemasukan' : 'pengeluaran'}</strong> sebesar <strong>{formatRupiah(deleteTargetTx.jumlah)}</strong> akan dibatalkan dan saldonya akan dikembalikan.</p>
+                            <p className="text-muted small mb-0">Aksi ini tidak dapat diurungkan. Data tetap tersimpan untuk audit dengan status "dibatalkan".</p>
+                        </div>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="light" onClick={() => setDeleteTargetTx(null)} disabled={deleteTxLoading}>Batal</Button>
+                    <Button variant="danger" onClick={handleDeleteTransaction} disabled={deleteTxLoading}>
+                        {deleteTxLoading ? <Spinner size="sm" /> : 'Ya, Batalkan'}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </MainLayout>
     );
 };

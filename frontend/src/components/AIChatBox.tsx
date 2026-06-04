@@ -80,7 +80,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ hidden }) => {
             setFinancialData({
                 summary,
                 analysis,
-                recentTransactions: recentTransactions.slice(0, 10),
+                recentTransactions: recentTransactions.data.slice(0, 10),
                 isLoading: false,
             });
 

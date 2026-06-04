@@ -307,12 +307,19 @@ class ReportController extends Controller
     public function history(Request $request)
     {
         $userId = (string) $request->user()->id;
-        
+
         $query = Transaction::where('user_id', $userId);
         $query = $this->applyTimeFilter($query, $request);
 
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = min(100, max(1, (int) $request->query('per_page', 20)));
+        $offset = ($page - 1) * $perPage;
+
+        $total = (clone $query)->count();
+
         $rows = $query->orderByDesc('created_at')
-            ->limit(50)
+            ->skip($offset)
+            ->take($perPage)
             ->get(['_id', 'user_id', 'jenis', 'jumlah', 'keterangan', 'tanggal', 'created_at', 'status', 'category_id', 'source_id', 'is_internal', 'jenis as original_jenis']);
 
         $categoryIds = $rows->pluck('category_id')->filter()->unique()->values();
@@ -360,7 +367,16 @@ class ReportController extends Controller
             ];
         });
 
-        return response()->json(['message' => 'OK', 'data' => $data->values()->take(50)->values()]);
+        return response()->json([
+            'message' => 'OK',
+            'data' => $data->values(),
+            'meta' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => $perPage > 0 ? (int) ceil($total / $perPage) : 0,
+            ],
+        ]);
     }
 
     public function historical(Request $request)
@@ -593,8 +609,16 @@ class ReportController extends Controller
         $query = Transaction::query()->whereIn('user_id', $allUserIds->all());
         $query = $this->applyTimeFilter($query, $request);
 
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = min(100, max(1, (int) $request->query('per_page', 20)));
+        $offset = ($page - 1) * $perPage;
+
+        $totalQuery = clone $query;
+        $total = $totalQuery->count();
+
         $rows = $query->orderByDesc('created_at')
-            ->limit(100)
+            ->skip($offset)
+            ->take($perPage)
             ->get();
 
         $categoryIds = $rows->pluck('category_id')->filter()->unique()->values();
@@ -647,7 +671,16 @@ class ReportController extends Controller
             ];
         });
 
-        return response()->json(['message' => 'OK', 'data' => $data->values()->take(100)->values()]);
+        return response()->json([
+            'message' => 'OK',
+            'data' => $data->values(),
+            'meta' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => $perPage > 0 ? (int) ceil($total / $perPage) : 0,
+            ],
+        ]);
     }
 
     public function familyAnalysis(Request $request)

@@ -39,6 +39,9 @@ Route::middleware("auth.token")->group(function () {
         ApprovalController::class,
         "action",
     ]);
+    Route::get("/transactions/{id}", [TransactionController::class, "show"]);
+    Route::put("/transactions/{id}", [TransactionController::class, "update"]);
+    Route::delete("/transactions/{id}", [TransactionController::class, "destroy"]);
 
     Route::get("/targets", [TargetController::class, "index"]);
     Route::post("/targets", [TargetController::class, "store"]);

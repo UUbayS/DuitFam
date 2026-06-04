@@ -21,7 +21,7 @@ export interface TransactionHistoryItem { // <-- TIPE DATA BARU
     created_at: string; 
     nama_kategori: string;
     icon_kategori?: string;
-    status?: 'berhasil';
+    status?: 'berhasil' | 'dibatalkan' | 'pending' | 'approved' | 'rejected';
     is_internal?: boolean;
 }
 
