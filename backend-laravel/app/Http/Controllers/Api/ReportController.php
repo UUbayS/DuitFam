@@ -19,6 +19,36 @@ use Illuminate\Support\Facades\Log;
 
 class ReportController extends Controller
 {
+    private function resolveTargetUserIds(Request $request, string $parentId): array
+    {
+        $childIds = ParentChildRelation::query()
+            ->where('parent_id', $parentId)
+            ->where('is_active', true)
+            ->pluck('child_id')
+            ->map(fn ($id) => (string) $id)
+            ->values();
+
+        $childId = $request->query('child_id');
+
+        if ($childId) {
+            $childId = (string) $childId;
+            $owned = $childIds->contains($childId);
+            if (!$owned) {
+                abort(403, 'Anak tidak ditemukan dalam keluarga Anda.');
+            }
+            return [$childId];
+        }
+
+        $group = $request->query('group', 'semua');
+        if ($group === 'ortu') {
+            return [$parentId];
+        }
+        if ($group === 'anak') {
+            return $childIds->all();
+        }
+        return collect([$parentId])->merge($childIds)->unique()->values()->all();
+    }
+
     private function applyTimeFilter($query, Request $request)
     {
         if ($request->has('start_date') && $request->has('end_date')) {
@@ -98,6 +128,7 @@ class ReportController extends Controller
 
     private function buildFamilySummary(string $parentId, Request $request): array
     {
+        $allUserIds = collect($this->resolveTargetUserIds($request, $parentId));
         $childIds = ParentChildRelation::query()
             ->where('parent_id', $parentId)
             ->where('is_active', true)
@@ -105,57 +136,51 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
-        $allUserIds = collect([$parentId])->merge($childIds)->unique()->values();
-
         $group = $request->query('group', 'semua');
-        if ($group === 'ortu') {
-            $allUserIds = collect([$parentId]);
-        } elseif ($group === 'anak') {
-            $allUserIds = $childIds;
-        }
+        $childId = $request->query('child_id');
+        $effectiveGroup = $childId ? 'anak' : $group;
 
         $txBase = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('status', config('constants.transaction_status.berhasil'));
-        
+
         $txBase = $this->applyTimeFilter($txBase, $request);
 
         $incomeQuery = (clone $txBase)->where('jenis', config('constants.transaction_types.pemasukan'));
         $expenseQuery = (clone $txBase)->where('jenis', config('constants.transaction_types.pengeluaran'));
 
-        if ($group === 'semua') {
+        if ($effectiveGroup === 'semua') {
             $income = (float) $incomeQuery->where('is_internal', '!=', true)->sum('jumlah');
             $expense = (float) $expenseQuery->where('is_internal', '!=', true)->sum('jumlah');
         } else {
             $income = (float) $incomeQuery->sum('jumlah');
             $expense = (float) $expenseQuery->sum('jumlah');
         }
-        
+
         $childWalletTotal = 0;
-        if ($group !== 'ortu' && $childIds->isNotEmpty()) {
-            $groupChildIds = ($group === 'anak') ? $childIds : $childIds;
+        if ($effectiveGroup !== 'ortu' && $childIds->isNotEmpty()) {
+            $groupChildIds = ($effectiveGroup === 'anak') ? $allUserIds : $childIds;
             $childWalletTotal = (float) Wallet::query()->whereIn('user_id', $groupChildIds->all())->sum('saldo_sekarang');
         }
-        
-        $parentWallet = ($group !== 'anak') ? Wallet::firstOrCreate(['user_id' => $parentId], ['saldo_sekarang' => 0]) : null;
+
+        $parentWallet = ($effectiveGroup !== 'anak') ? Wallet::firstOrCreate(['user_id' => $parentId], ['saldo_sekarang' => 0]) : null;
         $currentSaldoTotal = $childWalletTotal + (($parentWallet) ? (float) $parentWallet->saldo_sekarang : 0);
 
         $selectedMonth = $request->query('month', now()->format('Y-m'));
         $endOfSelectedMonth = now()->createFromFormat('Y-m', $selectedMonth)->endOfMonth()->toDateString();
         $endOfPrevMonth = now()->createFromFormat('Y-m', $selectedMonth)->subMonth()->endOfMonth()->toDateString();
 
-        // Calculate saldoAkhir (closing balance of selected month)
         $afterQuery = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('status', config('constants.transaction_status.berhasil'))
             ->where('tanggal', '>', $endOfSelectedMonth);
 
-        if ($group === 'semua') {
+        if ($effectiveGroup === 'semua') {
             $afterQuery->where('is_internal', '!=', true);
         }
 
         $transactionsAfterSelected = $afterQuery->get(['jenis', 'jumlah']);
-        
+
         $netAfterSelected = 0;
         foreach ($transactionsAfterSelected as $t) {
             if ($t->jenis === config('constants.transaction_types.pemasukan')) {
@@ -166,18 +191,17 @@ class ReportController extends Controller
         }
         $saldoAkhir = $currentSaldoTotal + $netAfterSelected;
 
-        // Calculate saldoBulanLalu (closing balance of previous month)
         $prevQuery = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
             ->where('status', config('constants.transaction_status.berhasil'))
             ->where('tanggal', '>', $endOfPrevMonth);
 
-        if ($group === 'semua') {
+        if ($effectiveGroup === 'semua') {
             $prevQuery->where('is_internal', '!=', true);
         }
 
         $transactionsAfterPrev = $prevQuery->get(['jenis', 'jumlah']);
-        
+
         $netAfterPrev = 0;
         foreach ($transactionsAfterPrev as $t) {
             if ($t->jenis === config('constants.transaction_types.pemasukan')) {
@@ -188,7 +212,7 @@ class ReportController extends Controller
         }
         $saldoBulanLalu = $currentSaldoTotal + $netAfterPrev;
 
-        return [
+        $result = [
             'bulan' => $selectedMonth,
             'totalPemasukan' => $income,
             'totalPengeluaran' => $expense,
@@ -197,6 +221,13 @@ class ReportController extends Controller
             'saldoBulanLalu' => $saldoBulanLalu,
             'childCount' => $childIds->count(),
         ];
+
+        if ($childId) {
+            $childUser = \App\Models\User::find($childId);
+            $result['username'] = $childUser?->username;
+        }
+
+        return $result;
     }
 
     public function summary(Request $request)
