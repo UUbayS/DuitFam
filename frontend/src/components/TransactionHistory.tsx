@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, Button, Spinner, Form, Dropdown } from 'react-bootstrap';
+import { Card, Button, Spinner, Form, Dropdown, Modal } from 'react-bootstrap';
 import * as Icons from 'react-bootstrap-icons';
-import { EyeFill, EyeSlashFill, Tag, PeopleFill, PersonFill, PersonWorkspace, ThreeDotsVertical, PencilSquare, Trash, Lock } from 'react-bootstrap-icons';
+import { EyeFill, EyeSlashFill, Tag, PeopleFill, PersonFill, PersonWorkspace, ThreeDotsVertical, PencilSquare, Trash, Lock, Printer, XCircleFill, CheckCircleFill } from 'react-bootstrap-icons';
 import { fetchTransactionHistory, fetchMonthlySummary, fetchFamilyTransactionHistory, fetchFamilyMonthlySummary } from '../services/report.service';
+import { bulkCancelTransactions } from '../services/transaction.service';
 import type { TransactionHistoryItem, MonthlySummary } from '../types/report.types';
 import { useTimeFilter } from '../hooks/useTimeFilter';
 import Pagination from './Pagination';
@@ -43,6 +44,11 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
     const [perPage, setPerPage] = useState(20);
     const [total, setTotal] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [bulkResult, setBulkResult] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
     const periodKey = useMemo(() => JSON.stringify(period.apiParam), [period.apiParam]);
 
@@ -97,6 +103,10 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
         loadHistoryData();
     }, [loadHistoryData, onTransactionAdded]);
 
+    useEffect(() => {
+        setSelectedIds(new Set());
+    }, [periodKey, viewFilter, filter, currentPage]);
+
     const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         setFilter(e.target.value as 'all' | 'pemasukan' | 'pengeluaran');
         setCurrentPage(1);
@@ -112,6 +122,44 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
         setCurrentPage(1);
     };
 
+    const toggleSelect = (id: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const clearSelection = () => setSelectedIds(new Set());
+
+    const handleBulkCancel = async () => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        setBulkLoading(true);
+        setBulkResult(null);
+        try {
+            const { message } = await bulkCancelTransactions(ids);
+            setBulkResult({ type: 'success', text: message });
+            setShowBulkConfirm(false);
+            clearSelection();
+            onTransactionAdded();
+        } catch (err: any) {
+            setBulkResult({
+                type: 'danger',
+                text: err.response?.data?.message || 'Pembatalan massal gagal. Silakan coba lagi.',
+            });
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!bulkResult) return;
+        const timer = setTimeout(() => setBulkResult(null), 4000);
+        return () => clearTimeout(timer);
+    }, [bulkResult]);
+
     const totalPemasukan = summary?.totalPemasukan || 0;
     const totalPengeluaran = summary?.totalPengeluaran || 0;
     const totalNeto = summary?.neto || 0;
@@ -123,6 +171,33 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
         return true;
     });
 
+    const manageableTransactions = useMemo(
+        () => filteredTransactions.filter((tx) => {
+            const isCancelled = tx.status === 'dibatalkan';
+            return !tx.is_internal && !isCancelled && Boolean(onEditTransaction || onDeleteTransaction);
+        }),
+        [filteredTransactions, onEditTransaction, onDeleteTransaction]
+    );
+
+    const allManageableSelected = manageableTransactions.length > 0
+        && manageableTransactions.every((tx) => selectedIds.has(tx.id_transaksi));
+
+    const toggleSelectAll = () => {
+        if (allManageableSelected) {
+            setSelectedIds((prev) => {
+                const next = new Set(prev);
+                manageableTransactions.forEach((tx) => next.delete(tx.id_transaksi));
+                return next;
+            });
+        } else {
+            setSelectedIds((prev) => {
+                const next = new Set(prev);
+                manageableTransactions.forEach((tx) => next.add(tx.id_transaksi));
+                return next;
+            });
+        }
+    };
+
     return (
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px 20px 24px 20px', backgroundColor: 'var(--bg-history)' }}>
             
@@ -132,9 +207,14 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                     <h5 className="mb-0 fw-bold text-dark" style={{ fontSize: 17 }}>
                         {period.display}
                     </h5>
-                    <Button variant="link" className="p-0 text-secondary shadow-none" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
-                        {isBalanceVisible ? <EyeFill size={18} /> : <EyeSlashFill size={18} />}
-                    </Button>
+                    <div className="d-flex align-items-center gap-2 no-print">
+                        <Button variant="link" className="p-1 text-secondary shadow-none" onClick={() => window.print()} title="Cetak daftar transaksi">
+                            <Printer size={18} />
+                        </Button>
+                        <Button variant="link" className="p-0 text-secondary shadow-none" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
+                            {isBalanceVisible ? <EyeFill size={18} /> : <EyeSlashFill size={18} />}
+                        </Button>
+                    </div>
                 </div>
 
                 {loading ? (
@@ -252,8 +332,28 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
             <option value="pengeluaran">Pengeluaran</option>
         </Form.Select>
 
-        <div className="mb-3 fw-bold text-dark" style={{ flexShrink: 0, fontSize: 18, textAlign: 'center' }}>Riwayat Transaksi</div>
-                    
+        <div className="mb-3 fw-bold text-dark d-flex align-items-center justify-content-between" style={{ flexShrink: 0, fontSize: 18, textAlign: 'center' }}>
+            <span className="flex-grow-1">Riwayat Transaksi</span>
+            {manageableTransactions.length > 0 && (
+                <Form.Check
+                    type="checkbox"
+                    id="select-all-page"
+                    className="no-print"
+                    style={{ fontSize: 12, fontWeight: 500, flexShrink: 0, marginRight: 8 }}
+                    label={`Pilih semua (${manageableTransactions.length})`}
+                    checked={allManageableSelected}
+                    onChange={toggleSelectAll}
+                />
+            )}
+        </div>
+
+        {bulkResult && (
+            <div className={`alert alert-${bulkResult.type} py-2 px-3 small mb-3 no-print`} role="alert" style={{ borderRadius: 12, flexShrink: 0 }}>
+                {bulkResult.type === 'success' ? <CheckCircleFill className="me-2" /> : <XCircleFill className="me-2" />}
+                {bulkResult.text}
+            </div>
+        )}
+
         <div style={{ flexGrow: 1, overflowY: 'auto', minHeight: 0 }} className="no-scrollbar px-1">
             {error ? (
                 <div className="text-danger small mb-2 text-center">{error}</div>
@@ -270,7 +370,17 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                     <Card key={tx.id_transaksi} className="mb-3 shadow-sm border-0 transition-all hover-shadow" style={{ borderRadius: '18px', opacity: isCancelled ? 0.55 : 1 }}>
                         <Card.Body className="p-3">
                             <div className="d-flex align-items-center gap-3">
-                                <div 
+                                {canManage && (
+                                    <Form.Check
+                                        type="checkbox"
+                                        id={`select-tx-${tx.id_transaksi}`}
+                                        className="no-print flex-shrink-0"
+                                        checked={selectedIds.has(tx.id_transaksi)}
+                                        onChange={() => toggleSelect(tx.id_transaksi)}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                )}
+                                <div
                                     className={`d-flex align-items-center justify-content-center flex-shrink-0`}
                                     style={{ 
                                         width: '45px', 
@@ -375,6 +485,36 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                 </Button>
             </div>
         )}
+
+        {selectedIds.size > 0 && (
+            <div className="bulk-action-bar no-print">
+                <span className="selected-count">{selectedIds.size} dipilih</span>
+                <Button variant="outline-secondary" size="sm" onClick={clearSelection}>
+                    Batal
+                </Button>
+                <Button variant="danger" size="sm" onClick={() => setShowBulkConfirm(true)}>
+                    Batalkan ({selectedIds.size})
+                </Button>
+            </div>
+        )}
+
+        <Modal show={showBulkConfirm} onHide={() => !bulkLoading && setShowBulkConfirm(false)} centered>
+            <Modal.Header closeButton={!bulkLoading}>
+                <Modal.Title>Batalkan {selectedIds.size} Transaksi?</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <p className="mb-2">Saldo akan dikembalikan untuk semua transaksi yang dipilih.</p>
+                <p className="text-muted small mb-0">Tindakan ini tidak dapat dibatalkan. Jika ada satu transaksi yang tidak memenuhi syarat, semua perubahan akan dibatalkan.</p>
+            </Modal.Body>
+            <Modal.Footer>
+                <Button variant="outline-secondary" onClick={() => setShowBulkConfirm(false)} disabled={bulkLoading}>
+                    Kembali
+                </Button>
+                <Button variant="danger" onClick={handleBulkCancel} disabled={bulkLoading}>
+                    {bulkLoading ? <Spinner size="sm" /> : `Ya, Batalkan ${selectedIds.size}`}
+                </Button>
+            </Modal.Footer>
+        </Modal>
     </div>
     );
 };

@@ -23,6 +23,10 @@ Route::middleware("auth.token")->group(function () {
     Route::get("/auth/parent-status", [AuthController::class, "parentStatus"]);
 
     Route::post("/transactions", [TransactionController::class, "store"]);
+    Route::post("/transactions/bulk-cancel", [
+        TransactionController::class,
+        "bulkCancel",
+    ]);
     Route::post("/transactions/deposit", [
         TransactionController::class,
         "deposit",

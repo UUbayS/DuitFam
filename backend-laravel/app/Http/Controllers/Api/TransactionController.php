@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BulkCancelRequest;
 use App\Http\Requests\StoreTransactionRequest;
 use App\Models\Category;
 use App\Models\Mongo\NotificationFeed;
@@ -363,34 +364,107 @@ class TransactionController extends Controller
         }
 
         return $this->safeMongoTransaction(function () use ($request, $transaction) {
-            $oldAmount = (float) $transaction->jumlah;
-            $oldJenis = $transaction->jenis;
-            $oldSourceId = $transaction->source_id ? (string) $transaction->source_id : null;
-
-            $this->revertBalanceDelta($transaction->user_id, $oldJenis, $oldAmount, $oldSourceId);
-
-            $transaction->status = config('constants.transaction_status.dibatalkan');
-            $transaction->save();
-
-            NotificationFeed::create([
-                'user_id' => (string) $transaction->user_id,
-                'title' => 'Transaksi dibatalkan',
-                'message' => 'Transaksi '.$oldJenis.' sebesar '.number_format($oldAmount, 0, ',', '.').' telah dibatalkan dan saldo dikembalikan.',
-                'read_at' => null,
-                'meta' => ['transaction_id' => (string) $transaction->id],
-            ]);
-
-            $this->mongoAuditService->log($request, $transaction->user_id, 'transaction.cancelled', [
-                'transaction_id' => $transaction->id,
-                'amount' => $oldAmount,
-                'jenis' => $oldJenis,
-                'source_id' => $oldSourceId,
-            ]);
+            $this->cancelTransaction($transaction, $request);
 
             return response()->json([
                 'message' => 'Transaksi dibatalkan dan saldo telah dikembalikan.',
             ]);
         });
+    }
+
+    public function bulkCancel(BulkCancelRequest $request)
+    {
+        $user = $request->user();
+        $ids = $request->validated()['ids'];
+
+        try {
+            $cancelled = $this->safeMongoTransaction(function () use ($request, $user, $ids) {
+                $childIds = $this->getOwnedChildIds($user);
+                $cancelled = [];
+
+                foreach ($ids as $id) {
+                    $tx = Transaction::where('_id', $id)->first();
+                    if (! $tx) {
+                        throw new \RuntimeException("Transaksi tidak ditemukan: {$id}");
+                    }
+
+                    $isOwner = (string) $tx->user_id === (string) $user->id;
+                    $isParentOfOwner = in_array((string) $tx->user_id, $childIds, true);
+                    if (! $isOwner && ! $isParentOfOwner) {
+                        throw new \RuntimeException("Tidak punya akses pada transaksi: {$id}");
+                    }
+
+                    if ($tx->status === config('constants.transaction_status.dibatalkan')) {
+                        throw new \RuntimeException("Transaksi sudah dibatalkan: {$id}");
+                    }
+
+                    if ($tx->is_internal) {
+                        throw new \RuntimeException("Transaksi internal tidak dapat dibatalkan: {$id}");
+                    }
+
+                    if (in_array($tx->jenis, [
+                        config('constants.transaction_types.menabung'),
+                        config('constants.transaction_types.refund'),
+                    ], true)) {
+                        throw new \RuntimeException("Transaksi tabungan tidak dapat dibatalkan langsung: {$id}");
+                    }
+
+                    $this->cancelTransaction($tx, $request);
+                    $cancelled[] = (string) $tx->id;
+                }
+
+                return $cancelled;
+            });
+
+            return response()->json([
+                'message' => count($cancelled) . ' transaksi berhasil dibatalkan.',
+                'cancelled' => $cancelled,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Pembatalan massal gagal: ' . $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    protected function cancelTransaction(Transaction $tx, Request $request): void
+    {
+        $oldAmount = (float) $tx->jumlah;
+        $oldJenis = $tx->jenis;
+        $oldSourceId = $tx->source_id ? (string) $tx->source_id : null;
+
+        $this->revertBalanceDelta($tx->user_id, $oldJenis, $oldAmount, $oldSourceId);
+
+        $tx->status = config('constants.transaction_status.dibatalkan');
+        $tx->save();
+
+        NotificationFeed::create([
+            'user_id' => (string) $tx->user_id,
+            'title' => 'Transaksi dibatalkan',
+            'message' => 'Transaksi '.$oldJenis.' sebesar '.number_format($oldAmount, 0, ',', '.').' telah dibatalkan dan saldo dikembalikan.',
+            'read_at' => null,
+            'meta' => ['transaction_id' => (string) $tx->id],
+        ]);
+
+        $this->mongoAuditService->log($request, $tx->user_id, 'transaction.cancelled', [
+            'transaction_id' => $tx->id,
+            'amount' => $oldAmount,
+            'jenis' => $oldJenis,
+            'source_id' => $oldSourceId,
+        ]);
+    }
+
+    protected function getOwnedChildIds(User $user): array
+    {
+        if ($user->role !== config('constants.roles.parent')) {
+            return [];
+        }
+        return ParentChildRelation::query()
+            ->where('parent_id', (string) $user->id)
+            ->where('is_active', true)
+            ->pluck('child_id')
+            ->map(fn($id) => (string) $id)
+            ->all();
     }
 
     protected function revertBalanceDelta(string $userId, string $jenis, float $amount, ?string $sourceId): void

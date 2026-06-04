@@ -40,8 +40,6 @@ interface AIChatBoxProps {
 }
 
 const AIChatBox: React.FC<AIChatBoxProps> = ({ hidden }) => {
-    if (hidden) return null;
-
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
@@ -107,6 +105,8 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ hidden }) => {
             fetchFinancialData();
         }
     }, [isOpen, fetchFinancialData]);
+
+    if (hidden) return null;
 
     const formatCurrency = (amount: number): string => {
         return new Intl.NumberFormat("id-ID", {

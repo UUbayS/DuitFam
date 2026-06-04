@@ -46,13 +46,196 @@ html, body {
 /* 3. STYLING TAMBAHAN & RESPONSIVITAS */
 /* ======================================= */
 
-:root {
+:root,
+[data-theme="light"] {
   --sidebar-width: 260px;
   --history-width: 340px;
   --primary-color: #007bff;
-  --bg-main: #f0f7ff; 
+  --primary-color-hover: #0069d9;
+  --bg-main: #f0f7ff;
   --bg-history: #cfeeff;
   --white: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #f8fafc;
+  --bg-subtle: #f8f9fa;
+  --bg-hover: #f8f9fa;
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --text-muted: #6c757d;
+  --border-light: #e2e8f0;
+  --border-default: #dee2e6;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+  --scrollbar-thumb: #cbd5e0;
+  --scrollbar-thumb-hover: #a0aec0;
+}
+
+:root[data-theme="dark"] {
+  --sidebar-width: 260px;
+  --history-width: 340px;
+  --primary-color: #5d9cf5;
+  --primary-color-hover: #7aaef7;
+  --bg-main: #21262d;
+  --bg-history: #1c2027;
+  --white: #2a3038;
+  --bg-card: #2a3038;
+  --bg-input: #1c2027;
+  --bg-subtle: #242a32;
+  --bg-hover: #2f353f;
+  --text-primary: #d6d9de;
+  --text-secondary: #9ca2ad;
+  --text-muted: #7a8089;
+  --border-light: #353c47;
+  --border-default: #434a57;
+  --shadow-color: rgba(0, 0, 0, 0.35);
+  --scrollbar-thumb: #434a57;
+  --scrollbar-thumb-hover: #5a626e;
+
+  --bs-body-bg: #21262d;
+  --bs-body-color: #d6d9de;
+  --bs-emphasis-color: #d6d9de;
+  --bs-secondary-color: #9ca2ad;
+  --bs-tertiary-color: #7a8089;
+  --bs-secondary-bg: #242a32;
+  --bs-tertiary-bg: #2f353f;
+  --bs-border-color: #434a57;
+  --bs-border-color-translucent: #434a57;
+  --bs-link-color: #5d9cf5;
+  --bs-link-hover-color: #7aaef7;
+  --bs-card-bg: #2a3038;
+  --bs-card-color: #d6d9de;
+  --bs-card-border-color: #353c47;
+  --bs-card-cap-bg: #242a32;
+  --bs-modal-bg: #2a3038;
+  --bs-modal-color: #d6d9de;
+  --bs-modal-border-color: #353c47;
+  --bs-modal-header-border-color: #353c47;
+  --bs-modal-footer-border-color: #353c47;
+  --bs-dropdown-bg: #2a3038;
+  --bs-dropdown-color: #d6d9de;
+  --bs-dropdown-border-color: #353c47;
+  --bs-dropdown-link-color: #d6d9de;
+  --bs-dropdown-link-hover-bg: #2f353f;
+  --bs-dropdown-link-hover-color: #d6d9de;
+  --bs-dropdown-link-active-bg: #5d9cf5;
+  --bs-dropdown-link-active-color: #ffffff;
+  --bs-dropdown-link-disabled-color: #7a8089;
+  --bs-list-group-bg: #2a3038;
+  --bs-list-group-color: #d6d9de;
+  --bs-list-group-border-color: #353c47;
+  --bs-list-group-action-color: #d6d9de;
+  --bs-list-group-action-hover-bg: #2f353f;
+  --bs-list-group-action-hover-color: #d6d9de;
+  --bs-list-group-action-active-bg: #2f353f;
+  --bs-list-group-action-active-color: #d6d9de;
+  --bs-list-group-disabled-color: #7a8089;
+  --bs-list-group-disabled-bg: #242a32;
+  --bs-form-control-bg: #1c2027;
+  --bs-form-control-color: #d6d9de;
+  --bs-form-control-disabled-bg: #242a32;
+  --bs-form-select-bg: #1c2027;
+  --bs-form-select-color: #d6d9de;
+  --bs-form-select-disabled-bg: #242a32;
+  --bs-table-bg: #2a3038;
+  --bs-table-color: #d6d9de;
+  --bs-table-border-color: #353c47;
+  --bs-table-striped-bg: #2f353f;
+  --bs-table-striped-color: #d6d9de;
+  --bs-table-hover-bg: #2f353f;
+  --bs-table-hover-color: #d6d9de;
+  --bs-pagination-bg: #2a3038;
+  --bs-pagination-color: #d6d9de;
+  --bs-pagination-border-color: #353c47;
+  --bs-pagination-hover-bg: #2f353f;
+  --bs-pagination-hover-color: #d6d9de;
+  --bs-pagination-hover-border-color: #434a57;
+  --bs-pagination-active-bg: #5d9cf5;
+  --bs-pagination-active-color: #ffffff;
+  --bs-pagination-active-border-color: #5d9cf5;
+  --bs-pagination-disabled-bg: #242a32;
+  --bs-pagination-disabled-color: #7a8089;
+  --bs-pagination-disabled-border-color: #353c47;
+  --bs-nav-link-color: #9ca2ad;
+  --bs-nav-link-hover-color: #d6d9de;
+  --bs-nav-tabs-border-color: #353c47;
+  --bs-nav-tabs-link-hover-border-color: #353c47 #353c47 #2a3038;
+  --bs-nav-tabs-link-active-color: #d6d9de;
+  --bs-nav-tabs-link-active-bg: #2a3038;
+  --bs-nav-tabs-link-active-border-color: #353c47 #353c47 #2a3038;
+  --bs-progress-bg: #242a32;
+  --bs-progress-bar-bg: #5d9cf5;
+  --bs-spinner-color: #5d9cf5;
+}
+
+[data-theme="dark"] .bg-gradient-full {
+  background: linear-gradient(to top, #2c3540 30%, #21262d 100%);
+}
+
+[data-theme="dark"] [style*="backgroundColor: '#ffffff'"],
+[data-theme="dark"] [style*="backgroundColor: '#fff'"],
+[data-theme="dark"] [style*="backgroundColor: '#f8f9fa'"],
+[data-theme="dark"] [style*="backgroundColor: '#f8fafc'"],
+[data-theme="dark"] [style*="backgroundColor:'#ffffff'"],
+[data-theme="dark"] [style*="backgroundColor:'#fff'"],
+[data-theme="dark"] [style*="backgroundColor:'#f8f9fa'"],
+[data-theme="dark"] [style*="backgroundColor:'#f8fafc'"],
+[data-theme="dark"] [style*="background-color: #ffffff"],
+[data-theme="dark"] [style*="background-color: #fff"],
+[data-theme="dark"] [style*="background-color: #f8f9fa"],
+[data-theme="dark"] [style*="background-color: #f8fafc"] {
+  background-color: var(--bg-card) !important;
+}
+
+[data-theme="dark"] .text-dark {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .bg-light {
+  background-color: var(--bg-subtle) !important;
+}
+
+[data-theme="dark"] .border,
+[data-theme="dark"] .border-top,
+[data-theme="dark"] .border-bottom,
+[data-theme="dark"] .border-start,
+[data-theme="dark"] .border-end {
+  border-color: var(--border-light) !important;
+}
+
+[data-theme="dark"] [style*="border: '1px solid #e2e8f0'"],
+[data-theme="dark"] [style*="border: '1px solid #dee2e6'"],
+[data-theme="dark"] [style*="border: 1px solid #e2e8f0"],
+[data-theme="dark"] [style*="border: 1px solid #dee2e6"] {
+  border-color: var(--border-light) !important;
+}
+
+[data-theme="dark"] [style*="color: '#333'"],
+[data-theme="dark"] [style*="color: '#333333'"],
+[data-theme="dark"] [style*="color: '#1a1a2e'"],
+[data-theme="dark"] [style*="color:'#333'"],
+[data-theme="dark"] [style*="color:'#333333'"],
+[data-theme="dark"] [style*="color: #333"],
+[data-theme="dark"] [style*="color: #1a1a2e"] {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] [style*="color: '#666'"],
+[data-theme="dark"] [style*="color: '#666666'"],
+[data-theme="dark"] [style*="color: '#777'"],
+[data-theme="dark"] [style*="color:'#666'"],
+[data-theme="dark"] [style*="color: #666"] {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .shadow,
+[data-theme="dark"] .shadow-sm,
+[data-theme="dark"] .shadow-lg {
+  box-shadow: 0 0.5rem 1rem var(--shadow-color) !important;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Definisikan class background yang dipakai di Login/Register */
@@ -73,9 +256,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .back-button-wrapper:hover {
-  background-color: #f8f9fa !important;
+  background-color: var(--bg-hover) !important;
   transform: translateX(-5px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+  box-shadow: 0 4px 8px var(--shadow-color) !important;
 }
 
 .content-container {
@@ -147,11 +330,11 @@ aside {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
+    background: var(--scrollbar-thumb);
     border-radius: 10px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #a0aec0;
+    background: var(--scrollbar-thumb-hover);
   }
 }
 
@@ -201,5 +384,78 @@ aside {
     width: 100%;
     height: 100%;
     border-radius: 0 !important;
+  }
+}
+
+/* ======================================= */
+/* 5. BULK ACTION BAR (C5) */
+/* ======================================= */
+
+.bulk-action-bar {
+  position: sticky;
+  bottom: 0;
+  background-color: var(--white);
+  border-top: 1px solid var(--border-light);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 10;
+  box-shadow: 0 -2px 8px var(--shadow-color);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.bulk-action-bar .selected-count {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+  flex-grow: 1;
+}
+
+/* ======================================= */
+/* 6. PRINT STYLES (C4) */
+/* ======================================= */
+
+@media print {
+  html, body {
+    background: white !important;
+    color: black !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .no-print,
+  .ai-chat-launcher,
+  .ai-chat-window,
+  aside.sidebar,
+  nav.bottom-nav,
+  .bottom-nav,
+  .sidebar {
+    display: none !important;
+  }
+
+  .content-container {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+
+  .transaction-list-scroll,
+  .no-scrollbar {
+    max-height: none !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .card,
+  [class*="card"] {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    page-break-inside: avoid;
+    background: white !important;
+  }
+
+  button {
+    display: none !important;
   }
 }

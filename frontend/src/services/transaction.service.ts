@@ -29,3 +29,8 @@ export const deleteTransaction = async (id: string): Promise<{ message: string }
     const response = await api.delete(`/transactions/${id}`);
     return response.data;
 };
+
+export const bulkCancelTransactions = async (ids: string[]): Promise<{ message: string; cancelled: string[] }> => {
+    const response = await api.post('/transactions/bulk-cancel', { ids });
+    return response.data;
+};
