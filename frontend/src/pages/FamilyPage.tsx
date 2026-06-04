@@ -33,6 +33,7 @@ const formatRupiah = (amount: number) => {
     const [summary, setSummary] = useState<ReportTypes.MonthlySummary | null>(null);
     const [historicalData, setHistoricalData] = useState<ReportTypes.AnalysisReport['chartData']>([]);
     const [children, setChildren] = useState<Array<{ id: string; username: string; email: string; is_active: boolean; saldo: number; percentage_change: number }>>([]);
+    const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
     const [createChildModalOpen, setCreateChildModalOpen] = useState(false);
 
@@ -68,6 +69,12 @@ const formatRupiah = (amount: number) => {
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    useEffect(() => {
+        if (selectedChildId && !children.some(c => c.id === selectedChildId)) {
+            setSelectedChildId(null);
+        }
+    }, [children, selectedChildId]);
 
     const childCount = useMemo(() => children.length, [children.length]);
 
@@ -147,7 +154,16 @@ const formatRupiah = (amount: number) => {
 
             {error ? <Alert variant="danger" style={{ borderRadius: 15 }}>{error}</Alert> : null}
 
-            <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 25 }}>
+            <Card
+                className="border-0 shadow-sm mb-4"
+                style={{
+                    borderRadius: 25,
+                    cursor: 'pointer',
+                    border: selectedChildId === null ? '2px solid #1389f9' : '2px solid transparent',
+                    transition: 'border-color 0.2s ease',
+                }}
+                onClick={() => setSelectedChildId(null)}
+            >
                 <Card.Body className="p-4 px-5">
                     <div className="d-flex justify-content-between align-items-start">
                         <div>
@@ -173,49 +189,62 @@ const formatRupiah = (amount: number) => {
             </Card>
 
             <Row className="g-4 mb-4">
-                {children.map((c) => (
-                    <Col key={c.id} md={6}>
-                        <Card className="border-0 shadow-sm" style={{ borderRadius: 25, backgroundColor: '#dff0ff' }}>
-                            <Card.Body className="p-4">
-                                <div className="d-flex justify-content-between align-items-start">
-                                    <div className="d-flex align-items-center gap-3">
-                                        <div className="bg-primary bg-opacity-10 p-2 rounded-circle text-primary d-flex align-items-center justify-content-center" style={{ width: 48, height: 48 }}>
-                                            <div className="bg-primary rounded-circle" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', color: '#fff' }}>👤</div>
+                {children.map((c) => {
+                    const isSelected = selectedChildId === c.id;
+                    return (
+                        <Col key={c.id} md={6}>
+                            <Card
+                                className="border-0 shadow-sm"
+                                style={{
+                                    borderRadius: 25,
+                                    backgroundColor: '#dff0ff',
+                                    cursor: 'pointer',
+                                    border: isSelected ? '2px solid #1389f9' : '2px solid transparent',
+                                    transition: 'border-color 0.2s ease',
+                                }}
+                                onClick={() => setSelectedChildId(c.id)}
+                            >
+                                <Card.Body className="p-4">
+                                    <div className="d-flex justify-content-between align-items-start">
+                                        <div className="d-flex align-items-center gap-3">
+                                            <div className="bg-primary bg-opacity-10 p-2 rounded-circle text-primary d-flex align-items-center justify-content-center" style={{ width: 48, height: 48 }}>
+                                                <div className="bg-primary rounded-circle" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', color: '#fff' }}>👤</div>
+                                            </div>
+                                            <div>
+                                                <div className="fw-bold text-dark" style={{ fontSize: 22 }}>
+                                                    {c.username}
+                                                </div>
+                                                <div className="text-muted small">Saldo saat ini</div>
+                                                <div className="fw-bold mt-1" style={{ fontSize: 26, color: '#1389f9' }}>
+                                                    {showSaldo ? formatRupiah(c.saldo) : 'Rp ••••••'}
+                                                </div>
+                                                <div className={`fw-bold small ${c.percentage_change >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                    {c.percentage_change >= 0 ? '+' : ''}{c.percentage_change}% dari bulan lalu
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div className="fw-bold text-dark" style={{ fontSize: 22 }}>
-                                                {c.username}
-                                            </div>
-                                            <div className="text-muted small">Saldo saat ini</div>
-                                            <div className="fw-bold mt-1" style={{ fontSize: 26, color: '#1389f9' }}>
-                                                {showSaldo ? formatRupiah(c.saldo) : 'Rp ••••••'}
-                                            </div>
-                                            <div className={`fw-bold small ${c.percentage_change >= 0 ? 'text-success' : 'text-danger'}`}>
-                                                {c.percentage_change >= 0 ? '+' : ''}{c.percentage_change}% dari bulan lalu
-                                            </div>
+                                        <div className="d-flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                            <Button
+                                                variant="outline-danger"
+                                                onClick={() => openDeleteConfirm(c.id, c.username)}
+                                                style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', backgroundColor: 'rgba(220, 53, 69, 0.1)', color: '#dc3545' }}
+                                            >
+                                                <Trash size={20} />
+                                            </Button>
+                                            <Button
+                                                variant="primary"
+                                                onClick={() => openDeposit(c.id)}
+                                                style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            >
+                                                <Plus size={32} />
+                                            </Button>
                                         </div>
                                     </div>
-                                    <div className="d-flex gap-2">
-                                        <Button
-                                            variant="outline-danger"
-                                            onClick={() => openDeleteConfirm(c.id, c.username)}
-                                            style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', backgroundColor: 'rgba(220, 53, 69, 0.1)', color: '#dc3545' }}
-                                        >
-                                            <Trash size={20} />
-                                        </Button>
-                                        <Button
-                                            variant="primary"
-                                            onClick={() => openDeposit(c.id)}
-                                            style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                        >
-                                            <Plus size={32} />
-                                        </Button>
-                                    </div>
-                                </div>
-                            </Card.Body>
-                        </Card>
-                    </Col>
-                ))}
+                                </Card.Body>
+                            </Card>
+                        </Col>
+                    );
+                })}
                 <Col md={6}>
                     <Card 
                         onClick={() => setCreateChildModalOpen(true)}
