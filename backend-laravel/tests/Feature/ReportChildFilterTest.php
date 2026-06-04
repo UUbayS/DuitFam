@@ -67,11 +67,31 @@ class ReportChildFilterTest extends TestCase
         $child = $this->makeUser('child');
         $this->linkChild($parent, $child);
 
-        // group=ortu would normally restrict to parent only; child_id must take precedence
+        Transaction::create([
+            'user_id' => (string) $parent->id,
+            'jenis' => config('constants.transaction_types.pemasukan'),
+            'jumlah' => 999,
+            'status' => config('constants.transaction_status.berhasil'),
+            'tanggal' => now()->format('Y-m-d'),
+            'is_internal' => false,
+        ]);
+
+        Transaction::create([
+            'user_id' => (string) $child->id,
+            'jenis' => config('constants.transaction_types.pemasukan'),
+            'jumlah' => 100,
+            'status' => config('constants.transaction_status.berhasil'),
+            'tanggal' => now()->format('Y-m-d'),
+            'is_internal' => false,
+        ]);
+
+        // group=ortu would normally restrict to parent only; child_id must take precedence.
+        // Asserting on totalPemasukan proves scope: child's 100 is included, parent's 999 is excluded.
         $response = $this->withHeaders($this->authHeaders($parent))
             ->getJson('/api/reports/family/summary?child_id=' . $child->id . '&group=ortu');
 
         $response->assertStatus(200);
         $response->assertJsonPath('data.username', $child->username);
+        $response->assertJsonPath('data.totalPemasukan', 100);
     }
 }

@@ -9,6 +9,7 @@ use App\Models\Mongo\AnalyticsSnapshot;
 use App\Models\Mongo\SmartInsight;
 use App\Models\ParentChildRelation;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WithdrawalRequest;
 use App\Services\GroqService;
@@ -136,9 +137,8 @@ class ReportController extends Controller
             ->map(fn ($id) => (string) $id)
             ->values();
 
-        $group = $request->query('group', 'semua');
         $childId = $request->query('child_id');
-        $effectiveGroup = $childId ? 'anak' : $group;
+        $effectiveGroup = $childId ? 'anak' : $request->query('group', 'semua');
 
         $txBase = Transaction::query()
             ->whereIn('user_id', $allUserIds->all())
@@ -223,7 +223,7 @@ class ReportController extends Controller
         ];
 
         if ($childId) {
-            $childUser = \App\Models\User::find($childId);
+            $childUser = User::find($childId);
             $result['username'] = $childUser?->username;
         }
 
