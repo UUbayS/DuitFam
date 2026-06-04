@@ -50,9 +50,10 @@ const formatRupiah = (amount: number) => {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
+            const params = { child_id: selectedChildId ?? undefined };
             const [s, hist, kids] = await Promise.all([
-                fetchFamilyMonthlySummary(),
-                fetchFamilyHistoricalData(),
+                fetchFamilyMonthlySummary(params),
+                fetchFamilyHistoricalData(params),
                 fetchChildrenBalancesService(),
             ]);
             setSummary(s);
@@ -64,11 +65,15 @@ const formatRupiah = (amount: number) => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedChildId]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    useEffect(() => {
+        loadData();
+    }, [selectedChildId, loadData]);
 
     useEffect(() => {
         if (selectedChildId && !children.some(c => c.id === selectedChildId)) {
@@ -268,7 +273,7 @@ const formatRupiah = (amount: number) => {
             <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 25 }}>
                 <Card.Body className="p-4">
                     <div className="fw-bold mb-4 text-dark" style={{ fontSize: 22 }}>
-                        Analisis Keuangan
+                        Analisis Keuangan - {summary?.username || 'Semua Anak'}
                     </div>
                     <div style={{ minHeight: 300 }}>
                         {historicalData.length > 0 ? (
