@@ -9,6 +9,7 @@ interface FilterParams {
     end_date?: string;   
     unit?: string; 
     group?: string;
+    child_id?: string;
 }
 
 const getCurrentMonth = (): string => {
