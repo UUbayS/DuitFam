@@ -1,7 +1,7 @@
     import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Row, Col, Card, Button, ProgressBar, Spinner, Alert, Modal, Form } from 'react-bootstrap';
+import { Row, Col, Card, Button, ProgressBar, Spinner, Alert, Modal, Form, Dropdown } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-    import { Bullseye, EyeFill, EyeSlashFill, Plus, Trash, DashCircle, ChevronLeft, ChevronRight } from 'react-bootstrap-icons';
+    import { Bullseye, EyeFill, EyeSlashFill, Plus, Trash, DashCircle, ChevronLeft, ChevronRight, ThreeDotsVertical, PencilSquare } from 'react-bootstrap-icons';
 import { fetchActiveTargets, contributeToTarget, withdrawFromTarget, cancelTarget } from '../services/target.service';
 import { fetchMonthlySummary } from '../services/report.service';
 import type * as TargetTypes from '../types/target.types';
@@ -47,6 +47,7 @@ import { useAuth } from '../context/AuthContext';
         const [deleteModalOpen, setDeleteModalOpen] = useState(false);
         const [selectedTarget, setSelectedTarget] = useState<{ id: string; name: string } | null>(null);
         const [amountInput, setAmountInput] = useState<string>('');
+        const [editingTarget, setEditingTarget] = useState<TargetTypes.TargetMenabung | null>(null);
         const scrollContainerRef = useRef<HTMLDivElement>(null);
 
         const scroll = (direction: 'left' | 'right') => {
@@ -126,6 +127,16 @@ import { useAuth } from '../context/AuthContext';
     const openDelete = (targetId: string, name: string) => {
         setSelectedTarget({ id: targetId, name });
         setDeleteModalOpen(true);
+    };
+
+    const openEdit = (target: TargetTypes.TargetMenabung) => {
+        setEditingTarget(target);
+        setShowAddSavingModal(true);
+    };
+
+    const closeAddSavingModal = () => {
+        setShowAddSavingModal(false);
+        setEditingTarget(null);
     };
 
     const submitDelete = async () => {
@@ -233,15 +244,40 @@ import { useAuth } from '../context/AuthContext';
                                                           <div className="text-muted" style={{ fontSize: 11 }}>Deadline: {formatTanggal(target.tanggal_target)}</div>
                                                       </div>
                                                  </div>
-                                                 <div>
-                                                     {target.status === 'tercapai' && (
-                                                         <span className="badge bg-success" style={{ fontSize: 10 }}>Tercapai</span>
-                                                     )}
-                                                     {target.status === 'aktif' && (
-                                                         <span className="badge bg-primary" style={{ fontSize: 10 }}>Aktif</span>
-                                                     )}
-                                                     {target.status === 'batal' && (
-                                                         <span className="badge bg-danger" style={{ fontSize: 10 }}>Batal</span>
+                                                 <div className="d-flex align-items-center gap-1">
+                                                     <div>
+                                                         {target.status === 'tercapai' && (
+                                                             <span className="badge bg-success" style={{ fontSize: 10 }}>Tercapai</span>
+                                                         )}
+                                                         {target.status === 'aktif' && (
+                                                             <span className="badge bg-primary" style={{ fontSize: 10 }}>Aktif</span>
+                                                         )}
+                                                         {target.status === 'batal' && (
+                                                             <span className="badge bg-danger" style={{ fontSize: 10 }}>Batal</span>
+                                                         )}
+                                                     </div>
+                                                     {target.status !== 'batal' && (
+                                                         <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                                                             <Dropdown.Toggle
+                                                                 variant="link"
+                                                                 id={`target-actions-${target.id_target}`}
+                                                                 className="p-0 text-secondary shadow-none border-0"
+                                                                 style={{ background: 'transparent', lineHeight: 1 }}
+                                                             >
+                                                                 <ThreeDotsVertical size={16} />
+                                                             </Dropdown.Toggle>
+                                                              <Dropdown.Menu
+                                                                  popperConfig={{ modifiers: [{ name: 'preventOverflow', options: { boundary: 'viewport' } }] }}
+                                                                  style={{ borderRadius: 12, fontSize: 13 }}
+                                                              >
+                                                                 <Dropdown.Item
+                                                                     onClick={() => openEdit(target)}
+                                                                     className="d-flex align-items-center gap-2"
+                                                                 >
+                                                                     <PencilSquare size={14} /> Edit Kantong
+                                                                 </Dropdown.Item>
+                                                             </Dropdown.Menu>
+                                                         </Dropdown>
                                                      )}
                                                  </div>
                                              </div>
@@ -450,7 +486,7 @@ import { useAuth } from '../context/AuthContext';
             </Modal>
 
             <TransactionModal show={showTransactionModal} handleClose={() => setShowTransactionModal(false)} onSuccess={loadData} />
-            <AddSavingGoalModal show={showAddSavingModal} handleClose={() => setShowAddSavingModal(false)} onSuccess={loadData} />
+            <AddSavingGoalModal show={showAddSavingModal} handleClose={closeAddSavingModal} onSuccess={() => { closeAddSavingModal(); loadData(); }} editingTarget={editingTarget} />
         </MainLayout>
     );
 };

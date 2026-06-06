@@ -1,23 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, InputGroup, Spinner, Alert } from 'react-bootstrap';
-import { createNewTarget } from '../services/target.service';
-import type { TargetInput } from '../types/target.types';
+import { createNewTarget, updateTarget } from '../services/target.service';
+import type { TargetInput, TargetMenabung } from '../types/target.types';
 import type { AxiosError } from 'axios';
 
 interface AddSavingGoalModalProps {
     show: boolean;
     handleClose: () => void;
     onSuccess: () => void;
+    editingTarget?: TargetMenabung | null;
 }
 
-const AddSavingGoalModal: React.FC<AddSavingGoalModalProps> = ({ show, handleClose, onSuccess }) => {
-    const [formData, setFormData] = useState<Omit<TargetInput, 'target_jumlah'> & { target_jumlah: string }>({
-        nama_target: '',
-        target_jumlah: '',
-        tanggal_target: '',
-    });
+const initialFormState: Omit<TargetInput, 'target_jumlah'> & { target_jumlah: string } = {
+    nama_target: '',
+    target_jumlah: '',
+    tanggal_target: '',
+};
+
+const AddSavingGoalModal: React.FC<AddSavingGoalModalProps> = ({ show, handleClose, onSuccess, editingTarget }) => {
+    const isEdit = Boolean(editingTarget);
+    const [formData, setFormData] = useState(initialFormState);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!show) return;
+        setError(null);
+        if (editingTarget) {
+            setFormData({
+                nama_target: editingTarget.nama_target ?? '',
+                target_jumlah: Number(editingTarget.target_jumlah).toLocaleString('id-ID'),
+                tanggal_target: (editingTarget.tanggal_target ?? '').toString().split('T')[0] ?? '',
+            });
+        } else {
+            setFormData(initialFormState);
+        }
+    }, [show, editingTarget]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -39,19 +57,34 @@ const AddSavingGoalModal: React.FC<AddSavingGoalModalProps> = ({ show, handleClo
             return;
         }
 
+        if (isEdit && editingTarget) {
+            const current = Number(editingTarget.jumlah_terkumpul) || 0;
+            if (numericTarget < current) {
+                setError(`Target tidak boleh lebih kecil dari jumlah terkumpul saat ini (Rp ${current.toLocaleString('id-ID')}).`);
+                return;
+            }
+        }
+
         setLoading(true);
         try {
-            await createNewTarget({
-                nama_target: formData.nama_target,
-                target_jumlah: numericTarget,
-                tanggal_target: formData.tanggal_target
-            });
+            if (isEdit && editingTarget) {
+                await updateTarget(editingTarget.id_target, {
+                    nama_target: formData.nama_target,
+                    target_jumlah: numericTarget,
+                    tanggal_target: formData.tanggal_target,
+                });
+            } else {
+                await createNewTarget({
+                    nama_target: formData.nama_target,
+                    target_jumlah: numericTarget,
+                    tanggal_target: formData.tanggal_target
+                });
+            }
             onSuccess();
             handleClose();
-            setFormData({ nama_target: '', target_jumlah: '', tanggal_target: '' });
         } catch (err: any) {
             const axiosError = err as AxiosError<{ message: string }>;
-            setError(axiosError.response?.data?.message || 'Gagal membuat kantong tabungan.');
+            setError(axiosError.response?.data?.message || (isEdit ? 'Gagal memperbarui kantong tabungan.' : 'Gagal membuat kantong tabungan.'));
         } finally {
             setLoading(false);
         }
@@ -61,7 +94,9 @@ const AddSavingGoalModal: React.FC<AddSavingGoalModalProps> = ({ show, handleClo
         <Modal show={show} onHide={handleClose} centered backdrop="static" className="add-saving-modal">
             <div className="bg-white" style={{ borderRadius: '5px', overflow: 'hidden', border: 'none' }}>
                 <div className="bg-primary p-4 text-center position-relative">
-                    <h4 className="modal-title text-white fw-bold mb-0">Tambah Kantong Tabungan</h4>
+                    <h4 className="modal-title text-white fw-bold mb-0">
+                        {isEdit ? 'Edit Kantong Tabungan' : 'Tambah Kantong Tabungan'}
+                    </h4>
                     <Button 
                         variant="link" 
                         className="text-white position-absolute top-50 end-0 translate-middle-y me-3" 
@@ -132,7 +167,7 @@ const AddSavingGoalModal: React.FC<AddSavingGoalModalProps> = ({ show, handleClo
                             className="w-100 py-3 fw-bold border-0 shadow-sm" 
                             style={{ borderRadius: '25px', backgroundColor: '#007bff', fontSize: '18px' }}
                         >
-                            {loading ? <Spinner animation="border" size="sm" /> : '+ Tambah Kantong'}
+                            {loading ? <Spinner animation="border" size="sm" /> : (isEdit ? 'Simpan Perubahan' : '+ Tambah Kantong')}
                         </Button>
                     </Form>
                 </Modal.Body>

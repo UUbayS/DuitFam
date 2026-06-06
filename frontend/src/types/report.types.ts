@@ -5,6 +5,7 @@ export interface MonthlySummary {
     neto: number; // Pemasukan - Pengeluaran
     saldoAkhir: number;
     saldoBulanLalu?: number; // Saldo penutupan bulan sebelumnya
+    username?: string;
     persentasePemasukan?: number;
     persentasePengeluaran?: number;
 }
@@ -20,8 +21,9 @@ export interface TransactionHistoryItem { // <-- TIPE DATA BARU
     created_at: string; 
     nama_kategori: string;
     icon_kategori?: string;
-    status?: 'berhasil';
+    status?: 'berhasil' | 'dibatalkan' | 'pending' | 'approved' | 'rejected';
     is_internal?: boolean;
+    is_recurring?: boolean;
 }
 
 export interface ReportCategory {

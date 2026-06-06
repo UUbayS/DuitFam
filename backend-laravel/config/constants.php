@@ -18,6 +18,7 @@ return [
         'pending' => 'pending',
         'approved' => 'approved',
         'rejected' => 'rejected',
+        'dibatalkan' => 'dibatalkan',
     ],
 
     'goal_status' => [

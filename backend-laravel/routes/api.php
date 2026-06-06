@@ -4,7 +4,9 @@ use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\ApprovalController;
 use App\Http\Controllers\Api\SpendingTipsController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\RecurringTransactionController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\TargetController;
 use App\Http\Controllers\Api\TransactionController;
@@ -23,6 +25,10 @@ Route::middleware("auth.token")->group(function () {
     Route::get("/auth/parent-status", [AuthController::class, "parentStatus"]);
 
     Route::post("/transactions", [TransactionController::class, "store"]);
+    Route::post("/transactions/bulk-cancel", [
+        TransactionController::class,
+        "bulkCancel",
+    ]);
     Route::post("/transactions/deposit", [
         TransactionController::class,
         "deposit",
@@ -39,6 +45,9 @@ Route::middleware("auth.token")->group(function () {
         ApprovalController::class,
         "action",
     ]);
+    Route::get("/transactions/{id}", [TransactionController::class, "show"]);
+    Route::put("/transactions/{id}", [TransactionController::class, "update"]);
+    Route::delete("/transactions/{id}", [TransactionController::class, "destroy"]);
 
     Route::get("/targets", [TargetController::class, "index"]);
     Route::post("/targets", [TargetController::class, "store"]);
@@ -75,6 +84,19 @@ Route::middleware("auth.token")->group(function () {
         "categories",
     ]);
 
+    Route::get("/budgets", [BudgetController::class, "index"]);
+    Route::post("/budgets", [BudgetController::class, "store"]);
+    Route::put("/budgets/{id}", [BudgetController::class, "update"]);
+    Route::delete("/budgets/{id}", [BudgetController::class, "destroy"]);
+    Route::get("/budgets/summary", [BudgetController::class, "summary"]);
+
+    Route::get("/recurring-transactions", [RecurringTransactionController::class, "index"]);
+    Route::post("/recurring-transactions", [RecurringTransactionController::class, "store"]);
+    Route::put("/recurring-transactions/{id}", [RecurringTransactionController::class, "update"]);
+    Route::delete("/recurring-transactions/{id}", [RecurringTransactionController::class, "destroy"]);
+    Route::post("/recurring-transactions/generate-all", [RecurringTransactionController::class, "generateAll"]);
+    Route::post("/recurring-transactions/{id}/generate", [RecurringTransactionController::class, "generate"]);
+
     Route::get("/reports/summary", [ReportController::class, "summary"]);
     Route::get("/reports/history", [ReportController::class, "history"]);
     Route::get("/reports/analysis", [ReportController::class, "analysis"]);
@@ -95,6 +117,12 @@ Route::middleware("auth.token")->group(function () {
         ReportController::class,
         "familyAnalysis",
     ]);
+    Route::get("/reports/family/analysis/pdf", [
+        ReportController::class,
+        "familyAnalysisPdf",
+    ]);
+
+    Route::get("/reports/export", [ReportController::class, "export"]);
 
     Route::get("/notifications", [NotificationController::class, "index"]);
     Route::patch("/notifications/{id}/read", [

@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
-    import { Row, Col, Card, Form, Button, Alert, Spinner, Modal } from 'react-bootstrap';
+    import { Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import MainLayout from '../components/MainLayout';
-import { PersonFill, KeyFill, CheckCircleFill, BoxArrowRight, XCircleFill } from 'react-bootstrap-icons';
+import { PersonFill, KeyFill, CheckCircleFill, BoxArrowRight, XCircleFill, MoonStarsFill, SunFill } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
-import * as AuthTypes from '../types/auth.types'; 
+import { useTheme } from '../context/ThemeContext';
+import * as AuthTypes from '../types/auth.types';
 import { updatePasswordService, updateProfileService } from '../services/user.service';
 import IconPengaturanBiru from '../assets/IconPengaturanBiru.svg';
 
 const SettingsPage = () => {
     const { user, setUser, handleLogout } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     
     const inputStyle = {
         borderRadius: '12px',
         padding: '0.75rem 1rem',
-        border: '1px solid #e2e8f0',
-        backgroundColor: '#f8fafc',
+        border: '1px solid var(--border-light)',
+        backgroundColor: 'var(--bg-input)',
     };
 
     // State Password
@@ -207,6 +209,30 @@ const SettingsPage = () => {
                                     {passwordLoading ? <Spinner size="sm" /> : 'Ubah Kata Sandi'}
                                 </Button>
                             </Form>
+                        </Card.Body>
+                    </Card>
+                </Col>
+
+                <Col lg={12} className="mb-4">
+                    <Card className="shadow-sm border-0" style={{ borderRadius: '25px' }}>
+                        <Card.Body className="p-4 d-md-flex align-items-center justify-content-between">
+                            <div className="mb-3 mb-md-0 d-flex align-items-center">
+                                <div className="bg-primary bg-opacity-10 p-2 rounded-3 me-3 text-primary">
+                                    {theme === 'dark' ? <MoonStarsFill size={20} /> : <SunFill size={20} />}
+                                </div>
+                                <div>
+                                    <h5 className="fw-bold text-primary mb-1">Tampilan</h5>
+                                    <p className="text-muted small mb-0">Aktifkan mode gelap untuk tampilan yang lebih nyaman di mata.</p>
+                                </div>
+                            </div>
+                            <Form.Check
+                                type="switch"
+                                id="dark-mode-switch"
+                                label={theme === 'dark' ? 'Mode Gelap' : 'Mode Terang'}
+                                checked={theme === 'dark'}
+                                onChange={toggleTheme}
+                                className="fs-6 fw-semibold"
+                            />
                         </Card.Body>
                     </Card>
                 </Col>

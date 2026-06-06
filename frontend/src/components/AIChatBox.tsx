@@ -40,8 +40,6 @@ interface AIChatBoxProps {
 }
 
 const AIChatBox: React.FC<AIChatBoxProps> = ({ hidden }) => {
-    if (hidden) return null;
-
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
@@ -80,7 +78,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ hidden }) => {
             setFinancialData({
                 summary,
                 analysis,
-                recentTransactions: recentTransactions.slice(0, 10),
+                recentTransactions: recentTransactions.data.slice(0, 10),
                 isLoading: false,
             });
 
@@ -107,6 +105,8 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ hidden }) => {
             fetchFinancialData();
         }
     }, [isOpen, fetchFinancialData]);
+
+    if (hidden) return null;
 
     const formatCurrency = (amount: number): string => {
         return new Intl.NumberFormat("id-ID", {

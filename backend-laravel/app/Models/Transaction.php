@@ -20,6 +20,7 @@ class Transaction extends Model
         'keterangan',
         'source_id',
         'is_internal',
+        'is_recurring',
     ];
 
     public function category()
