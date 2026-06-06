@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { ArrowClockwise, ExclamationTriangle, PiggyBank, Wallet, BarChart, ExclamationCircle, Robot } from "react-bootstrap-icons";
+import { ArrowClockwise, ExclamationTriangle, PiggyBank, Wallet, BarChart, ExclamationCircle, Robot, ChevronDown, ChevronUp } from "react-bootstrap-icons";
 import { getSpendingTips } from "../services/report.service";
 import type { SpendingTipsResponse, SpendingTip } from "../types/spending-tips.types";
 import Button from "react-bootstrap/Button";
@@ -19,6 +19,7 @@ const SmartSpendingTips: React.FC = () => {
         saving_tips: true,
         warnings: true,
     });
+    const [isOpen, setIsOpen] = useState(false);
 
     const fetchTips = useCallback(async () => {
         setLoading(true);
@@ -119,76 +120,90 @@ const SmartSpendingTips: React.FC = () => {
 
     return (
         <Card className="border-0 shadow mb-4">
-            <Card.Header className="bg-primary bg-opacity-10 border-primary border-opacity-25 d-flex align-items-center justify-content-between">
+            <Card.Header 
+                className="bg-primary bg-opacity-10 border-primary border-opacity-25 d-flex align-items-center justify-content-between"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setIsOpen(!isOpen)}
+            >
                 <div className="d-flex align-items-center">
                     <Robot className="me-2 text-primary" size={20} />
                     <h5 className="mb-0 fw-semibold">Smart Spending Tips</h5>
                 </div>
-<Button 
-    variant="outline-primary" 
-    size="sm"
-    onClick={fetchTips}
-    disabled={loading}
->
-    <ArrowClockwise size={14} className="me-1" />
-    Refresh
-</Button>
+                <div className="d-flex align-items-center gap-2">
+                    <Button 
+                        variant="outline-primary" 
+                        size="sm"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            fetchTips();
+                        }}
+                        disabled={loading}
+                    >
+                        <ArrowClockwise size={14} />
+                        <span className="desktop-only m-1">Refresh</span>
+                    </Button>
+                    {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </div>
             </Card.Header>
-            <Card.Body>
-                {error && (
-                    <Alert variant="danger" className="small">
-                        {error}
-                    </Alert>
-                )}
-                
-                {tipsData?.error && (
-                    <Alert variant="warning" className="small">
-                        {tipsData.error}
-                    </Alert>
-                )}
+            <Collapse in={isOpen}>
+                <div>
+                    <Card.Body>
+                        {error && (
+                            <Alert variant="danger" className="small">
+                                {error}
+                            </Alert>
+                        )}
+                        
+                        {tipsData?.error && (
+                            <Alert variant="warning" className="small">
+                                {tipsData.error}
+                            </Alert>
+                        )}
 
-                {tipsData?.tips && (
-                    <>
-                    {renderCategory(
-                        "Anggaran",
-                        <Wallet className="text-primary" size={18} />,
-                        tipsData.tips.budget_tips,
-                        "budget_tips",
-                        "primary"
-                    )}
-                    
-                    {renderCategory(
-                        "Kategori Pengeluaran",
-                        <BarChart className="text-info" size={18} />,
-                        tipsData.tips.category_tips,
-                        "category_tips",
-                        "info"
-                    )}
-                    
-                    {renderCategory(
-                        "Menabung",
-                        <PiggyBank className="text-success" size={18} />,
-                        tipsData.tips.saving_tips,
-                        "saving_tips",
-                        "success"
-                    )}
-                    
-                    {renderCategory(
-                        "Peringatan",
-                        <ExclamationTriangle className="text-danger" size={18} />,
-                        tipsData.tips.warnings,
-                        "warnings",
-                        "danger"
-                    )}
-                    </>
-                )}
+                        {tipsData?.tips && (
+                            <>
+                            {renderCategory(
+                                "Anggaran",
+                                <Wallet className="text-primary" size={18} />,
+                                tipsData.tips.budget_tips,
+                                "budget_tips",
+                                "primary"
+                            )}
+                            
+                            {renderCategory(
+                                "Kategori Pengeluaran",
+                                <BarChart className="text-info" size={18} />,
+                                tipsData.tips.category_tips,
+                                "category_tips",
+                                "info"
+                            )}
+                            
+                            {renderCategory(
+                                "Menabung",
+                                <PiggyBank className="text-success" size={18} />,
+                                tipsData.tips.saving_tips,
+                                "saving_tips",
+                                "success"
+                            )}
+                            
+                            {renderCategory(
+                                "Peringatan",
+                                <ExclamationTriangle className="text-danger" size={18} />,
+                                tipsData.tips.warnings,
+                                "warnings",
+                                "danger"
+                            )}
+                            </>
+                        )}
 
-                {tipsData?.cached && (
-                    <p className="text-muted small text-center mt-3 mb-0">
-                        Tips terakhir diperbarui: {new Date(tipsData.generated_at).toLocaleString('id-ID')}
-                    </p>
-                )}
-            </Card.Body>
+                        {tipsData?.cached && (
+                            <p className="text-muted small text-center mt-3 mb-0">
+                                Tips terakhir diperbarui: {new Date(tipsData.generated_at).toLocaleString('id-ID')}
+                            </p>
+                        )}
+                    </Card.Body>
+                </div>
+            </Collapse>
         </Card>
     );
 };

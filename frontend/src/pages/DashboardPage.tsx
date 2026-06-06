@@ -299,7 +299,7 @@ const renderPercentageBadge = (data: ReportTypes.MonthlySummary | null) => {
             {isParent && (
                 <Card className="border-0 shadow-sm mb-3" style={{ borderRadius: 15, backgroundColor: '#f8f9fa' }}>
                     <Card.Body className="p-2">
-                        <div className="d-flex gap-2 justify-content-center">
+                        <div className="d-flex gap-2">
                             {([
                                 { key: 'semua', label: 'Semua Keluarga', icon: PeopleFill },
                                 { key: 'ortu', label: 'Orang Tua', icon: PersonWorkspace },

@@ -260,7 +260,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
                                     textDecoration: 'none',
                                     fontWeight: 'bold',
                                     fontSize: '11px',
-                                    padding: '8px 0',
+                                    padding: '6px 0',
                                     borderRadius: 10,
                                     transition: '0.3s'
                                 }}
@@ -320,14 +320,11 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onTransactionAd
             </Card>
         )}
 
-        <div className="mb-3">
-        </div>
-
         <Form.Select
             size="sm"
             value={filter}
             onChange={handleFilterChange}
-            className="border-0 shadow-sm mb-4"
+            className="border-0 shadow-sm mb-3"
             style={{ borderRadius: 12, fontSize: '13px', backgroundColor: '#fff', padding: '12px', flexShrink: 0 }}
         >
             <option value="all">Semua Transaksi</option>

@@ -58,7 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick }) => {
         height: '100%', 
         backgroundColor: 'var(--primary-color)', 
         padding: '20px 0 20px 0', 
-        overflowY: 'auto', 
       }}
       className="d-flex flex-column" 
     >
@@ -117,7 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick }) => {
            ) : (
              <span
                  className="me-3 d-flex align-items-center justify-content-center"
-                 style={{ width: 20, height: 20, color: isActive(item.to) ? '#0d6efd' : '#fff' }}
+                 style={{ width: 16, height: 16, color: isActive(item.to) ? '#0d6efd' : '#fff' }}
              >
                  {React.createElement((isActive(item.to) ? item.icon.active : item.icon.inactive) as React.ComponentType<{ size?: number }>, { size: 18 })}
              </span>

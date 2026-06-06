@@ -295,20 +295,20 @@ const formatRupiah = (amount: number) => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="d-flex gap-2" onClick={(e) => e.stopPropagation()}>
-                                            <Button
-                                                variant="outline-danger"
-                                                onClick={() => openDeleteConfirm(c.id, c.username)}
-                                                style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', backgroundColor: 'rgba(220, 53, 69, 0.1)', color: '#dc3545' }}
-                                            >
-                                                <Trash size={20} />
-                                            </Button>
+                                        <div className="d-flex flex-column justify-content-between gap-4" onClick={(e) => e.stopPropagation()}>
                                             <Button
                                                 variant="primary"
                                                 onClick={() => openDeposit(c.id)}
                                                 style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                             >
                                                 <Plus size={32} />
+                                            </Button>
+                                            <Button
+                                                variant="outline-danger"
+                                                onClick={() => openDeleteConfirm(c.id, c.username)}
+                                                style={{ width: 48, height: 48, borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', backgroundColor: 'rgba(220, 53, 69, 0.1)', color: '#dc3545' }}
+                                            >
+                                                <Trash size={20} />
                                             </Button>
                                         </div>
                                     </div>

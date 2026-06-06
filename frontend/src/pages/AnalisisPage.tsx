@@ -469,37 +469,6 @@ const AnalisisPage = () => {
                     <div className="px-2 px-md-3 fw-bold text-dark text-nowrap" style={{ fontSize: 13 }}>{period.display}</div>
                     <Button variant="link" onClick={() => navigate('next')} className="text-primary p-1" disabled={unit === 'custom'}><ArrowRightShort size={24} /></Button>
                 </div>
-
-                {user?.role === 'parent' && (
-                    <Button
-                        variant="outline-primary"
-                        onClick={handleDownloadPdf}
-                        disabled={pdfLoading || unit === 'custom'}
-                        className="ms-2"
-                    >
-                        {pdfLoading ? (
-                            <>
-                                <Spinner animation="border" size="sm" className="me-2" />
-                                Menyiapkan PDF...
-                            </>
-                        ) : (
-                            'Unduh PDF'
-                        )}
-                    </Button>
-                )}
-
-                <Button
-                    variant="outline-success"
-                    onClick={() => {
-                        setExportError(null);
-                        setShowExportModal(true);
-                    }}
-                    className="ms-2"
-                    title="Export daftar transaksi ke CSV"
-                >
-                    ⬇ Export
-                </Button>
-                {pdfError && <div className="text-danger small mt-2">{pdfError}</div>}
             </div>
 
             {unit === 'custom' && (
@@ -533,82 +502,77 @@ const AnalisisPage = () => {
             )}
 
             {isParent && (
-                <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 15, backgroundColor: '#f8f9fa' }}>
+                <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 15, backgroundColor: '#fdfdfd' }}>
                     <Card.Body className="p-3">
-                        <div className="d-flex flex-wrap gap-2 align-items-center">
-                            <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>TAMPILKAN:</span>
-                            {([
-                                { key: 'semua', label: 'Semua Keluarga', icon: PeopleFill },
-                                { key: 'ortu', label: 'Orang Tua', icon: PersonWorkspace },
-                                { key: 'anak', label: 'Anak-anak', icon: PersonFill }
-                            ] as const).map(({ key, label, icon: Icon }) => (
-                                <Button
-                                    key={key}
-                                    variant={viewFilter === key ? 'primary' : 'outline-primary'}
-                                    size="sm"
-                                    onClick={() => setViewFilter(key)}
-                                    className="rounded-pill d-flex align-items-center gap-2"
-                                    style={{ fontSize: 12, fontWeight: 600 }}
-                                >
-                                    <Icon size={14} />
-                                    {label}
-                                </Button>
-                            ))}
+                        <div className="d-flex flex-wrap gap-4">
+                            <div className="d-flex flex-wrap gap-2 align-items-center">
+                                <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>TAMPILKAN:</span>
+                                {([
+                                    { key: 'semua', label: 'Semua Keluarga', icon: PeopleFill },
+                                    { key: 'ortu', label: 'Orang Tua', icon: PersonWorkspace },
+                                    { key: 'anak', label: 'Anak-anak', icon: PersonFill }
+                                ] as const).map(({ key, label, icon: Icon }) => (
+                                    <Button
+                                        key={key}
+                                        variant={viewFilter === key ? 'primary' : 'outline-primary'}
+                                        size="sm"
+                                        onClick={() => setViewFilter(key)}
+                                        className="rounded-pill d-flex align-items-center gap-2"
+                                        style={{ fontSize: 12, fontWeight: 600 }}
+                                    >
+                                        <Icon size={14} />
+                                        {label}
+                                    </Button>
+                                ))}
+                            </div>
+                            <div className="d-flex flex-wrap gap-2 align-items-center">
+                                <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>JENIS:</span>
+                                {([
+                                    { key: 'semua', label: 'Semua' },
+                                    { key: 'pemasukan', label: 'Pemasukan' },
+                                    { key: 'pengeluaran', label: 'Pengeluaran' }
+                                ] as const).map(({ key, label }) => (
+                                    <Button
+                                        key={key}
+                                        variant={typeFilter === key ? 'success' : 'outline-success'}
+                                        size="sm"
+                                        onClick={() => setTypeFilter(key)}
+                                        className="rounded-pill"
+                                        style={{ fontSize: 12, fontWeight: 600 }}
+                                    >
+                                        {label}
+                                    </Button>
+                                ))}
+                            </div> 
                         </div>
+                        {typeFilter !== 'semua' && (
+                            <div className="d-flex flex-wrap gap-2 align-items-center mt-3 pt-3 border-top">
+                                <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>KATEGORI:</span>
+                                <Form.Select
+                                    value={selectedCategory}
+                                    onChange={(e) => setSelectedCategory(e.target.value)}
+                                    style={{ 
+                                        borderRadius: 10, 
+                                        fontSize: 13, 
+                                        border: '1px solid #dee2e6',
+                                        maxWidth: 250,
+                                        padding: '6px 12px'
+                                    }}
+                                >
+                                    <option value="">Semua kategori</option>
+                                    {categories
+                                        .filter(cat => cat.jenis === typeFilter)
+                                        .map(cat => (
+                                            <option key={cat.id_kategori} value={cat.nama_kategori}>
+                                                {cat.nama_kategori}
+                                            </option>
+                                        ))}
+                                </Form.Select>
+                            </div>
+                        )}
                     </Card.Body>
                 </Card>
             )}
-
-            <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 15, backgroundColor: '#f8f9fa' }}>
-                <Card.Body className="p-3">
-                    <div className="d-flex flex-wrap gap-2 align-items-center">
-                        <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>JENIS:</span>
-                        {([
-                            { key: 'semua', label: 'Semua' },
-                            { key: 'pemasukan', label: 'Pemasukan' },
-                            { key: 'pengeluaran', label: 'Pengeluaran' }
-                        ] as const).map(({ key, label }) => (
-                            <Button
-                                key={key}
-                                variant={typeFilter === key ? 'success' : 'outline-success'}
-                                size="sm"
-                                onClick={() => setTypeFilter(key)}
-                                className="rounded-pill"
-                                style={{ fontSize: 12, fontWeight: 600 }}
-                            >
-                                {label}
-                            </Button>
-                        ))}
-                    </div>
-                    
-                    {typeFilter !== 'semua' && (
-                        <div className="d-flex flex-wrap gap-2 align-items-center mt-3 pt-3 border-top">
-                            <span className="small fw-bold text-muted me-2" style={{ fontSize: 12 }}>KATEGORI:</span>
-                            <Form.Select
-                                value={selectedCategory}
-                                onChange={(e) => setSelectedCategory(e.target.value)}
-                                style={{ 
-                                    borderRadius: 10, 
-                                    fontSize: 13, 
-                                    border: '1px solid #dee2e6',
-                                    maxWidth: 250,
-                                    padding: '6px 12px'
-                                }}
-                            >
-                                <option value="">Semua kategori</option>
-                                {categories
-                                    .filter(cat => cat.jenis === typeFilter)
-                                    .map(cat => (
-                                        <option key={cat.id_kategori} value={cat.nama_kategori}>
-                                            {cat.nama_kategori}
-                                        </option>
-                                    ))}
-                            </Form.Select>
-                        </div>
-                    )}
-                </Card.Body>
-            </Card>
-
             <Row className="g-4 mb-5">
                 <Col md={4}>
                     <Card className="border-0 shadow-sm h-100" style={{ borderRadius: 25, borderBottom: '5px solid #28a745' }}>
@@ -636,7 +600,7 @@ const AnalisisPage = () => {
                 </Col>
             </Row>
 
-            <Card className="border-0 shadow-sm mb-5" style={{ borderRadius: 25 }}>
+            <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 25 }}>
                 <Card.Body className="p-4">
                     <div className="fw-bold mb-4 text-dark" style={{ fontSize: 22 }}>Grafik Keuangan</div>
                     <div style={{ minHeight: 300 }}>
@@ -644,6 +608,39 @@ const AnalisisPage = () => {
                     </div>
                 </Card.Body>
             </Card>
+
+            <div className="d-flex mb-5 align-items-center justify-content-end">
+                {user?.role === 'parent' && (
+                    <Button
+                        variant="outline-primary"
+                        onClick={handleDownloadPdf}
+                        disabled={pdfLoading || unit === 'custom'}
+                        className="ms-2"
+                    >
+                        {pdfLoading ? (
+                            <>
+                                <Spinner animation="border" size="sm" className="me-2" />
+                                Menyiapkan PDF...
+                            </>
+                        ) : (
+                            'Unduh PDF'
+                        )}
+                    </Button>
+                )}
+
+                <Button
+                    variant="outline-success"
+                    onClick={() => {
+                        setExportError(null);
+                        setShowExportModal(true);
+                    }}
+                    className="ms-2"
+                    title="Export daftar transaksi ke CSV"
+                >
+                    ⬇ Export
+                </Button>
+                {pdfError && <div className="text-danger small mt-2">{pdfError}</div>}
+            </div>
 
             <SmartSpendingTips />
 
