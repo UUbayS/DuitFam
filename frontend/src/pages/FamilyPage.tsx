@@ -65,7 +65,9 @@ const formatRupiah = (amount: number) => {
     const [txActionMessage, setTxActionMessage] = useState<{ type: 'success' | 'danger', text: string } | null>(null);
 
     const apiParam = useMemo(() => {
-        const base: Record<string, any> = { ...period.apiParam, child_id: selectedChildId ?? undefined };
+        const base: Record<string, any> = selectedChildId
+            ? { ...period.apiParam, child_id: selectedChildId }
+            : { ...period.apiParam, group: 'anak' };
         base.page = currentPage;
         base.per_page = perPage;
         return base;
@@ -74,9 +76,13 @@ const formatRupiah = (amount: number) => {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
+            const chartParams = selectedChildId
+                ? { child_id: selectedChildId, ...period.apiParam }
+                : { group: 'anak', ...period.apiParam };
+
             const [s, hist, kids, history] = await Promise.all([
-                fetchFamilyMonthlySummary({ child_id: selectedChildId ?? undefined, ...period.apiParam }),
-                fetchFamilyHistoricalData({ child_id: selectedChildId ?? undefined, ...period.apiParam }),
+                fetchFamilyMonthlySummary(chartParams),
+                fetchFamilyHistoricalData(chartParams),
                 fetchChildrenBalancesService(),
                 fetchFamilyTransactionHistory(apiParam),
             ]);
