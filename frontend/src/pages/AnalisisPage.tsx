@@ -502,7 +502,7 @@ const AnalisisPage = () => {
             )}
 
             {isParent && (
-                <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: 15, backgroundColor: '#fdfdfd' }}>
+                <Card className="border-0 shadow-sm mb-4 bg-white" style={{ borderRadius: 15 }}>
                     <Card.Body className="p-3">
                         <div className="d-flex flex-wrap gap-4">
                             <div className="d-flex flex-wrap gap-2 align-items-center">
